@@ -1,0 +1,40 @@
+name: Auto-merge PRs to main
+
+# Arme le merge automatique sur toute PR ciblant main dès son ouverture (ou
+# sa mise à jour) : une fois "Quality checks" au vert (obligatoire, voir
+# ci.yml + protection de branche classique sur main), GitHub la merge de
+# lui-même, sans intervention manuelle. Volontairement restreint à main —
+# develop reste gated manuellement (workflow Git, CLAUDE.md), ce workflow ne
+# se déclenche jamais dessus.
+#
+# Complète le job "auto-merge-release-pr" de release.yml, qui n'arme
+# l'auto-merge que sur la PR ouverte par Release Please elle-même : celui-ci
+# couvre toute autre PR vers main, notamment les PR de synchronisation
+# develop -> main ouvertes manuellement.
+#
+# token: RELEASE_PLEASE_TOKEN (PAT), pas le GITHUB_TOKEN par défaut — même
+# raison que release.yml (voir son commentaire sur auto-merge-release-pr) :
+# un merge effectué avec le GITHUB_TOKEN par défaut ne déclenche aucun autre
+# workflow. Avec le GITHUB_TOKEN par défaut, le merge automatique d'une PR
+# develop -> main fonctionnait bien, mais le push qui en résultait sur main
+# ne relançait pas Release Please (constaté : la PR #146 a bien été mergée
+# automatiquement, mais aucune nouvelle release n'a été proposée ensuite).
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, ready_for_review]
+    branches: [main]
+
+permissions:
+  pull-requests: write
+  contents: write
+
+jobs:
+  auto-merge:
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    steps:
+      - name: Enable auto-merge
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: gh pr merge "${{ github.event.pull_request.number }}" --merge --auto

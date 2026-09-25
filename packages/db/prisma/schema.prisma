@@ -1,0 +1,11 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Modèles ajoutés au fil des fonctionnalités, un par entité de
+// docs/domain/model.md (voir docs/adr/0009-postgresql-and-prisma.md).

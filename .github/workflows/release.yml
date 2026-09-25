@@ -1,0 +1,85 @@
+name: Release Please
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    outputs:
+      release_created: ${{ steps.release.outputs['apps/web--release_created'] }}
+      prs_created: ${{ steps.release.outputs['apps/web--prs_created'] || steps.release.outputs.prs_created }}
+      pr: ${{ steps.release.outputs['apps/web--pr'] || steps.release.outputs.pr }}
+    steps:
+      - name: Release Please
+        id: release
+        uses: googleapis/release-please-action@v4
+        with:
+          config-file: .release-please-config.json
+          manifest-file: .release-please-manifest.json
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+
+  auto-merge-release-pr:
+    needs: release-please
+    if: needs.release-please.outputs.prs_created == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Enable auto-merge for the release PR
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          PR_JSON: ${{ needs.release-please.outputs.pr }}
+        run: |
+          pr_number=$(echo "$PR_JSON" | jq -r '.number // empty')
+          if [ -z "$pr_number" ]; then
+            echo "No PR number found in release-please output (PR_JSON='$PR_JSON'), skipping auto-merge."
+            exit 0
+          fi
+          gh pr merge "$pr_number" --merge --auto --repo "$GH_REPO"
+
+  sync-develop:
+    needs: release-please
+    if: needs.release-please.outputs.release_created == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+          fetch-depth: 0
+
+      - name: Merge main into develop and open a sync PR
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git fetch origin main develop
+
+          if git diff --quiet origin/main origin/develop; then
+            echo "develop already in sync with main, nothing to do"
+            exit 0
+          fi
+
+          branch="chore/sync-develop-after-release"
+          git checkout -b "$branch" origin/develop
+          git merge origin/main --no-edit
+          git push origin "$branch" --force
+
+          gh pr create --base develop --head "$branch" \
+            --title "chore: sync develop with main after release" \
+            --body "Synchronisation automatique après une release (voir docs/decisions/006-versioning.md)." \
+            || echo "PR already exists for this branch, continuing"
+
+          for attempt in 1 2 3 4 5; do
+            if gh pr merge "$branch" --merge --auto; then
+              break
+            fi
+            echo "gh pr merge --auto failed (attempt $attempt/5), retrying in 10s..."
+            sleep 10
+          done

@@ -1,0 +1,29 @@
+{
+  "name": "budget-planner",
+  "private": true,
+  "packageManager": "pnpm@10.32.1",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "pnpm --filter web dev",
+    "build": "pnpm -r run build",
+    "lint": "biome check .",
+    "format": "biome format --write .",
+    "typecheck": "pnpm -r run typecheck",
+    "test": "pnpm -r run test",
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.5.14",
+    "husky": "^9.1.7",
+    "lint-staged": "^15.5.2",
+    "typescript": "^5.9.3",
+    "vitest": "^5.0.2"
+  },
+  "lint-staged": {
+    "*.{js,jsx,ts,tsx,json,md,css}": [
+      "biome check --write --no-errors-on-unmatched"
+    ]
+  }
+}

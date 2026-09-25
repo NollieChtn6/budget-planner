@@ -12,23 +12,10 @@ jobs:
   release-please:
     runs-on: ubuntu-latest
     outputs:
-      # En mode manifest (packages: {...} dans .release-please-config.json,
-      # même avec un seul package), les outputs sont préfixés par le chemin
-      # du package — pas de sortie "release_created"/"prs_created"/"pr" à
-      # plat. Fallback sur la version non préfixée par prudence (le nom
-      # exact des sorties path-prefixées n'est pas garanti pour prs_created/
-      # pr par la doc de l'action, seulement documenté pour
-      # release_created/tag_name/version).
       release_created: ${{ steps.release.outputs['apps/web--release_created'] }}
       prs_created: ${{ steps.release.outputs['apps/web--prs_created'] || steps.release.outputs.prs_created }}
       pr: ${{ steps.release.outputs['apps/web--pr'] || steps.release.outputs.pr }}
     steps:
-      # token: RELEASE_PLEASE_TOKEN (PAT), pas le GITHUB_TOKEN par défaut —
-      # un push/une PR créés avec GITHUB_TOKEN ne déclenchent aucun autre
-      # workflow (protection anti-boucle infinie de GitHub), donc "Quality
-      # checks" (obligatoire pour merger, voir ci.yml) ne tournait jamais
-      # sur la Release PR. Avec un PAT, elle se comporte comme n'importe
-      # quelle PR humaine.
       - name: Release Please
         id: release
         uses: googleapis/release-please-action@v4
@@ -37,20 +24,6 @@ jobs:
           manifest-file: .release-please-manifest.json
           token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
 
-  # Merge automatique de la Release PR elle-même (demande explicite : "notre
-  # process doit permettre des releases automatiques lorsque l'on déploie un
-  # truc sur main"). Sans ce job, release-please ouvre/actualise la PR à
-  # chaque push sur main mais ne la merge jamais — quelqu'un devait le faire
-  # à la main à chaque fois (voir #89). token PAT (comme le job
-  # release-please) : nécessaire pour que "Quality checks" (obligatoire pour
-  # merger, voir ci.yml) tourne sur cette PR. --auto attend que Quality
-  # checks passe avant de merger réellement (nécessite "Allow auto-merge"
-  # activé sur le repo, Settings > General — déjà utilisé par sync-develop
-  # ci-dessous). Pas de `actions/checkout` ici (contrairement à
-  # sync-develop) : `gh pr merge` n'a besoin d'aucun fichier du dépôt, juste
-  # de savoir quel repo cibler — GH_REPO le lui donne explicitement (sans
-  # ça, "fatal: not a git repository", constaté au premier run réel de ce
-  # job, #97).
   auto-merge-release-pr:
     needs: release-please
     if: needs.release-please.outputs.prs_created == 'true'
@@ -69,12 +42,6 @@ jobs:
           fi
           gh pr merge "$pr_number" --merge --auto --repo "$GH_REPO"
 
-  # Après le merge de la Release PR sur main (donc uniquement quand une
-  # release vient réellement d'être publiée), main avance de package.json/
-  # CHANGELOG.md/.release-please-manifest.json sans que develop ne les
-  # reçoive automatiquement — voir docs/decisions/006-versioning.md. Ce job
-  # fait ce backmerge à la place d'une resynchronisation manuelle à chaque
-  # fois.
   sync-develop:
     needs: release-please
     if: needs.release-please.outputs.release_created == 'true'
@@ -104,21 +71,11 @@ jobs:
           git merge origin/main --no-edit
           git push origin "$branch" --force
 
-          # Nécessite "Create a merge commit" pour préserver l'ascendance
-          # partagée (voir docs/decisions/006-versioning.md) : un squash/
-          # rebase automatique referait diverger develop/main. --auto attend
-          # que Quality checks passe avant de merger (nécessite "Allow
-          # auto-merge" activé sur le repo, Settings > General).
           gh pr create --base develop --head "$branch" \
             --title "chore: sync develop with main after release" \
             --body "Synchronisation automatique après une release (voir docs/decisions/006-versioning.md)." \
             || echo "PR already exists for this branch, continuing"
 
-          # GitHub met parfois quelques secondes à calculer la mergeabilité
-          # d'une PR fraîchement créée : sur cette fenêtre, activer
-          # auto-merge échoue avec "Pull request is in unstable status"
-          # (constaté au premier run réel de ce job, #98) alors que la PR
-          # elle-même est valide. Quelques tentatives espacées suffisent.
           for attempt in 1 2 3 4 5; do
             if gh pr merge "$branch" --merge --auto; then
               break

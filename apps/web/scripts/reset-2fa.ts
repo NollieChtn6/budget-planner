@@ -19,7 +19,8 @@ export async function resetTwoFactor(prisma: PrismaClient, email: string) {
 }
 
 async function main() {
-  await import("dotenv/config");
+  const { config } = await import("dotenv");
+  config();
   const { parseArgs } = await import("node:util");
   const { prisma } = await import("@budget/db");
 

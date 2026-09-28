@@ -40,7 +40,8 @@ export async function createUser(
 }
 
 async function main() {
-  await import("dotenv/config");
+  const { config } = await import("dotenv");
+  config();
   const { parseArgs } = await import("node:util");
   const { auth } = await import("@/lib/auth");
   const { promptHidden } = await import("./lib/prompt");

@@ -25,18 +25,23 @@ Le domaine n'importe jamais `@budget/db` ni Next.js ; `@budget/db` n'importe jam
 ```
 apps/web/
   app/
+    api/auth/[...all]/route.ts  point d'entrée HTTP de Better Auth (sign-in, 2FA…)
     (auth)/sign-in/          connexion
+    (auth)/verify-2fa/       vérification du second facteur à la reconnexion
+    (auth)/enroll-2fa/       enrôlement TOTP forcé à la première connexion
     (app)/                   pages protégées
       page.tsx               dashboard du mois
       months/[month]/        ouverture, clôture, opérations d'un mois
       settings/              postes fixes, enveloppes, provisions, catégories
   actions/                   Server Actions, une par intention (addExpense, openMonth…)
   schemas/                   schémas Zod des entrées
-  lib/auth.ts                configuration Better Auth
+  lib/auth.ts                configuration Better Auth (serveur)
+  lib/auth-client.ts         client Better Auth (sign-in, 2FA, déconnexion, depuis le navigateur)
   lib/session.ts             récupération et vérification de la session
   components/                composants UI (shadcn/ui)
-  middleware.ts              redirection vers /sign-in si non connecté
+  proxy.ts                   redirection vers /sign-in si non connecté, vers /enroll-2fa si second facteur non configuré
   scripts/create-user.ts     création du compte unique
+  scripts/reset-2fa.ts       réinitialisation du second facteur (perte totale, voir ADR-0008)
 
 packages/domain/src/
   money.ts                   type Money et arrondis
@@ -92,7 +97,7 @@ Deux niveaux de validation coexistent : Zod vérifie que l'entrée est bien form
 
 ## Sécurité en couches
 
-- Le middleware redirige les visiteurs non connectés, mais **n'est jamais la seule protection** : chaque Server Action, Route Handler et page protégée revérifie la session.
+- `proxy.ts` (équivalent, depuis Next.js 16, du middleware — nommé ainsi pour tourner sur le runtime Node.js plutôt qu'Edge, requis ici par le hachage Argon2id natif) redirige les visiteurs non connectés vers `/sign-in`, et les sessions connectées sans second facteur configuré vers `/enroll-2fa` (voir [ADR-0008](../adr/0008-single-user-authentication.md)). Les routes `/sign-in` et `/verify-2fa` sont volontairement accessibles sans session : une vérification de second facteur en cours n'a pas encore de session Better Auth (voir ADR-0008). Ce garde-fou **n'est jamais la seule protection** : chaque Server Action, Route Handler et page protégée revérifie la session.
 - Les Server Actions sont des points d'entrée publics : elles valident systématiquement leurs arguments, même appelées depuis un formulaire de l'app.
 - Les secrets ne sont lus que côté serveur ; aucune variable sensible ne porte le préfixe `NEXT_PUBLIC_`.
 

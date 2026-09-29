@@ -28,6 +28,7 @@ Langage commun du projet. L'interface parle français, le code utilise les noms 
 | Réouverture | `reopenMonth()` | Action | Déverrouille le dernier mois clôturé pour corriger ses opérations. |
 | Version | `FixedEntryVersion`, `VariableEnvelopeVersion` | Entité | Valeur d'un poste fixe ou d'une enveloppe variable à partir d'un mois donné. |
 | Date d'effet | `effectiveFrom` | Attribut | Premier mois auquel s'applique une version. |
+| Date d'archivage | `archivedFrom` | Attribut | Premier mois à partir duquel un poste fixe, une enveloppe variable ou une provision archivé n'est plus proposé pour de nouvelles opérations (R8). |
 
 ## Revenus et postes fixes
 
@@ -57,7 +58,7 @@ Langage commun du projet. L'interface parle français, le code utilise les noms 
 
 | Terme | Code | Nature | Définition |
 |---|---|---|---|
-| Provision | `Provision` | Entité | Enveloppe alimentée par des versements pour financer une dépense future. |
+| Provision | `Provision` | Entité | Cagnotte alimentée par des versements pour financer une dépense future. |
 | Provision à échéance | `Provision.type = deadline` | Valeur d'énumération | Provision à constituer sur une durée donnée, pour une dépense datée. Ex. : orthodontie, vacances. |
 | Réserve | `Provision.type = reserve` | Valeur d'énumération | Provision sans échéance, maintenue à un plafond et réalimentée après usage. Ex. : Imprévus, coussin vétérinaire. |
 | Objectif | `Provision.target` | Attribut | Montant à atteindre (échéance) ou plafond (réserve). |
@@ -82,4 +83,5 @@ Langage commun du projet. L'interface parle français, le code utilise les noms 
 | Versement | `Contribution` | Entité | Somme mise de côté dans une provision. |
 | Financé par l'épargne | `Expense.savingsDraw` / `savingsDraw` | Attribut / Valeur dérivée | Part d'une dépense sur provision qui excède son solde (attribut de la dépense), ou reliquat négatif d'un mois à sa clôture (valeur dérivée du mois). |
 | Répartition du reliquat | `LeftoverAllocation` | Entité | Affectation du reliquat, à la clôture, vers l'épargne ou une provision. |
-| Archiver | `archive()` | Action | Retire un élément du paramétrage sans effacer son historique. |
+| Archiver | `archive()` | Action | Fixe la date d'archivage (`archivedFrom`) d'un poste fixe, d'une enveloppe variable ou d'une provision, sans effacer son historique (R8). |
+| Désarchiver | `unarchive()` | Action | Annule l'archivage d'un élément tant que sa date d'archivage (`archivedFrom`) n'a pas encore pris effet (R8). |

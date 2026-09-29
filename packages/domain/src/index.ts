@@ -1,4 +1,20 @@
 export {
+  type AddVersionFailure,
+  type AddVersionInput,
+  type AddVersionResult,
+  type ArchiveFailure,
+  type ArchiveInput,
+  type ArchiveResult,
+  activeVersionAt,
+  addVersion,
+  archive,
+  type UnarchiveFailure,
+  type UnarchiveResult,
+  unarchive,
+  type VariableEnvelope,
+  type VariableEnvelopeVersion,
+} from "./budget/variable-envelope";
+export {
   addMoney,
   ceilDivideMoney,
   floorPercentageOf,
@@ -9,7 +25,6 @@ export {
   moneyToEuros,
   subtractMoney,
 } from "./money";
-
 export {
   compareMonths,
   formatMonth,

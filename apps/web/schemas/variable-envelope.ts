@@ -3,10 +3,10 @@ import { z } from "zod";
 const monthChoiceSchema = z.enum(["current", "next"]);
 
 const modeAndValueSchema = z.discriminatedUnion("mode", [
-  z.object({ mode: z.literal("amount"), amountEuros: z.coerce.number().positive() }),
+  z.object({ mode: z.literal("amount"), amountEuros: z.coerce.number().nonnegative() }),
   z.object({
     mode: z.literal("percentage"),
-    percentage: z.coerce.number().int().positive().max(100),
+    percentage: z.coerce.number().int().nonnegative().max(100),
   }),
 ]);
 

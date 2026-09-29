@@ -62,7 +62,7 @@ export function EnvelopeCard({ envelope }: { envelope: VariableEnvelope }) {
         </ul>
 
         <form action={addVersionAction} className="flex flex-col gap-3 border-t pt-3">
-          <input type="hidden" name="envelopeId" value={envelope.id} />
+          <Input type="hidden" name="envelopeId" value={envelope.id} />
           <FieldGroup>
             <Field>
               <FieldLabel htmlFor={`mode-${envelope.id}`}>Mode</FieldLabel>
@@ -132,7 +132,7 @@ export function EnvelopeCard({ envelope }: { envelope: VariableEnvelope }) {
 
         {envelope.archivedFrom ? (
           <form action={unarchiveAction} className="border-t pt-3">
-            <input type="hidden" name="envelopeId" value={envelope.id} />
+            <Input type="hidden" name="envelopeId" value={envelope.id} />
             {unarchiveState.status === "error" ? (
               <FieldError>{unarchiveState.message}</FieldError>
             ) : null}
@@ -142,7 +142,7 @@ export function EnvelopeCard({ envelope }: { envelope: VariableEnvelope }) {
           </form>
         ) : (
           <form action={archiveAction} className="flex flex-col gap-3 border-t pt-3">
-            <input type="hidden" name="envelopeId" value={envelope.id} />
+            <Input type="hidden" name="envelopeId" value={envelope.id} />
             <FieldGroup>
               <Field>
                 <FieldLabel htmlFor={`archive-effectiveFrom-${envelope.id}`}>

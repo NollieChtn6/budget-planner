@@ -47,37 +47,40 @@ export async function createVariableEnvelope(
   return toDomainVariableEnvelope(row);
 }
 
-async function requireOwnedEnvelope(
-  prisma: PrismaClient,
-  userId: string,
-  envelopeId: string,
-): Promise<void> {
-  const owned = await prisma.variableEnvelope.findFirst({ where: { id: envelopeId, userId } });
-  if (!owned) {
-    throw new Error(`Variable envelope ${envelopeId} not found for this user`);
-  }
-}
-
+/**
+ * Adds or replaces the version at this effectiveFrom. The update path is
+ * scoped by userId directly in its WHERE (ADR-0011); the create path can't
+ * be (Prisma create has no WHERE), so it's guarded by an explicit ownership
+ * check instead.
+ */
 export async function addVariableEnvelopeVersion(
   prisma: PrismaClient,
   userId: string,
   envelopeId: string,
   version: VariableEnvelopeVersion,
 ): Promise<VariableEnvelope> {
-  await requireOwnedEnvelope(prisma, userId, envelopeId);
-
   const data = toPrismaVersionData(version);
-  await prisma.variableEnvelopeVersion.upsert({
-    where: { envelopeId_effectiveFrom: { envelopeId, effectiveFrom: data.effectiveFrom } },
-    create: { envelopeId, ...data },
-    update: data,
+  const updated = await prisma.variableEnvelopeVersion.updateMany({
+    where: { envelopeId, effectiveFrom: data.effectiveFrom, envelope: { userId } },
+    data,
   });
 
-  const updated = await findVariableEnvelopeById(prisma, userId, envelopeId);
-  if (!updated) {
+  if (updated.count === 0) {
+    const owned = await prisma.variableEnvelope.findFirst({
+      where: { id: envelopeId, userId },
+      select: { id: true },
+    });
+    if (!owned) {
+      throw new Error(`Variable envelope ${envelopeId} not found for this user`);
+    }
+    await prisma.variableEnvelopeVersion.create({ data: { envelopeId, ...data } });
+  }
+
+  const result = await findVariableEnvelopeById(prisma, userId, envelopeId);
+  if (!result) {
     throw new Error(`Variable envelope ${envelopeId} not found for this user`);
   }
-  return updated;
+  return result;
 }
 
 export async function setVariableEnvelopeArchivedFrom(
@@ -86,16 +89,17 @@ export async function setVariableEnvelopeArchivedFrom(
   envelopeId: string,
   archivedFrom: Month | null,
 ): Promise<VariableEnvelope> {
-  await requireOwnedEnvelope(prisma, userId, envelopeId);
-
-  await prisma.variableEnvelope.update({
-    where: { id: envelopeId },
+  const updated = await prisma.variableEnvelope.updateMany({
+    where: { id: envelopeId, userId },
     data: { archivedFrom: archivedFrom ? monthToDate(archivedFrom) : null },
   });
-
-  const updated = await findVariableEnvelopeById(prisma, userId, envelopeId);
-  if (!updated) {
+  if (updated.count === 0) {
     throw new Error(`Variable envelope ${envelopeId} not found for this user`);
   }
-  return updated;
+
+  const result = await findVariableEnvelopeById(prisma, userId, envelopeId);
+  if (!result) {
+    throw new Error(`Variable envelope ${envelopeId} not found for this user`);
+  }
+  return result;
 }

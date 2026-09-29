@@ -112,6 +112,32 @@ describe("addVariableEnvelopeVersion", () => {
       expect(secondVersion.value).toBe(15);
     }
   });
+
+  it("rejects adding a version to another user's envelope", async () => {
+    const owner = await createTestUser(primaryEmail);
+    const attacker = await createTestUser(otherEmail);
+    const created = await createVariableEnvelope(prisma, owner.id, {
+      label: "Achats plaisir",
+      firstVersion: {
+        envelopeId: "pending",
+        effectiveFrom: parseMonth("2026-01"),
+        mode: "amount",
+        value: moneyFromEuros(80),
+      },
+    });
+
+    await expect(
+      addVariableEnvelopeVersion(prisma, attacker.id, created.id, {
+        envelopeId: created.id,
+        effectiveFrom: parseMonth("2026-02"),
+        mode: "amount",
+        value: moneyFromEuros(999),
+      }),
+    ).rejects.toThrow();
+
+    const untouched = await findVariableEnvelopeById(prisma, owner.id, created.id);
+    expect(untouched?.versions).toHaveLength(1);
+  });
 });
 
 describe("setVariableEnvelopeArchivedFrom", () => {
@@ -137,6 +163,27 @@ describe("setVariableEnvelopeArchivedFrom", () => {
 
     const unarchived = await setVariableEnvelopeArchivedFrom(prisma, user.id, created.id, null);
     expect(unarchived.archivedFrom).toBeUndefined();
+  });
+
+  it("rejects archiving another user's envelope", async () => {
+    const owner = await createTestUser(primaryEmail);
+    const attacker = await createTestUser(otherEmail);
+    const created = await createVariableEnvelope(prisma, owner.id, {
+      label: "Vie quotidienne",
+      firstVersion: {
+        envelopeId: "pending",
+        effectiveFrom: parseMonth("2026-01"),
+        mode: "amount",
+        value: moneyFromEuros(150),
+      },
+    });
+
+    await expect(
+      setVariableEnvelopeArchivedFrom(prisma, attacker.id, created.id, parseMonth("2026-03")),
+    ).rejects.toThrow();
+
+    const untouched = await findVariableEnvelopeById(prisma, owner.id, created.id);
+    expect(untouched?.archivedFrom).toBeUndefined();
   });
 });
 

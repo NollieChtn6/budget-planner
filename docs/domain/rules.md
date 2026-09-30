@@ -25,7 +25,7 @@ Chaque règle a un identifiant stable, référencé dans la spec, le code et les
 - Mois suivant : le mois ouvert n'est pas touché.
 - Les mois clôturés ne sont jamais affectés (R6).
 
-**R8.** Supprimer un élément qui apparaît dans un mois existant l'archive au lieu de l'effacer. Un élément sans historique est réellement supprimé.
+**R8.** Supprimer un poste fixe, une enveloppe variable ou une provision qui apparaît dans un mois existant l'archive au lieu de l'effacer ; un élément sans historique est réellement supprimé. L'archivage fixe une date d'effet `archivedFrom`, choisie comme pour une modification de paramétrage (R7) : le mois en cours, seulement si l'élément n'a encore aucune opération (dépense, versement ou pointage) ce mois-là, sinon le mois suivant. *Tant que `BudgetMonth` n'existe pas, cette vérification est toujours vraie : l'archivage au mois en cours reste donc toujours autorisé.* À partir d'`archivedFrom`, l'élément n'est plus proposé pour de nouvelles opérations, mais les mois antérieurs restent inchangés. Il peut être désarchivé (`unarchive()`) tant qu'`archivedFrom` est postérieur au mois en cours, ce qui annule simplement la date d'archivage.
 
 ## Reste à vivre et enveloppes variables
 

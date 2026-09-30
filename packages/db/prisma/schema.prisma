@@ -24,9 +24,10 @@ model User {
   createdAt        DateTime @default(now()) @map("created_at")
   updatedAt        DateTime @updatedAt @map("updated_at")
 
-  sessions   Session[]
-  accounts   Account[]
-  twoFactors TwoFactor[]
+  sessions          Session[]
+  accounts          Account[]
+  twoFactors        TwoFactor[]
+  variableEnvelopes VariableEnvelope[]
 
   @@map("users")
 }
@@ -95,4 +96,40 @@ model TwoFactor {
   @@index([secret])
   @@index([userId])
   @@map("two_factors")
+}
+
+// Paramétrage des enveloppes variables (docs/domain/model.md), voir
+// docs/adr/0011-user-scoped-repositories.md pour la convention userId.
+
+enum VariableEnvelopeVersionMode {
+  amount
+  percentage
+
+  @@map("variable_envelope_version_mode")
+}
+
+model VariableEnvelope {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId       String    @map("user_id") @db.Uuid
+  label        String
+  archivedFrom DateTime? @map("archived_from") @db.Date
+
+  user     User                       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  versions VariableEnvelopeVersion[]
+
+  @@index([userId])
+  @@map("variable_envelopes")
+}
+
+model VariableEnvelopeVersion {
+  envelopeId    String                      @map("envelope_id") @db.Uuid
+  effectiveFrom DateTime                    @map("effective_from") @db.Date
+  mode          VariableEnvelopeVersionMode
+  amountCents   Int?                        @map("amount_cents")
+  percentage    Int?
+
+  envelope VariableEnvelope @relation(fields: [envelopeId], references: [id], onDelete: Cascade)
+
+  @@id([envelopeId, effectiveFrom])
+  @@map("variable_envelope_versions")
 }

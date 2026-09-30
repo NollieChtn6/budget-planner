@@ -11,7 +11,7 @@ Une notation `A.b[]` désigne une collection d'éléments qui n'existent pas san
 **FixedEntry**
 - `id`, `label`, `type` : `charge` | `scheduledSaving`
 - `versions[]` : `FixedEntryVersion`
-- `archivedAt?`
+- `archivedFrom?` (`AAAA-MM`, R8)
 
 **FixedEntryVersion**
 - identité : (`fixedEntryId`, `effectiveFrom`)
@@ -20,7 +20,7 @@ Une notation `A.b[]` désigne une collection d'éléments qui n'existent pas san
 **VariableEnvelope**
 - `id`, `label`
 - `versions[]` : `VariableEnvelopeVersion`
-- `archivedAt?`
+- `archivedFrom?` (`AAAA-MM`, R8)
 
 **VariableEnvelopeVersion**
 - identité : (`envelopeId`, `effectiveFrom`)
@@ -31,6 +31,7 @@ Une notation `A.b[]` désigne une collection d'éléments qui n'existent pas san
 - si `deadline` : `startMonth`, `durationMonths`
 - si `reserve` : `monthlyAmount`
 - `status` : `active` | `late` | `closed`, `closedAt?`
+- `archivedFrom?` (`AAAA-MM`, R8) : indépendant de `status` — l'archivage retire la provision du paramétrage (suppression demandée par l'utilisatrice), la clôture (`status = closed`) marque la fin de son cycle de vie propre (R23 ou clôture manuelle d'une réserve)
 - `previousCycleId?` : provision dont elle est le renouvellement
 
 **Category**

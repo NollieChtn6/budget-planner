@@ -11,6 +11,9 @@ export default async function Home() {
       <Link href="/settings/envelopes" className="underline">
         Enveloppes variables
       </Link>
+      <Link href="/settings/fixed-entries" className="underline">
+        Postes fixes
+      </Link>
       <SignOutButton />
     </div>
   );

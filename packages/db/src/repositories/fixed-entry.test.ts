@@ -2,10 +2,10 @@ import { moneyFromEuros, moneyToCents, parseMonth } from "@budget/domain";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { createTestPrismaClient } from "../testing";
 import {
-  addFixedEntryVersion,
   createFixedEntry,
   findFixedEntriesByUser,
   findFixedEntryById,
+  persistFixedEntryVersion,
   setFixedEntryArchivedFrom,
 } from "./fixed-entry";
 
@@ -99,7 +99,7 @@ describe("findFixedEntriesByUser", () => {
   });
 });
 
-describe("addFixedEntryVersion", () => {
+describe("persistFixedEntryVersion", () => {
   it("appends a version with a new amount", async () => {
     const user = await createTestUser(primaryEmail);
     const created = await createFixedEntry(prisma, user.id, {
@@ -112,7 +112,7 @@ describe("addFixedEntryVersion", () => {
       },
     });
 
-    const updated = await addFixedEntryVersion(prisma, user.id, created.id, {
+    const updated = await persistFixedEntryVersion(prisma, user.id, created.id, {
       fixedEntryId: created.id,
       effectiveFrom: parseMonth("2026-02"),
       amount: moneyFromEuros(1050),
@@ -137,7 +137,7 @@ describe("addFixedEntryVersion", () => {
     });
 
     await expect(
-      addFixedEntryVersion(prisma, attacker.id, created.id, {
+      persistFixedEntryVersion(prisma, attacker.id, created.id, {
         fixedEntryId: created.id,
         effectiveFrom: parseMonth("2026-02"),
         amount: moneyFromEuros(1),

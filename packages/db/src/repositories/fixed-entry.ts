@@ -50,8 +50,12 @@ export async function createFixedEntry(
  * scoped by userId directly in its WHERE (ADR-0011); the create path can't
  * be (Prisma create has no WHERE), so it's guarded by an explicit ownership
  * check instead.
+ *
+ * Named distinctly from the domain layer's `addFixedEntryVersion` (unlike
+ * VariableEnvelope's `addVersion`/`addVariableEnvelopeVersion` split) so both
+ * can be imported together without aliasing.
  */
-export async function addFixedEntryVersion(
+export async function persistFixedEntryVersion(
   prisma: PrismaClient,
   userId: string,
   fixedEntryId: string,

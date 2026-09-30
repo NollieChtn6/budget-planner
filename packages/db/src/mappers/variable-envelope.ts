@@ -1,9 +1,6 @@
 import {
-  formatMonth,
-  type Month,
   moneyFromCents,
   moneyToCents,
-  parseMonth,
   type VariableEnvelope,
   type VariableEnvelopeVersion,
 } from "@budget/domain";
@@ -11,15 +8,7 @@ import type {
   VariableEnvelope as PrismaVariableEnvelope,
   VariableEnvelopeVersion as PrismaVariableEnvelopeVersion,
 } from "@prisma/client";
-
-/** First-of-month UTC Date, the Prisma-side representation of a Month (ADR-0007). */
-export function monthToDate(month: Month): Date {
-  return new Date(`${formatMonth(month)}-01T00:00:00.000Z`);
-}
-
-export function dateToMonth(date: Date): Month {
-  return parseMonth(date.toISOString().slice(0, 7));
-}
+import { dateToMonth, monthToDate } from "./month";
 
 export function toDomainVariableEnvelopeVersion(
   row: PrismaVariableEnvelopeVersion,

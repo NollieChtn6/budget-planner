@@ -1,10 +1,7 @@
 import type { Month, VariableEnvelope, VariableEnvelopeVersion } from "@budget/domain";
 import type { PrismaClient } from "@prisma/client";
-import {
-  monthToDate,
-  toDomainVariableEnvelope,
-  toPrismaVersionData,
-} from "../mappers/variable-envelope";
+import { monthToDate } from "../mappers/month";
+import { toDomainVariableEnvelope, toPrismaVersionData } from "../mappers/variable-envelope";
 
 const WITH_VERSIONS = { versions: true } as const;
 

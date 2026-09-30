@@ -1,4 +1,21 @@
 export {
+  type AddFixedEntryVersionFailure,
+  type AddFixedEntryVersionInput,
+  type AddFixedEntryVersionResult,
+  type ArchiveFixedEntryFailure,
+  type ArchiveFixedEntryInput,
+  type ArchiveFixedEntryResult,
+  activeFixedEntryVersionAt,
+  addFixedEntryVersion,
+  archiveFixedEntry,
+  type FixedEntry,
+  type FixedEntryType,
+  type FixedEntryVersion,
+  type UnarchiveFixedEntryFailure,
+  type UnarchiveFixedEntryResult,
+  unarchiveFixedEntry,
+} from "./budget/fixed-entry";
+export {
   type AddVersionFailure,
   type AddVersionInput,
   type AddVersionResult,

@@ -28,6 +28,7 @@ model User {
   accounts          Account[]
   twoFactors        TwoFactor[]
   variableEnvelopes VariableEnvelope[]
+  fixedEntries      FixedEntry[]
 
   @@map("users")
 }
@@ -132,4 +133,38 @@ model VariableEnvelopeVersion {
 
   @@id([envelopeId, effectiveFrom])
   @@map("variable_envelope_versions")
+}
+
+// Paramétrage des postes fixes (docs/domain/model.md).
+
+enum FixedEntryType {
+  charge
+  scheduledSaving
+
+  @@map("fixed_entry_type")
+}
+
+model FixedEntry {
+  id           String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId       String         @map("user_id") @db.Uuid
+  label        String
+  type         FixedEntryType
+  archivedFrom DateTime?      @map("archived_from") @db.Date
+
+  user     User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  versions FixedEntryVersion[]
+
+  @@index([userId])
+  @@map("fixed_entries")
+}
+
+model FixedEntryVersion {
+  fixedEntryId  String   @map("fixed_entry_id") @db.Uuid
+  effectiveFrom DateTime @map("effective_from") @db.Date
+  amountCents   Int      @map("amount_cents")
+
+  fixedEntry FixedEntry @relation(fields: [fixedEntryId], references: [id], onDelete: Cascade)
+
+  @@id([fixedEntryId, effectiveFrom])
+  @@map("fixed_entry_versions")
 }

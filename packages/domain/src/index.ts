@@ -43,6 +43,7 @@ export {
   subtractMoney,
 } from "./money";
 export {
+  addMonths,
   compareMonths,
   formatMonth,
   inclusiveMonthCount,
@@ -54,3 +55,16 @@ export {
   parseMonth,
   previousMonth,
 } from "./month";
+export {
+  type ArchiveProvisionFailure,
+  type ArchiveProvisionInput,
+  type ArchiveProvisionResult,
+  archiveProvision,
+  computeMonthlyTarget,
+  dueMonth,
+  type Provision,
+  type ProvisionStatus,
+  type UnarchiveProvisionFailure,
+  type UnarchiveProvisionResult,
+  unarchiveProvision,
+} from "./provisions/provision";

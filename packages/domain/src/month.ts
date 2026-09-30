@@ -44,6 +44,11 @@ export function previousMonth(month: Month): Month {
   return fromMonthIndex(toMonthIndex(month) - 1);
 }
 
+/** Advances (or, with a negative count, goes back) by an arbitrary number of months. */
+export function addMonths(month: Month, count: number): Month {
+  return fromMonthIndex(toMonthIndex(month) + count);
+}
+
 export function compareMonths(a: Month, b: Month): -1 | 0 | 1 {
   const diff = toMonthIndex(a) - toMonthIndex(b);
   if (diff < 0) return -1;

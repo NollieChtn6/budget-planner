@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { ceilDivideMoney, moneyFromCents, moneyFromEuros, moneyToCents } from "./money";
 import {
+  addMonths,
   compareMonths,
   formatMonth,
   inclusiveMonthCount,
@@ -55,6 +55,22 @@ describe("previousMonth", () => {
   });
 });
 
+describe("addMonths", () => {
+  it("advances by a positive count, rolling over years", () => {
+    expect(formatMonth(addMonths(parseMonth("2026-01"), 5))).toBe("2026-06");
+    expect(formatMonth(addMonths(parseMonth("2026-10"), 5))).toBe("2027-03");
+  });
+
+  it("goes back with a negative count", () => {
+    expect(formatMonth(addMonths(parseMonth("2026-03"), -2))).toBe("2026-01");
+  });
+
+  it("returns the same month for a count of 0", () => {
+    const month = parseMonth("2026-03");
+    expect(addMonths(month, 0)).toEqual(month);
+  });
+});
+
 describe("compareMonths / isMonthBefore / isMonthAfter / isSameMonth", () => {
   it("orders months within the same year", () => {
     const jan = parseMonth("2026-01");
@@ -94,25 +110,5 @@ describe("inclusiveMonthCount", () => {
 
   it("counts 10 months inclusive (E3: Vacances, 10-month duration)", () => {
     expect(inclusiveMonthCount(parseMonth("2026-01"), parseMonth("2026-10"))).toBe(10);
-  });
-});
-
-describe("R18 example E3", () => {
-  it("computes the first month's target for a 400€ / 6-month deadline provision", () => {
-    const startMonth = parseMonth("2026-01");
-    // dueMonth = startMonth + durationMonths - 1 (R17); built directly here since
-    // Provision isn't implemented yet.
-    let dueMonth = startMonth;
-    for (let i = 0; i < 5; i++) {
-      dueMonth = nextMonth(dueMonth);
-    }
-    expect(formatMonth(dueMonth)).toBe("2026-06");
-
-    const monthsRemaining = inclusiveMonthCount(startMonth, dueMonth);
-    expect(monthsRemaining).toBe(6);
-
-    const target = ceilDivideMoney(moneyFromEuros(400), monthsRemaining);
-    expect(moneyToCents(target)).toBe(6667);
-    expect(moneyToCents(target)).not.toBe(moneyToCents(moneyFromCents(6666)));
   });
 });

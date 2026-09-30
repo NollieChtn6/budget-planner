@@ -7,6 +7,15 @@ export {
   setFixedEntryArchivedFrom,
 } from "./repositories/fixed-entry";
 export {
+  type CreateProvisionInput,
+  createProvision,
+  findProvisionById,
+  findProvisionsByUser,
+  setProvisionArchivedFrom,
+  type UpdateProvisionGoalInput,
+  updateProvisionGoal,
+} from "./repositories/provision";
+export {
   addVariableEnvelopeVersion,
   createVariableEnvelope,
   findVariableEnvelopeById,

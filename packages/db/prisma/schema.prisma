@@ -29,6 +29,7 @@ model User {
   twoFactors        TwoFactor[]
   variableEnvelopes VariableEnvelope[]
   fixedEntries      FixedEntry[]
+  provisions        Provision[]
 
   @@map("users")
 }
@@ -167,4 +168,44 @@ model FixedEntryVersion {
 
   @@id([fixedEntryId, effectiveFrom])
   @@map("fixed_entry_versions")
+}
+
+// Paramétrage des provisions (docs/domain/model.md). Contrairement à
+// FixedEntry/VariableEnvelope, non versionné : target/durationMonths/
+// monthlyAmount se modifient par remplacement direct (voir issue #9).
+
+enum ProvisionType {
+  deadline
+  reserve
+
+  @@map("provision_type")
+}
+
+enum ProvisionStatus {
+  active
+  late
+  closed
+
+  @@map("provision_status")
+}
+
+model Provision {
+  id                 String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId             String          @map("user_id") @db.Uuid
+  label              String
+  type               ProvisionType
+  targetCents        Int             @map("target_cents")
+  status             ProvisionStatus @default(active)
+  startMonth         DateTime?       @map("start_month") @db.Date
+  durationMonths     Int?            @map("duration_months")
+  monthlyAmountCents Int?            @map("monthly_amount_cents")
+  archivedFrom       DateTime?       @map("archived_from") @db.Date
+  previousCycleId    String?         @unique @map("previous_cycle_id") @db.Uuid
+
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  previousCycle Provision?  @relation("ProvisionRenewal", fields: [previousCycleId], references: [id], onDelete: SetNull)
+  nextCycle     Provision?  @relation("ProvisionRenewal")
+
+  @@index([userId])
+  @@map("provisions")
 }

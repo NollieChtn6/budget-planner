@@ -14,6 +14,9 @@ export default async function Home() {
       <Link href="/settings/fixed-entries" className="underline">
         Postes fixes
       </Link>
+      <Link href="/settings/provisions" className="underline">
+        Provisions
+      </Link>
       <SignOutButton />
     </div>
   );

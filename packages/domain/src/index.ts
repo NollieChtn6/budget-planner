@@ -16,6 +16,13 @@ export {
   unarchiveFixedEntry,
 } from "./budget/fixed-entry";
 export {
+  computeAllocationBase,
+  computeDisposableIncome,
+  computeForecastMargin,
+  computePercentageEnvelopeBudgets,
+  computeUnallocated,
+} from "./budget/month-budget";
+export {
   type AddVersionFailure,
   type AddVersionInput,
   type AddVersionResult,
@@ -41,6 +48,7 @@ export {
   moneyToCents,
   moneyToEuros,
   subtractMoney,
+  sumMoney,
 } from "./money";
 export {
   addMonths,
@@ -55,6 +63,18 @@ export {
   parseMonth,
   previousMonth,
 } from "./month";
+export {
+  type BudgetMonth,
+  type BudgetMonthStatus,
+  type OpenMonthFailure,
+  type OpenMonthInput,
+  type OpenMonthResult,
+  openMonth,
+  type PointageStatus,
+  type SnapshotEnvelopeBudget,
+  type SnapshotFixedEntry,
+  type SnapshotProvisionTarget,
+} from "./months/open-month";
 export {
   type ArchiveProvisionFailure,
   type ArchiveProvisionInput,

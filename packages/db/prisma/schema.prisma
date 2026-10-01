@@ -30,6 +30,7 @@ model User {
   variableEnvelopes VariableEnvelope[]
   fixedEntries      FixedEntry[]
   provisions        Provision[]
+  budgetMonths      BudgetMonth[]
 
   @@map("users")
 }
@@ -116,8 +117,9 @@ model VariableEnvelope {
   label        String
   archivedFrom DateTime? @map("archived_from") @db.Date
 
-  user     User                       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  versions VariableEnvelopeVersion[]
+  user            User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  versions        VariableEnvelopeVersion[]
+  snapshotBudgets SnapshotEnvelopeBudget[]
 
   @@index([userId])
   @@map("variable_envelopes")
@@ -152,8 +154,9 @@ model FixedEntry {
   type         FixedEntryType
   archivedFrom DateTime?      @map("archived_from") @db.Date
 
-  user     User                @relation(fields: [userId], references: [id], onDelete: Cascade)
-  versions FixedEntryVersion[]
+  user            User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  versions        FixedEntryVersion[]
+  snapshotEntries SnapshotFixedEntry[]
 
   @@index([userId])
   @@map("fixed_entries")
@@ -202,10 +205,95 @@ model Provision {
   archivedFrom       DateTime?       @map("archived_from") @db.Date
   previousCycleId    String?         @unique @map("previous_cycle_id") @db.Uuid
 
-  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  previousCycle Provision?  @relation("ProvisionRenewal", fields: [previousCycleId], references: [id], onDelete: SetNull)
-  nextCycle     Provision?  @relation("ProvisionRenewal")
+  user            User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  previousCycle   Provision?                @relation("ProvisionRenewal", fields: [previousCycleId], references: [id], onDelete: SetNull)
+  nextCycle       Provision?                @relation("ProvisionRenewal")
+  snapshotTargets SnapshotProvisionTarget[]
 
   @@index([userId])
   @@map("provisions")
+}
+
+// Ouverture du mois (docs/domain/model.md) : BudgetMonth et les trois
+// collections de son instantané (ADR-0003). Les lignes d'instantané ne
+// portent pas leur propre userId : l'isolation passe par la relation vers
+// leur BudgetMonth parent, comme pour FixedEntryVersion/VariableEnvelopeVersion
+// (docs/adr/0011-user-scoped-repositories.md).
+
+enum BudgetMonthStatus {
+  open
+  closed
+
+  @@map("budget_month_status")
+}
+
+enum PointageStatus {
+  planned
+  done
+
+  @@map("pointage_status")
+}
+
+model BudgetMonth {
+  id          String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId      String            @map("user_id") @db.Uuid
+  month       DateTime          @db.Date
+  status      BudgetMonthStatus @default(open)
+  incomeCents Int               @map("income_cents")
+  openedAt    DateTime          @default(now()) @map("opened_at")
+  closedAt    DateTime?         @map("closed_at")
+  reopenedAt  DateTime?         @map("reopened_at")
+
+  user             User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fixedEntries     SnapshotFixedEntry[]
+  envelopeBudgets  SnapshotEnvelopeBudget[]
+  provisionTargets SnapshotProvisionTarget[]
+
+  @@unique([userId, month])
+  @@index([userId])
+  @@map("budget_months")
+}
+
+model SnapshotFixedEntry {
+  budgetMonthId String         @map("budget_month_id") @db.Uuid
+  fixedEntryId  String         @map("fixed_entry_id") @db.Uuid
+  label         String
+  type          FixedEntryType
+  amountCents   Int            @map("amount_cents")
+  status        PointageStatus @default(planned)
+
+  budgetMonth BudgetMonth @relation(fields: [budgetMonthId], references: [id], onDelete: Cascade)
+  fixedEntry  FixedEntry  @relation(fields: [fixedEntryId], references: [id], onDelete: Cascade)
+
+  @@id([budgetMonthId, fixedEntryId])
+  @@map("snapshot_fixed_entries")
+}
+
+model SnapshotEnvelopeBudget {
+  budgetMonthId String                      @map("budget_month_id") @db.Uuid
+  envelopeId    String                      @map("envelope_id") @db.Uuid
+  label         String
+  mode          VariableEnvelopeVersionMode
+  amountCents   Int?                        @map("amount_cents")
+  percentage    Int?
+  budgetCents   Int                         @map("budget_cents")
+
+  budgetMonth BudgetMonth      @relation(fields: [budgetMonthId], references: [id], onDelete: Cascade)
+  envelope    VariableEnvelope @relation(fields: [envelopeId], references: [id], onDelete: Cascade)
+
+  @@id([budgetMonthId, envelopeId])
+  @@map("snapshot_envelope_budgets")
+}
+
+model SnapshotProvisionTarget {
+  budgetMonthId String @map("budget_month_id") @db.Uuid
+  provisionId   String @map("provision_id") @db.Uuid
+  label         String
+  targetCents   Int    @map("target_cents")
+
+  budgetMonth BudgetMonth @relation(fields: [budgetMonthId], references: [id], onDelete: Cascade)
+  provision   Provision   @relation(fields: [provisionId], references: [id], onDelete: Cascade)
+
+  @@id([budgetMonthId, provisionId])
+  @@map("snapshot_provision_targets")
 }

@@ -6,6 +6,7 @@ export {
   persistFixedEntryVersion,
   setFixedEntryArchivedFrom,
 } from "./repositories/fixed-entry";
+export { createBudgetMonth, findBudgetMonthByMonth } from "./repositories/month";
 export {
   type CreateProvisionInput,
   createProvision,

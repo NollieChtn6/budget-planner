@@ -116,7 +116,7 @@ Données de référence : revenu 2 800 € ; charges 1 400 € (loyer 1 000, int
 | E1 | R9 | Ouverture du mois | Reste à vivre 1 000 € |
 | E2 | R10, R11, R12 | Enveloppes | Base 850 € ; Sorties 127,50 € ; Plaisir 127,50 € ; non attribué 595 € |
 | E3 | R18 | Cibles au premier mois | Orthodontie 66,67 € ; Vacances 70 € |
-| E4 | R14 | Marge | 1 000 − 405 − 136,67 = 458,33 € |
+| E4 | R14 | Marge | 1 000 − 405 − 186,67 = 408,33 € |
 | E5 | R19 | Versement de 100 € sur Orthodontie | Avance 33,33 € ; cible du mois inchangée |
 | E6 | R18 | Mois suivant, solde 100 € | Cible Orthodontie = 300 / 5 = 60 € |
 | E7 | R2, R18 | Versements exacts de 66,67 € pendant 5 mois | Cible du 6e mois = 66,65 € |

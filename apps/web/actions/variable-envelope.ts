@@ -20,12 +20,12 @@ import {
   type Month,
   moneyFromEuros,
   nextMonth,
-  parseMonth,
   unarchive,
   type VariableEnvelope,
 } from "@budget/domain";
 import { revalidatePath } from "next/cache";
 import type { VariableEnvelopeActionState } from "@/actions/variable-envelope-state";
+import { resolveCurrentMonth } from "@/lib/current-month";
 import { requireSession } from "@/lib/session";
 import {
   addVariableEnvelopeVersionSchema,
@@ -35,13 +35,6 @@ import {
 } from "@/schemas/variable-envelope";
 
 const ENVELOPES_PATH = "/settings/envelopes";
-
-function resolveCurrentMonth(): Month {
-  const now = new Date();
-  const year = now.getFullYear().toString().padStart(4, "0");
-  const month = (now.getMonth() + 1).toString().padStart(2, "0");
-  return parseMonth(`${year}-${month}`);
-}
 
 function resolveEffectiveFrom(choice: "current" | "next", currentMonth: Month): Month {
   return choice === "current" ? currentMonth : nextMonth(currentMonth);

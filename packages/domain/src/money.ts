@@ -38,6 +38,10 @@ export function subtractMoney(a: Money, b: Money): Money {
   return moneyFromCents(a.cents - b.cents);
 }
 
+export function sumMoney(amounts: Money[]): Money {
+  return amounts.reduce(addMoney, moneyFromCents(0));
+}
+
 /** R2: envelope percentage budgets round down to the cent. */
 export function floorPercentageOf(base: Money, percentage: number): Money {
   return moneyFromCents(Math.floor((base.cents * percentage) / 100));

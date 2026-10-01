@@ -8,6 +8,7 @@ import {
   moneyToCents,
   moneyToEuros,
   subtractMoney,
+  sumMoney,
 } from "./money";
 
 describe("moneyFromCents", () => {
@@ -87,6 +88,22 @@ describe("subtractMoney", () => {
 
   it("subtracts to a negative result (R15: restant can be negative)", () => {
     expect(moneyToCents(subtractMoney(moneyFromCents(100), moneyFromCents(250)))).toBe(-150);
+  });
+});
+
+describe("sumMoney", () => {
+  it("sums an empty list to zero", () => {
+    expect(moneyToCents(sumMoney([]))).toBe(0);
+  });
+
+  it("sums several amounts", () => {
+    expect(
+      moneyToCents(sumMoney([moneyFromCents(100), moneyFromCents(250), moneyFromCents(50)])),
+    ).toBe(400);
+  });
+
+  it("sums negative and positive amounts", () => {
+    expect(moneyToCents(sumMoney([moneyFromCents(100), moneyFromCents(-250)]))).toBe(-150);
   });
 });
 

@@ -1,0 +1,149 @@
+import {
+  createCategory,
+  createTestPrismaClient,
+  createVariableEnvelope,
+  findExpensesByUserAndMonth,
+} from "@budget/db";
+import { moneyFromEuros, moneyToCents } from "@budget/domain";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
+import { resolveCurrentMonth } from "../lib/current-month";
+import { createExpenseForUser } from "./expense";
+import { openMonthForUser } from "./month";
+
+const prisma = createTestPrismaClient();
+
+const primaryEmail = "expense-action-test@example.com";
+
+async function cleanup() {
+  await prisma.user.deleteMany({ where: { email: primaryEmail } });
+}
+
+function createTestUser() {
+  return prisma.user.create({ data: { name: "Test", email: primaryEmail, emailVerified: true } });
+}
+
+const currentMonth = resolveCurrentMonth();
+const today = `${currentMonth.year.toString().padStart(4, "0")}-${currentMonth.monthNumber
+  .toString()
+  .padStart(2, "0")}-05`;
+
+async function seedOpenMonth(userId: string) {
+  const envelope = await createVariableEnvelope(prisma, userId, {
+    label: "Vie quotidienne",
+    firstVersion: {
+      envelopeId: "pending",
+      effectiveFrom: currentMonth,
+      mode: "amount",
+      value: moneyFromEuros(150),
+    },
+  });
+  const category = await createCategory(prisma, userId, { label: "Courses" });
+  await openMonthForUser(prisma, userId, 2800);
+  return { envelope, category };
+}
+
+beforeAll(cleanup);
+afterEach(cleanup);
+afterAll(async () => {
+  await prisma.$disconnect();
+});
+
+describe("createExpenseForUser", () => {
+  it("records an expense imputed to a budgeted envelope", async () => {
+    const user = await createTestUser();
+    const { envelope, category } = await seedOpenMonth(user.id);
+
+    const result = await createExpenseForUser(prisma, user.id, {
+      amountEuros: 15,
+      date: today,
+      categoryId: category.id,
+      envelopeId: envelope.id,
+      place: "Monoprix",
+    });
+
+    expect(result.status).toBe("success");
+    const expenses = await findExpensesByUserAndMonth(prisma, user.id, currentMonth);
+    expect(expenses).toHaveLength(1);
+    expect(moneyToCents(expenses[0]?.amount ?? moneyFromEuros(-1))).toBe(1500);
+    expect(expenses[0]?.place).toBe("Monoprix");
+  });
+
+  it("rejects an expense when the month isn't open", async () => {
+    const user = await createTestUser();
+    const envelope = await createVariableEnvelope(prisma, user.id, {
+      label: "Vie quotidienne",
+      firstVersion: {
+        envelopeId: "pending",
+        effectiveFrom: currentMonth,
+        mode: "amount",
+        value: moneyFromEuros(150),
+      },
+    });
+    const category = await createCategory(prisma, user.id, { label: "Courses" });
+
+    const result = await createExpenseForUser(prisma, user.id, {
+      amountEuros: 15,
+      date: today,
+      categoryId: category.id,
+      envelopeId: envelope.id,
+    });
+
+    expect(result.status).toBe("error");
+    expect(result.message).toContain("ouvert");
+  });
+
+  it("rejects a zero amount", async () => {
+    const user = await createTestUser();
+    const { envelope, category } = await seedOpenMonth(user.id);
+
+    const result = await createExpenseForUser(prisma, user.id, {
+      amountEuros: 0,
+      date: today,
+      categoryId: category.id,
+      envelopeId: envelope.id,
+    });
+
+    expect(result.status).toBe("error");
+    expect(result.message).toContain("supérieur à 0");
+  });
+
+  it("rejects an archived category", async () => {
+    const user = await createTestUser();
+    const { envelope, category } = await seedOpenMonth(user.id);
+    await prisma.category.update({ where: { id: category.id }, data: { archived: true } });
+
+    const result = await createExpenseForUser(prisma, user.id, {
+      amountEuros: 15,
+      date: today,
+      categoryId: category.id,
+      envelopeId: envelope.id,
+    });
+
+    expect(result.status).toBe("error");
+    expect(result.message).toContain("archivée");
+  });
+
+  it("rejects an envelope outside this month's snapshot", async () => {
+    const user = await createTestUser();
+    const { category } = await seedOpenMonth(user.id);
+    const otherEnvelope = await createVariableEnvelope(prisma, user.id, {
+      label: "Ajoutée après ouverture",
+      firstVersion: {
+        envelopeId: "pending",
+        effectiveFrom: currentMonth,
+        mode: "amount",
+        value: moneyFromEuros(50),
+      },
+    });
+
+    const result = await createExpenseForUser(prisma, user.id, {
+      amountEuros: 15,
+      date: today,
+      categoryId: category.id,
+      envelopeId: otherEnvelope.id,
+    });
+
+    expect(result.status).toBe("error");
+    expect(result.message).toContain("budget de ce mois");
+  });
+});

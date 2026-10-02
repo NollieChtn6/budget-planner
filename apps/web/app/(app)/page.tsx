@@ -22,6 +22,9 @@ export default async function Home() {
       <Link href="/settings/provisions" className="underline">
         Provisions
       </Link>
+      <Link href="/settings/categories" className="underline">
+        Catégories
+      </Link>
       <SignOutButton />
     </div>
   );

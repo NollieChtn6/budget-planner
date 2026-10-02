@@ -35,7 +35,8 @@ Une notation `A.b[]` désigne une collection d'éléments qui n'existent pas san
 - `previousCycleId?` : provision dont elle est le renouvellement
 
 **Category**
-- `id`, `label`, `defaultEnvelopeId?`
+- `id`, `label`, `defaultEnvelopeId?`, `archived`
+- Contrairement à `FixedEntry`/`VariableEnvelope`/`Provision`, jamais copiée dans un instantané de mois : son archivage n'a donc pas de date d'effet (R7/R8 ne s'appliquent pas) et prend effet immédiatement. Une catégorie déjà utilisée par une dépense est archivée plutôt que supprimée, pour préserver l'historique ; une catégorie jamais utilisée est supprimée.
 
 ### Mois
 

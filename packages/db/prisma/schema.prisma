@@ -31,6 +31,8 @@ model User {
   fixedEntries      FixedEntry[]
   provisions        Provision[]
   budgetMonths      BudgetMonth[]
+  categories        Category[]
+  expenses          Expense[]
 
   @@map("users")
 }
@@ -117,9 +119,11 @@ model VariableEnvelope {
   label        String
   archivedFrom DateTime? @map("archived_from") @db.Date
 
-  user            User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  versions        VariableEnvelopeVersion[]
-  snapshotBudgets SnapshotEnvelopeBudget[]
+  user                 User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  versions             VariableEnvelopeVersion[]
+  snapshotBudgets      SnapshotEnvelopeBudget[]
+  expenses             Expense[]
+  defaultForCategories Category[]
 
   @@index([userId])
   @@map("variable_envelopes")
@@ -214,6 +218,25 @@ model Provision {
   @@map("provisions")
 }
 
+// Catégories (docs/domain/model.md). Non versionnées et non figées dans un
+// instantané de mois : contrairement à FixedEntry/VariableEnvelope/Provision,
+// leur archivage n'a pas de date d'effet (R7/R8 ne s'appliquent pas).
+
+model Category {
+  id                String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId            String  @map("user_id") @db.Uuid
+  label             String
+  defaultEnvelopeId String? @map("default_envelope_id") @db.Uuid
+  archived          Boolean @default(false)
+
+  user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  defaultEnvelope VariableEnvelope? @relation(fields: [defaultEnvelopeId], references: [id], onDelete: SetNull)
+  expenses        Expense[]
+
+  @@index([userId])
+  @@map("categories")
+}
+
 // Ouverture du mois (docs/domain/model.md) : BudgetMonth et les trois
 // collections de son instantané (ADR-0003). Les lignes d'instantané ne
 // portent pas leur propre userId : l'isolation passe par la relation vers
@@ -296,4 +319,28 @@ model SnapshotProvisionTarget {
 
   @@id([budgetMonthId, provisionId])
   @@map("snapshot_provision_targets")
+}
+
+// Opérations (docs/domain/model.md). V1 : une dépense n'est imputable qu'à
+// une enveloppe variable (source "provision" à venir, voir issue #11).
+
+model Expense {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  envelopeId  String   @map("envelope_id") @db.Uuid
+  categoryId  String   @map("category_id") @db.Uuid
+  date        DateTime @db.Date
+  amountCents Int      @map("amount_cents")
+  place       String?
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  user     User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  envelope VariableEnvelope @relation(fields: [envelopeId], references: [id], onDelete: Restrict)
+  category Category         @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+
+  @@index([userId])
+  @@index([envelopeId])
+  @@index([categoryId])
+  @@map("expenses")
 }

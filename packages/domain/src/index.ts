@@ -1,3 +1,4 @@
+export { archiveCategory, type Category, unarchiveCategory } from "./budget/category";
 export {
   type AddFixedEntryVersionFailure,
   type AddFixedEntryVersionInput,
@@ -39,6 +40,15 @@ export {
   type VariableEnvelopeVersion,
 } from "./budget/variable-envelope";
 export {
+  type CalendarDate,
+  compareCalendarDates,
+  firstDayOfMonth,
+  formatCalendarDate,
+  lastDayOfMonth,
+  monthOfCalendarDate,
+  parseCalendarDate,
+} from "./calendar-date";
+export {
   addMoney,
   ceilDivideMoney,
   floorPercentageOf,
@@ -75,6 +85,21 @@ export {
   type SnapshotFixedEntry,
   type SnapshotProvisionTarget,
 } from "./months/open-month";
+export {
+  type ConsumptionLevel,
+  computeConsumptionLevel,
+  computeRemaining,
+  computeSpent,
+} from "./operations/envelope-consumption";
+export {
+  type Expense,
+  type ExpenseSource,
+  type RecordExpenseContext,
+  type RecordExpenseFailure,
+  type RecordExpenseInput,
+  type RecordExpenseResult,
+  recordExpense,
+} from "./operations/expense";
 export {
   type ArchiveProvisionFailure,
   type ArchiveProvisionInput,

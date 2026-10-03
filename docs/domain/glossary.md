@@ -80,6 +80,7 @@ Langage commun du projet. L'interface parle français, le code utilise les noms 
 | Lieu | `Expense.place` | Attribut | Commerce ou endroit de la dépense, utilisé pour l'autocomplétion. |
 | Catégorie | `Category` | Entité | Axe d'analyse d'une dépense (maison, restaurant, vêtements…), indépendant de l'enveloppe. |
 | Enveloppe par défaut | `Category.defaultEnvelopeId` | Attribut | Enveloppe proposée automatiquement pour une catégorie. |
+| Catégorie archivée | `Category.archived` | Attribut | Catégorie retirée de la saisie de nouvelles dépenses ; sans date d'effet, contrairement à `archivedFrom` (R7/R8 ne s'appliquent pas à `Category`). |
 | Versement | `Contribution` | Entité | Somme mise de côté dans une provision. |
 | Financé par l'épargne | `Expense.savingsDraw` / `savingsDraw` | Attribut / Valeur dérivée | Part d'une dépense sur provision qui excède son solde (attribut de la dépense), ou reliquat négatif d'un mois à sa clôture (valeur dérivée du mois). |
 | Répartition du reliquat | `LeftoverAllocation` | Entité | Affectation du reliquat, à la clôture, vers l'épargne ou une provision. |

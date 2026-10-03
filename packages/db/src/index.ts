@@ -1,5 +1,12 @@
 export { prisma } from "./client";
 export {
+  createCategory,
+  findCategoriesByUser,
+  findCategoryById,
+  setCategoryArchived,
+} from "./repositories/category";
+export { createExpense, findExpensesByUserAndMonth } from "./repositories/expense";
+export {
   createFixedEntry,
   findFixedEntriesByUser,
   findFixedEntryById,

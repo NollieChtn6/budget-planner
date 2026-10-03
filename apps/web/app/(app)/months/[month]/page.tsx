@@ -1,10 +1,24 @@
-import { findBudgetMonthByMonth, prisma } from "@budget/db";
 import {
+  findBudgetMonthByMonth,
+  findCategoriesByUser,
+  findExpensesByUserAndMonth,
+  prisma,
+} from "@budget/db";
+import {
+  type CalendarDate,
+  type ConsumptionLevel,
   computeAllocationBase,
+  computeConsumptionLevel,
   computeDisposableIncome,
   computeForecastMargin,
+  computeRemaining,
+  computeSpent,
   computeUnallocated,
+  firstDayOfMonth,
+  formatCalendarDate,
   formatMonth,
+  lastDayOfMonth,
+  type Money,
   moneyToEuros,
   previousMonth,
 } from "@budget/domain";
@@ -12,11 +26,34 @@ import { redirect } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { resolveCurrentMonth } from "@/lib/current-month";
 import { requireSession } from "@/lib/session";
+import { AddExpenseForm } from "./add-expense-form";
 import { OpenMonthForm } from "./open-month-form";
 
 function euros(amount: number): string {
   return `${amount.toFixed(2)} €`;
 }
+
+function formatDay(date: CalendarDate): string {
+  return `${date.day.toString().padStart(2, "0")}/${date.month.toString().padStart(2, "0")}`;
+}
+
+const CONSUMPTION_LEVEL_LABELS: Record<ConsumptionLevel, string> = {
+  ok: "Tranquille",
+  watch: "À surveiller",
+  caution: "Attention",
+  warning: "Alerte",
+  critical: "Presque vide",
+  exceeded: "Dépassement",
+};
+
+const CONSUMPTION_LEVEL_CLASSES: Record<ConsumptionLevel, string> = {
+  ok: "text-green-600 dark:text-green-400",
+  watch: "text-lime-600 dark:text-lime-400",
+  caution: "text-yellow-600 dark:text-yellow-400",
+  warning: "text-orange-600 dark:text-orange-400",
+  critical: "text-red-600 dark:text-red-400",
+  exceeded: "text-purple-600 dark:text-purple-400",
+};
 
 export default async function MonthPage({ params }: { params: Promise<{ month: string }> }) {
   const { month: monthParam } = await params;
@@ -70,6 +107,30 @@ export default async function MonthPage({ params }: { params: Promise<{ month: s
     budgetMonth.provisionTargets.map((entry) => entry.target),
   );
 
+  const [expenses, categories] = await Promise.all([
+    findExpensesByUserAndMonth(prisma, session.user.id, currentMonth),
+    findCategoriesByUser(prisma, session.user.id),
+  ]);
+  const activeCategories = categories.filter((category) => !category.archived);
+  const categoryLabels = new Map(categories.map((category) => [category.id, category.label]));
+
+  const envelopeConsumption = new Map<
+    string,
+    { spent: Money; remaining: Money; level: ConsumptionLevel }
+  >();
+  for (const entry of budgetMonth.envelopeBudgets) {
+    const spent = computeSpent(
+      expenses
+        .filter((expense) => expense.source.envelopeId === entry.envelopeId)
+        .map((expense) => expense.amount),
+    );
+    envelopeConsumption.set(entry.envelopeId, {
+      spent,
+      remaining: computeRemaining(entry.budget, spent),
+      level: computeConsumptionLevel(entry.budget, spent),
+    });
+  }
+
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-6 p-6">
       <h1 className="text-2xl font-semibold">{formatMonth(currentMonth)}</h1>
@@ -115,14 +176,32 @@ export default async function MonthPage({ params }: { params: Promise<{ month: s
         <CardHeader>
           <CardTitle>Enveloppes variables</CardTitle>
         </CardHeader>
-        <CardContent className="flex flex-col gap-2">
-          <ul className="flex flex-col gap-1 text-sm">
-            {budgetMonth.envelopeBudgets.map((entry) => (
-              <li key={entry.envelopeId} className="flex justify-between">
-                <span>{entry.label}</span>
-                <span>{euros(moneyToEuros(entry.budget))}</span>
-              </li>
-            ))}
+        <CardContent className="flex flex-col gap-3">
+          <ul className="flex flex-col gap-2 text-sm">
+            {budgetMonth.envelopeBudgets.map((entry) => {
+              const consumption = envelopeConsumption.get(entry.envelopeId);
+              return (
+                <li key={entry.envelopeId} className="flex flex-col gap-0.5">
+                  <div className="flex justify-between">
+                    <span>{entry.label}</span>
+                    <span>{euros(moneyToEuros(entry.budget))}</span>
+                  </div>
+                  {consumption ? (
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span className={CONSUMPTION_LEVEL_CLASSES[consumption.level]}>
+                        {CONSUMPTION_LEVEL_LABELS[consumption.level]}
+                      </span>
+                      <span>
+                        {euros(moneyToEuros(consumption.spent))} dépensés ·{" "}
+                        <span className={consumption.remaining.cents < 0 ? "text-destructive" : ""}>
+                          {euros(moneyToEuros(consumption.remaining))} restants
+                        </span>
+                      </span>
+                    </div>
+                  ) : null}
+                </li>
+              );
+            })}
           </ul>
           <p className="text-sm text-muted-foreground">
             Non attribué : {euros(moneyToEuros(unallocated))}
@@ -143,6 +222,52 @@ export default async function MonthPage({ params }: { params: Promise<{ month: s
               </li>
             ))}
           </ul>
+        </CardContent>
+      </Card>
+
+      {budgetMonth.status === "open" ? (
+        activeCategories.length > 0 ? (
+          <AddExpenseForm
+            envelopes={budgetMonth.envelopeBudgets.map((entry) => ({
+              id: entry.envelopeId,
+              label: entry.label,
+            }))}
+            categories={activeCategories.map((category) => ({
+              id: category.id,
+              label: category.label,
+            }))}
+            minDate={formatCalendarDate(firstDayOfMonth(currentMonth))}
+            maxDate={formatCalendarDate(lastDayOfMonth(currentMonth))}
+            defaultDate={new Date().toISOString().slice(0, 10)}
+          />
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            Crée d'abord une catégorie dans les paramètres pour pouvoir saisir une dépense.
+          </p>
+        )
+      ) : null}
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Dépenses du mois</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {expenses.length > 0 ? (
+            <ul className="flex flex-col gap-1 text-sm">
+              {expenses.map((expense) => (
+                <li key={expense.id} className="flex justify-between gap-2">
+                  <span className="text-muted-foreground">{formatDay(expense.date)}</span>
+                  <span className="flex-1">
+                    {expense.place ? `${expense.place} · ` : ""}
+                    {expense.description ?? categoryLabels.get(expense.categoryId)}
+                  </span>
+                  <span>{euros(moneyToEuros(expense.amount))}</span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-sm text-muted-foreground">Aucune dépense ce mois-ci.</p>
+          )}
         </CardContent>
       </Card>
     </div>

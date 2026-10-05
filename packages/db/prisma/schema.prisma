@@ -33,6 +33,7 @@ model User {
   budgetMonths      BudgetMonth[]
   categories        Category[]
   expenses          Expense[]
+  contributions     Contribution[]
 
   @@map("users")
 }
@@ -213,6 +214,8 @@ model Provision {
   previousCycle   Provision?                @relation("ProvisionRenewal", fields: [previousCycleId], references: [id], onDelete: SetNull)
   nextCycle       Provision?                @relation("ProvisionRenewal")
   snapshotTargets SnapshotProvisionTarget[]
+  expenses        Expense[]
+  contributions   Contribution[]
 
   @@index([userId])
   @@map("provisions")
@@ -325,22 +328,52 @@ model SnapshotProvisionTarget {
 // une enveloppe variable (source "provision" à venir, voir issue #11).
 
 model Expense {
-  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  userId      String   @map("user_id") @db.Uuid
-  envelopeId  String   @map("envelope_id") @db.Uuid
-  categoryId  String   @map("category_id") @db.Uuid
-  date        DateTime @db.Date
-  amountCents Int      @map("amount_cents")
-  place       String?
-  description String?
-  createdAt   DateTime @default(now()) @map("created_at")
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId           String   @map("user_id") @db.Uuid
+  envelopeId       String?  @map("envelope_id") @db.Uuid
+  provisionId      String?  @map("provision_id") @db.Uuid
+  categoryId       String   @map("category_id") @db.Uuid
+  date             DateTime @db.Date
+  amountCents      Int      @map("amount_cents")
+  savingsDrawCents Int      @default(0) @map("savings_draw_cents")
+  place            String?
+  description      String?
+  createdAt        DateTime @default(now()) @map("created_at")
 
-  user     User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  envelope VariableEnvelope @relation(fields: [envelopeId], references: [id], onDelete: Restrict)
-  category Category         @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  envelope  VariableEnvelope? @relation(fields: [envelopeId], references: [id], onDelete: Restrict)
+  provision Provision?        @relation(fields: [provisionId], references: [id], onDelete: Restrict)
+  category  Category          @relation(fields: [categoryId], references: [id], onDelete: Restrict)
 
   @@index([userId])
   @@index([envelopeId])
+  @@index([provisionId])
   @@index([categoryId])
   @@map("expenses")
+}
+
+// R19/R22/R28 : versements vers une provision (docs/domain/model.md).
+
+enum ContributionOrigin {
+  manual
+  closing
+
+  @@map("contribution_origin")
+}
+
+model Contribution {
+  id          String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId      String             @map("user_id") @db.Uuid
+  provisionId String             @map("provision_id") @db.Uuid
+  date        DateTime           @db.Date
+  amountCents Int                @map("amount_cents")
+  origin      ContributionOrigin @default(manual)
+  createdAt   DateTime           @default(now()) @map("created_at")
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  provision Provision @relation(fields: [provisionId], references: [id], onDelete: Restrict)
+
+  @@index([userId])
+  @@index([provisionId])
+  @@map("contributions")
 }

@@ -5,7 +5,16 @@ export {
   findCategoryById,
   setCategoryArchived,
 } from "./repositories/category";
-export { createExpense, findExpensesByUserAndMonth } from "./repositories/expense";
+export {
+  createContribution,
+  findContributionsByUserAndMonth,
+  findContributionsByUserAndProvision,
+} from "./repositories/contribution";
+export {
+  createExpense,
+  findExpensesByUserAndMonth,
+  findExpensesByUserAndProvision,
+} from "./repositories/expense";
 export {
   createFixedEntry,
   findFixedEntriesByUser,

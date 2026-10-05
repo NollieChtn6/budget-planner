@@ -10,19 +10,23 @@ import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
 
 export function AddExpenseForm({
   envelopes,
+  provisions,
   categories,
   minDate,
   maxDate,
   defaultDate,
 }: {
   envelopes: { id: string; label: string }[];
+  provisions: { id: string; label: string }[];
   categories: { id: string; label: string }[];
   minDate: string;
   maxDate: string;
@@ -32,6 +36,8 @@ export function AddExpenseForm({
     createExpenseAction,
     initialVariableEnvelopeActionState,
   );
+  const defaultTarget =
+    envelopes.length > 0 ? `envelope:${envelopes[0]?.id}` : `provision:${provisions[0]?.id}`;
 
   return (
     <Card>
@@ -77,17 +83,32 @@ export function AddExpenseForm({
               </Select>
             </Field>
             <Field>
-              <FieldLabel htmlFor="envelopeId">Enveloppe</FieldLabel>
-              <Select name="envelopeId" defaultValue={envelopes[0]?.id}>
-                <SelectTrigger id="envelopeId">
-                  <SelectValue placeholder="Enveloppe" />
+              <FieldLabel htmlFor="target">Imputer à</FieldLabel>
+              <Select name="target" defaultValue={defaultTarget}>
+                <SelectTrigger id="target">
+                  <SelectValue placeholder="Imputer à" />
                 </SelectTrigger>
                 <SelectContent>
-                  {envelopes.map((envelope) => (
-                    <SelectItem key={envelope.id} value={envelope.id}>
-                      {envelope.label}
-                    </SelectItem>
-                  ))}
+                  {envelopes.length > 0 ? (
+                    <SelectGroup>
+                      <SelectLabel>Enveloppes</SelectLabel>
+                      {envelopes.map((envelope) => (
+                        <SelectItem key={envelope.id} value={`envelope:${envelope.id}`}>
+                          {envelope.label}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  ) : null}
+                  {provisions.length > 0 ? (
+                    <SelectGroup>
+                      <SelectLabel>Provisions</SelectLabel>
+                      {provisions.map((provision) => (
+                        <SelectItem key={provision.id} value={`provision:${provision.id}`}>
+                          {provision.label}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  ) : null}
                 </SelectContent>
               </Select>
             </Field>

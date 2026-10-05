@@ -1,31 +1,45 @@
 import {
   findBudgetMonthByMonth,
   findCategoriesByUser,
+  findContributionsByUserAndProvision,
   findExpensesByUserAndMonth,
+  findExpensesByUserAndProvision,
+  findProvisionsByUser,
   prisma,
 } from "@budget/db";
 import {
   type CalendarDate,
   type ConsumptionLevel,
+  type Contribution,
+  compareCalendarDates,
   computeAllocationBase,
   computeConsumptionLevel,
+  computeContributionSurplus,
   computeDisposableIncome,
   computeForecastMargin,
+  computeProvisionBalance,
   computeRemaining,
   computeSpent,
   computeUnallocated,
+  type Expense,
+  type ExpenseSource,
   firstDayOfMonth,
   formatCalendarDate,
   formatMonth,
+  isProvisionDone,
+  isSameMonth,
   lastDayOfMonth,
   type Money,
   moneyToEuros,
+  monthOfCalendarDate,
   previousMonth,
+  sumMoney,
 } from "@budget/domain";
 import { redirect } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { resolveCurrentMonth } from "@/lib/current-month";
 import { requireSession } from "@/lib/session";
+import { AddContributionForm } from "./add-contribution-form";
 import { AddExpenseForm } from "./add-expense-form";
 import { OpenMonthForm } from "./open-month-form";
 
@@ -107,12 +121,26 @@ export default async function MonthPage({ params }: { params: Promise<{ month: s
     budgetMonth.provisionTargets.map((entry) => entry.target),
   );
 
-  const [expenses, categories] = await Promise.all([
+  const [expenses, categories, provisions] = await Promise.all([
     findExpensesByUserAndMonth(prisma, session.user.id, currentMonth),
     findCategoriesByUser(prisma, session.user.id),
+    findProvisionsByUser(prisma, session.user.id),
   ]);
   const activeCategories = categories.filter((category) => !category.archived);
   const categoryLabels = new Map(categories.map((category) => [category.id, category.label]));
+  const envelopeLabels = new Map(
+    budgetMonth.envelopeBudgets.map((entry) => [entry.envelopeId, entry.label]),
+  );
+  const provisionLabels = new Map(
+    budgetMonth.provisionTargets.map((entry) => [entry.provisionId, entry.label]),
+  );
+  const provisionGoals = new Map(provisions.map((provision) => [provision.id, provision.target]));
+
+  function targetLabel(source: ExpenseSource): string {
+    return source.type === "envelope"
+      ? (envelopeLabels.get(source.envelopeId) ?? "")
+      : `Provision : ${provisionLabels.get(source.provisionId) ?? ""}`;
+  }
 
   const envelopeConsumption = new Map<
     string,
@@ -121,7 +149,10 @@ export default async function MonthPage({ params }: { params: Promise<{ month: s
   for (const entry of budgetMonth.envelopeBudgets) {
     const spent = computeSpent(
       expenses
-        .filter((expense) => expense.source.envelopeId === entry.envelopeId)
+        .filter(
+          (expense): expense is Expense & { source: { type: "envelope"; envelopeId: string } } =>
+            expense.source.type === "envelope" && expense.source.envelopeId === entry.envelopeId,
+        )
         .map((expense) => expense.amount),
     );
     envelopeConsumption.set(entry.envelopeId, {
@@ -130,6 +161,34 @@ export default async function MonthPage({ params }: { params: Promise<{ month: s
       level: computeConsumptionLevel(entry.budget, spent),
     });
   }
+
+  const provisionLedger = new Map<
+    string,
+    { balance: Money; paidThisMonth: Money; surplus: Money; done: boolean }
+  >();
+  const contributionsThisMonth: Contribution[] = [];
+  for (const entry of budgetMonth.provisionTargets) {
+    const [contributions, provisionExpenses] = await Promise.all([
+      findContributionsByUserAndProvision(prisma, session.user.id, entry.provisionId),
+      findExpensesByUserAndProvision(prisma, session.user.id, entry.provisionId),
+    ]);
+    const balance = computeProvisionBalance(
+      contributions.map((c) => c.amount),
+      provisionExpenses,
+    );
+    const thisMonth = contributions.filter((c) =>
+      isSameMonth(monthOfCalendarDate(c.date), currentMonth),
+    );
+    contributionsThisMonth.push(...thisMonth);
+    const paidThisMonth = sumMoney(thisMonth.map((c) => c.amount));
+    provisionLedger.set(entry.provisionId, {
+      balance,
+      paidThisMonth,
+      surplus: computeContributionSurplus(entry.target, paidThisMonth),
+      done: isProvisionDone(entry.target, paidThisMonth),
+    });
+  }
+  contributionsThisMonth.sort((a, b) => compareCalendarDates(a.date, b.date));
 
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-6 p-6">
@@ -214,22 +273,56 @@ export default async function MonthPage({ params }: { params: Promise<{ month: s
           <CardTitle>Provisions</CardTitle>
         </CardHeader>
         <CardContent>
-          <ul className="flex flex-col gap-1 text-sm">
-            {budgetMonth.provisionTargets.map((entry) => (
-              <li key={entry.provisionId} className="flex justify-between">
-                <span>{entry.label}</span>
-                <span>{euros(moneyToEuros(entry.target))}</span>
-              </li>
-            ))}
+          <ul className="flex flex-col gap-2 text-sm">
+            {budgetMonth.provisionTargets.map((entry) => {
+              const ledger = provisionLedger.get(entry.provisionId);
+              const goal = provisionGoals.get(entry.provisionId);
+              return (
+                <li key={entry.provisionId} className="flex flex-col gap-0.5">
+                  <div className="flex justify-between">
+                    <span>{entry.label}</span>
+                    <span>Cible du mois : {euros(moneyToEuros(entry.target))}</span>
+                  </div>
+                  {ledger ? (
+                    <div className="flex flex-col text-xs text-muted-foreground">
+                      <span>
+                        Solde {euros(moneyToEuros(ledger.balance))}
+                        {goal ? ` sur ${euros(moneyToEuros(goal))}` : ""}
+                      </span>
+                      <span>
+                        Versé ce mois {euros(moneyToEuros(ledger.paidThisMonth))}
+                        {ledger.done ? (
+                          <span className="text-green-600 dark:text-green-400"> · Pointée</span>
+                        ) : null}
+                        {ledger.surplus.cents > 0 ? (
+                          <span className="text-green-600 dark:text-green-400">
+                            {" "}
+                            · Avance de {euros(moneyToEuros(ledger.surplus))}
+                          </span>
+                        ) : null}
+                      </span>
+                    </div>
+                  ) : null}
+                </li>
+              );
+            })}
           </ul>
+          {budgetMonth.provisionTargets.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Aucune provision active ce mois-ci.</p>
+          ) : null}
         </CardContent>
       </Card>
 
       {budgetMonth.status === "open" ? (
-        activeCategories.length > 0 ? (
+        activeCategories.length > 0 &&
+        (budgetMonth.envelopeBudgets.length > 0 || budgetMonth.provisionTargets.length > 0) ? (
           <AddExpenseForm
             envelopes={budgetMonth.envelopeBudgets.map((entry) => ({
               id: entry.envelopeId,
+              label: entry.label,
+            }))}
+            provisions={budgetMonth.provisionTargets.map((entry) => ({
+              id: entry.provisionId,
               label: entry.label,
             }))}
             categories={activeCategories.map((category) => ({
@@ -247,6 +340,18 @@ export default async function MonthPage({ params }: { params: Promise<{ month: s
         )
       ) : null}
 
+      {budgetMonth.status === "open" && budgetMonth.provisionTargets.length > 0 ? (
+        <AddContributionForm
+          provisions={budgetMonth.provisionTargets.map((entry) => ({
+            id: entry.provisionId,
+            label: entry.label,
+          }))}
+          minDate={formatCalendarDate(firstDayOfMonth(currentMonth))}
+          maxDate={formatCalendarDate(lastDayOfMonth(currentMonth))}
+          defaultDate={new Date().toISOString().slice(0, 10)}
+        />
+      ) : null}
+
       <Card>
         <CardHeader>
           <CardTitle>Dépenses du mois</CardTitle>
@@ -260,6 +365,13 @@ export default async function MonthPage({ params }: { params: Promise<{ month: s
                   <span className="flex-1">
                     {expense.place ? `${expense.place} · ` : ""}
                     {expense.description ?? categoryLabels.get(expense.categoryId)}
+                    <span className="text-muted-foreground"> · {targetLabel(expense.source)}</span>
+                    {expense.savingsDraw ? (
+                      <span className="text-destructive">
+                        {" "}
+                        · {euros(moneyToEuros(expense.savingsDraw))} financés par l'épargne
+                      </span>
+                    ) : null}
                   </span>
                   <span>{euros(moneyToEuros(expense.amount))}</span>
                 </li>
@@ -267,6 +379,27 @@ export default async function MonthPage({ params }: { params: Promise<{ month: s
             </ul>
           ) : (
             <p className="text-sm text-muted-foreground">Aucune dépense ce mois-ci.</p>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Versements du mois</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {contributionsThisMonth.length > 0 ? (
+            <ul className="flex flex-col gap-1 text-sm">
+              {contributionsThisMonth.map((contribution) => (
+                <li key={contribution.id} className="flex justify-between gap-2">
+                  <span className="text-muted-foreground">{formatDay(contribution.date)}</span>
+                  <span className="flex-1">{provisionLabels.get(contribution.provisionId)}</span>
+                  <span>{euros(moneyToEuros(contribution.amount))}</span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-sm text-muted-foreground">Aucun versement ce mois-ci.</p>
           )}
         </CardContent>
       </Card>

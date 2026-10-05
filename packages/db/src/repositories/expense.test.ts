@@ -2,7 +2,12 @@ import { moneyFromEuros, moneyToEuros, parseCalendarDate, parseMonth } from "@bu
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { createTestPrismaClient } from "../testing";
 import { createCategory } from "./category";
-import { createExpense, findExpensesByUserAndMonth } from "./expense";
+import {
+  createExpense,
+  findExpensesByUserAndMonth,
+  findExpensesByUserAndProvision,
+} from "./expense";
+import { createProvision } from "./provision";
 import { createVariableEnvelope } from "./variable-envelope";
 
 const prisma = createTestPrismaClient();
@@ -109,6 +114,101 @@ describe("createExpense", () => {
         source: { type: "envelope", envelopeId: envelope.id },
       }),
     ).rejects.toThrow();
+  });
+});
+
+describe("createExpense — provision target", () => {
+  it("round-trips an expense with a savings draw (R22)", async () => {
+    const user = await createTestUser(primaryEmail);
+    const { category } = await seedEnvelopeAndCategory(user.id);
+    const provision = await createProvision(prisma, user.id, {
+      type: "reserve",
+      label: "Imprévus",
+      target: moneyFromEuros(250),
+      monthlyAmount: moneyFromEuros(50),
+    });
+
+    const created = await createExpense(prisma, user.id, {
+      date: parseCalendarDate("2026-10-05"),
+      amount: moneyFromEuros(300),
+      categoryId: category.id,
+      source: { type: "provision", provisionId: provision.id },
+      savingsDraw: moneyFromEuros(50),
+    });
+
+    expect(created.source).toEqual({ type: "provision", provisionId: provision.id });
+    expect(moneyToEuros(created.savingsDraw ?? moneyFromEuros(-1))).toBe(50);
+  });
+
+  it("rejects a provision belonging to another user", async () => {
+    const owner = await createTestUser(primaryEmail);
+    const attacker = await createTestUser(otherEmail);
+    const provision = await createProvision(prisma, owner.id, {
+      type: "reserve",
+      label: "Imprévus",
+      target: moneyFromEuros(250),
+      monthlyAmount: moneyFromEuros(50),
+    });
+    const attackerCategory = await createCategory(prisma, attacker.id, { label: "Courses" });
+
+    await expect(
+      createExpense(prisma, attacker.id, {
+        date: parseCalendarDate("2026-10-05"),
+        amount: moneyFromEuros(15),
+        categoryId: attackerCategory.id,
+        source: { type: "provision", provisionId: provision.id },
+      }),
+    ).rejects.toThrow();
+  });
+
+  it("rejects a savings draw greater than the amount at the database level", async () => {
+    const user = await createTestUser(primaryEmail);
+    const { category } = await seedEnvelopeAndCategory(user.id);
+    const provision = await createProvision(prisma, user.id, {
+      type: "reserve",
+      label: "Imprévus",
+      target: moneyFromEuros(250),
+      monthlyAmount: moneyFromEuros(50),
+    });
+
+    await expect(
+      createExpense(prisma, user.id, {
+        date: parseCalendarDate("2026-10-05"),
+        amount: moneyFromEuros(10),
+        categoryId: category.id,
+        source: { type: "provision", provisionId: provision.id },
+        savingsDraw: moneyFromEuros(20),
+      }),
+    ).rejects.toThrow();
+  });
+});
+
+describe("findExpensesByUserAndProvision", () => {
+  it("returns every expense ever recorded against the provision, regardless of month", async () => {
+    const user = await createTestUser(primaryEmail);
+    const { category } = await seedEnvelopeAndCategory(user.id);
+    const provision = await createProvision(prisma, user.id, {
+      type: "reserve",
+      label: "Imprévus",
+      target: moneyFromEuros(250),
+      monthlyAmount: moneyFromEuros(50),
+    });
+
+    await createExpense(prisma, user.id, {
+      date: parseCalendarDate("2026-09-01"),
+      amount: moneyFromEuros(40),
+      categoryId: category.id,
+      source: { type: "provision", provisionId: provision.id },
+    });
+    await createExpense(prisma, user.id, {
+      date: parseCalendarDate("2026-10-05"),
+      amount: moneyFromEuros(10),
+      categoryId: category.id,
+      source: { type: "provision", provisionId: provision.id },
+    });
+
+    const expenses = await findExpensesByUserAndProvision(prisma, user.id, provision.id);
+    expect(expenses).toHaveLength(2);
   });
 });
 

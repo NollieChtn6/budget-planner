@@ -86,6 +86,14 @@ export {
   type SnapshotProvisionTarget,
 } from "./months/open-month";
 export {
+  type Contribution,
+  type RecordContributionContext,
+  type RecordContributionFailure,
+  type RecordContributionInput,
+  type RecordContributionResult,
+  recordContribution,
+} from "./operations/contribution";
+export {
   type ConsumptionLevel,
   computeConsumptionLevel,
   computeRemaining,
@@ -100,6 +108,11 @@ export {
   type RecordExpenseResult,
   recordExpense,
 } from "./operations/expense";
+export {
+  computeContributionSurplus,
+  computeProvisionBalance,
+  isProvisionDone,
+} from "./operations/provision-ledger";
 export {
   type ArchiveProvisionFailure,
   type ArchiveProvisionInput,

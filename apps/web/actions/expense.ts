@@ -1,7 +1,16 @@
 "use server";
 
-import { createExpense, findBudgetMonthByMonth, findCategoriesByUser, prisma } from "@budget/db";
 import {
+  createExpense,
+  findBudgetMonthByMonth,
+  findCategoriesByUser,
+  findContributionsByUserAndProvision,
+  findExpensesByUserAndProvision,
+  prisma,
+} from "@budget/db";
+import {
+  computeProvisionBalance,
+  type ExpenseSource,
   formatMonth,
   moneyFromEuros,
   parseCalendarDate,
@@ -27,14 +36,24 @@ function describeRecordExpenseFailure(error: RecordExpenseFailure): string {
       return "Cette catégorie est archivée.";
     case "envelopeNotInSnapshot":
       return "Cette enveloppe ne fait pas partie du budget de ce mois.";
+    case "provisionNotInSnapshot":
+      return "Cette provision ne fait pas partie du budget de ce mois.";
   }
+}
+
+/** Parses the "Imputer à" select's "envelope:<id>" / "provision:<id>" value. */
+function parseTarget(value: string): ExpenseSource | null {
+  const [type, id] = value.split(":", 2);
+  if (type === "envelope" && id) return { type: "envelope", envelopeId: id };
+  if (type === "provision" && id) return { type: "provision", provisionId: id };
+  return null;
 }
 
 export type CreateExpenseInput = {
   amountEuros: number;
   date: string;
   categoryId: string;
-  envelopeId: string;
+  target: string;
   place?: string;
   description?: string;
 };
@@ -63,6 +82,11 @@ export async function createExpenseForUser(
     return { status: "error", message: "Date invalide." };
   }
 
+  const target = parseTarget(input.target);
+  if (!target) {
+    return { status: "error", message: "Choisis une enveloppe ou une provision." };
+  }
+
   const currentMonth = resolveCurrentMonth();
   const budgetMonth = await findBudgetMonthByMonth(prismaClient, userId, currentMonth);
   if (budgetMonth?.status !== "open") {
@@ -71,6 +95,18 @@ export async function createExpenseForUser(
 
   const categories = await findCategoriesByUser(prismaClient, userId);
 
+  let provisionBalance: ReturnType<typeof moneyFromEuros> | undefined;
+  if (target.type === "provision") {
+    const [contributions, provisionExpenses] = await Promise.all([
+      findContributionsByUserAndProvision(prismaClient, userId, target.provisionId),
+      findExpensesByUserAndProvision(prismaClient, userId, target.provisionId),
+    ]);
+    provisionBalance = computeProvisionBalance(
+      contributions.map((c) => c.amount),
+      provisionExpenses,
+    );
+  }
+
   const result = recordExpense(
     {
       date,
@@ -78,12 +114,14 @@ export async function createExpenseForUser(
       place: input.place,
       description: input.description,
       categoryId: input.categoryId,
-      envelopeId: input.envelopeId,
+      target,
     },
     {
       currentMonth,
       categories,
       snapshotEnvelopeIds: budgetMonth.envelopeBudgets.map((entry) => entry.envelopeId),
+      snapshotProvisionIds: budgetMonth.provisionTargets.map((entry) => entry.provisionId),
+      provisionBalance,
     },
   );
 
@@ -109,7 +147,7 @@ export async function createExpenseAction(
     amountEuros: parsed.data.amountEuros,
     date: parsed.data.date,
     categoryId: parsed.data.categoryId,
-    envelopeId: parsed.data.envelopeId,
+    target: parsed.data.target,
     place: parsed.data.place || undefined,
     description: parsed.data.description || undefined,
   });

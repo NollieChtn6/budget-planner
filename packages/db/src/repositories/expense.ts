@@ -21,25 +21,49 @@ export async function findExpensesByUserAndMonth(
   return rows.map(toDomainExpense);
 }
 
+/** All-time, used to compute a provision's balance (docs/domain/model.md), which isn't scoped to a month. */
+export async function findExpensesByUserAndProvision(
+  prisma: PrismaClient,
+  userId: string,
+  provisionId: string,
+): Promise<Expense[]> {
+  const rows = await prisma.expense.findMany({
+    where: { userId, provisionId },
+    orderBy: { date: "asc" },
+  });
+  return rows.map(toDomainExpense);
+}
+
 /**
- * `envelopeId`/`categoryId` ownership is checked explicitly here, like
- * `addVariableEnvelopeVersion` does for its own foreign row: Prisma's
- * `create` has no WHERE clause to scope it by userId (ADR-0011).
+ * The target's ownership (envelope or provision) and the category's are
+ * checked explicitly here, like `addVariableEnvelopeVersion` does for its
+ * own foreign row: Prisma's `create` has no WHERE clause to scope it by
+ * userId (ADR-0011).
  */
 export async function createExpense(
   prisma: PrismaClient,
   userId: string,
   expense: Omit<Expense, "id">,
 ): Promise<Expense> {
-  const [envelope, category] = await Promise.all([
-    prisma.variableEnvelope.findFirst({
-      where: { id: expense.source.envelopeId, userId },
-      select: { id: true },
-    }),
+  const targetCheck =
+    expense.source.type === "envelope"
+      ? prisma.variableEnvelope.findFirst({
+          where: { id: expense.source.envelopeId, userId },
+          select: { id: true },
+        })
+      : prisma.provision.findFirst({
+          where: { id: expense.source.provisionId, userId },
+          select: { id: true },
+        });
+
+  const [target, category] = await Promise.all([
+    targetCheck,
     prisma.category.findFirst({ where: { id: expense.categoryId, userId }, select: { id: true } }),
   ]);
-  if (!envelope) {
-    throw new Error(`Variable envelope ${expense.source.envelopeId} not found for this user`);
+  if (!target) {
+    const targetId =
+      expense.source.type === "envelope" ? expense.source.envelopeId : expense.source.provisionId;
+    throw new Error(`${expense.source.type} ${targetId} not found for this user`);
   }
   if (!category) {
     throw new Error(`Category ${expense.categoryId} not found for this user`);

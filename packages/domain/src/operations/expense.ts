@@ -1,13 +1,11 @@
 import type { Category } from "../budget/category";
 import { type CalendarDate, monthOfCalendarDate } from "../calendar-date";
-import { type Money, moneyToCents } from "../money";
+import { type Money, moneyFromCents, moneyToCents } from "../money";
 import { isSameMonth, type Month } from "../month";
 
-/**
- * V1 scope: an expense can only be imputed to a variable envelope. Provision
- * expenses (R22/R23) are a later iteration (see issue #11's follow-ups).
- */
-export type ExpenseSource = { type: "envelope"; envelopeId: string };
+export type ExpenseSource =
+  | { type: "envelope"; envelopeId: string }
+  | { type: "provision"; provisionId: string };
 
 export type Expense = {
   id: string;
@@ -17,6 +15,8 @@ export type Expense = {
   description?: string;
   categoryId: string;
   source: ExpenseSource;
+  /** R22: part of the amount financed by savings. Only ever set for a provision source. */
+  savingsDraw?: Money;
 };
 
 export type RecordExpenseInput = {
@@ -25,18 +25,24 @@ export type RecordExpenseInput = {
   place?: string;
   description?: string;
   categoryId: string;
-  envelopeId: string;
+  target: ExpenseSource;
 };
 
 /**
- * `snapshotEnvelopeIds` are the envelopes actually budgeted for this month
- * (its frozen instantané, docs/domain/model.md), not the live parameterization:
- * an envelope archived after the month opened is still a valid target.
+ * `snapshotEnvelopeIds`/`snapshotProvisionIds` are what's actually budgeted
+ * for this month (its frozen instantané, docs/domain/model.md), not the live
+ * parameterization: an envelope or provision archived after the month opened
+ * is still a valid target. `provisionBalance` (R22) isn't computed here —
+ * like `computeMonthlyTarget`'s `balance` parameter, it's supplied by the
+ * caller from that provision's full contribution/expense history — and is
+ * only read when `target.type` is `"provision"`.
  */
 export type RecordExpenseContext = {
   currentMonth: Month;
   categories: Category[];
   snapshotEnvelopeIds: string[];
+  snapshotProvisionIds: string[];
+  provisionBalance?: Money;
 };
 
 export type RecordExpenseFailure =
@@ -44,13 +50,18 @@ export type RecordExpenseFailure =
   | { type: "dateOutsideCurrentMonth" }
   | { type: "unknownCategory" }
   | { type: "archivedCategory" }
-  | { type: "envelopeNotInSnapshot" };
+  | { type: "envelopeNotInSnapshot" }
+  | { type: "provisionNotInSnapshot" };
 
 export type RecordExpenseResult =
   | { ok: true; expense: Omit<Expense, "id"> }
   | { ok: false; error: RecordExpenseFailure };
 
-/** R3: a expense is attached to the budget month of its date. */
+/**
+ * R3: an expense is attached to the budget month of its date. R22: on a
+ * provision, an amount beyond its balance draws from savings, and the
+ * provision's own balance never drops below 0 as a result.
+ */
 export function recordExpense(
   input: RecordExpenseInput,
   context: RecordExpenseContext,
@@ -71,19 +82,35 @@ export function recordExpense(
     return { ok: false, error: { type: "archivedCategory" } };
   }
 
-  if (!context.snapshotEnvelopeIds.includes(input.envelopeId)) {
-    return { ok: false, error: { type: "envelopeNotInSnapshot" } };
+  const base = {
+    date: input.date,
+    amount: input.amount,
+    place: input.place,
+    description: input.description,
+    categoryId: input.categoryId,
+  };
+
+  if (input.target.type === "envelope") {
+    if (!context.snapshotEnvelopeIds.includes(input.target.envelopeId)) {
+      return { ok: false, error: { type: "envelopeNotInSnapshot" } };
+    }
+    return {
+      ok: true,
+      expense: { ...base, source: { type: "envelope", envelopeId: input.target.envelopeId } },
+    };
   }
 
+  if (!context.snapshotProvisionIds.includes(input.target.provisionId)) {
+    return { ok: false, error: { type: "provisionNotInSnapshot" } };
+  }
+  const balance = context.provisionBalance ?? moneyFromCents(0);
+  const drawCents = Math.max(0, moneyToCents(input.amount) - moneyToCents(balance));
   return {
     ok: true,
     expense: {
-      date: input.date,
-      amount: input.amount,
-      place: input.place,
-      description: input.description,
-      categoryId: input.categoryId,
-      source: { type: "envelope", envelopeId: input.envelopeId },
+      ...base,
+      source: { type: "provision", provisionId: input.target.provisionId },
+      ...(drawCents > 0 ? { savingsDraw: moneyFromCents(drawCents) } : {}),
     },
   };
 }

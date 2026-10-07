@@ -81,6 +81,10 @@ export {
   computeLeftover,
   computeSavingsFundedAmount,
   type LeftoverAllocation,
+  type LeftoverAllocationInput,
+  type ReopenMonthFailure,
+  type ReopenMonthResult,
+  reopenMonth,
 } from "./months/close-month";
 export {
   type BudgetMonth,

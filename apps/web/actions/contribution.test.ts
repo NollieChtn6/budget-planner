@@ -1,13 +1,18 @@
 import {
+  createContribution,
   createProvision,
   createTestPrismaClient,
   findContributionsByUserAndMonth,
 } from "@budget/db";
-import { moneyFromEuros, moneyToCents } from "@budget/domain";
+import { moneyFromEuros, moneyToCents, parseCalendarDate } from "@budget/domain";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { resolveCurrentMonth } from "../lib/current-month";
-import { createContributionForUser } from "./contribution";
-import { openMonthForUser } from "./month";
+import {
+  createContributionForUser,
+  deleteContributionForUser,
+  updateContributionForUser,
+} from "./contribution";
+import { closeMonthForUser, openMonthForUser } from "./month";
 
 const prisma = createTestPrismaClient();
 
@@ -111,5 +116,107 @@ describe("createContributionForUser", () => {
 
     expect(result.status).toBe("error");
     expect(result.message).toContain("budget de ce mois");
+  });
+});
+
+describe("updateContributionForUser", () => {
+  it("revises a manual contribution's amount", async () => {
+    const user = await createTestUser();
+    const { provision } = await seedOpenMonth(user.id);
+    const contribution = await createContribution(prisma, user.id, {
+      date: parseCalendarDate(today),
+      amount: moneyFromEuros(50),
+      provisionId: provision.id,
+      origin: "manual",
+    });
+
+    const result = await updateContributionForUser(prisma, user.id, {
+      id: contribution.id,
+      amountEuros: 80,
+      date: today,
+      provisionId: provision.id,
+    });
+
+    expect(result.status).toBe("success");
+    const contributions = await findContributionsByUserAndMonth(prisma, user.id, currentMonth);
+    expect(moneyToCents(contributions[0]?.amount ?? moneyFromEuros(-1))).toBe(8000);
+  });
+
+  it("rejects a contribution created by a month closing", async () => {
+    const user = await createTestUser();
+    const { provision } = await seedOpenMonth(user.id);
+    const contribution = await createContribution(prisma, user.id, {
+      date: parseCalendarDate(today),
+      amount: moneyFromEuros(50),
+      provisionId: provision.id,
+      origin: "closing",
+    });
+
+    const result = await updateContributionForUser(prisma, user.id, {
+      id: contribution.id,
+      amountEuros: 80,
+      date: today,
+      provisionId: provision.id,
+    });
+
+    expect(result.status).toBe("error");
+    expect(result.message).toContain("clôture");
+  });
+
+  it("rejects when the month isn't open", async () => {
+    const user = await createTestUser();
+    const { provision } = await seedOpenMonth(user.id);
+    const contribution = await createContribution(prisma, user.id, {
+      date: parseCalendarDate(today),
+      amount: moneyFromEuros(50),
+      provisionId: provision.id,
+      origin: "manual",
+    });
+    await closeMonthForUser(prisma, user.id, { allocations: [] });
+
+    const result = await updateContributionForUser(prisma, user.id, {
+      id: contribution.id,
+      amountEuros: 80,
+      date: today,
+      provisionId: provision.id,
+    });
+
+    expect(result.status).toBe("error");
+    expect(result.message).toContain("ouvert");
+  });
+});
+
+describe("deleteContributionForUser", () => {
+  it("removes a manual contribution", async () => {
+    const user = await createTestUser();
+    const { provision } = await seedOpenMonth(user.id);
+    const contribution = await createContribution(prisma, user.id, {
+      date: parseCalendarDate(today),
+      amount: moneyFromEuros(50),
+      provisionId: provision.id,
+      origin: "manual",
+    });
+
+    const result = await deleteContributionForUser(prisma, user.id, contribution.id);
+
+    expect(result.status).toBe("success");
+    const contributions = await findContributionsByUserAndMonth(prisma, user.id, currentMonth);
+    expect(contributions).toHaveLength(0);
+  });
+
+  it("rejects deleting a contribution created by a month closing", async () => {
+    const user = await createTestUser();
+    const { provision } = await seedOpenMonth(user.id);
+    const contribution = await createContribution(prisma, user.id, {
+      date: parseCalendarDate(today),
+      amount: moneyFromEuros(50),
+      provisionId: provision.id,
+      origin: "closing",
+    });
+
+    const result = await deleteContributionForUser(prisma, user.id, contribution.id);
+
+    expect(result.status).toBe("error");
+    expect(result.message).toContain("clôture");
   });
 });

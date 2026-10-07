@@ -9,3 +9,11 @@ export const createExpenseSchema = z.object({
   place: z.string().trim().optional(),
   description: z.string().trim().optional(),
 });
+
+export const updateExpenseSchema = createExpenseSchema.extend({
+  id: z.string().min(1),
+});
+
+export const deleteExpenseSchema = z.object({
+  id: z.string().min(1),
+});

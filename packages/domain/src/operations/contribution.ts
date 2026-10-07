@@ -35,6 +35,15 @@ export type RecordContributionResult =
   | { ok: true; contribution: Omit<Contribution, "id"> }
   | { ok: false; error: RecordContributionFailure };
 
+/**
+ * A contribution created by a month closing (R25) is a frozen receipt of
+ * that closing's leftover split, paired with a LeftoverAllocation — only a
+ * manually-entered contribution can be revised or removed.
+ */
+export function canModifyContribution(contribution: Pick<Contribution, "origin">): boolean {
+  return contribution.origin === "manual";
+}
+
 /** R3: a contribution is attached to the budget month of its date. */
 export function recordContribution(
   input: RecordContributionInput,

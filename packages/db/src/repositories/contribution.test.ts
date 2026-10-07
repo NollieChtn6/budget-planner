@@ -3,8 +3,11 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { createTestPrismaClient } from "../testing";
 import {
   createContribution,
+  deleteContribution,
+  findContributionById,
   findContributionsByUserAndMonth,
   findContributionsByUserAndProvision,
+  updateContribution,
 } from "./contribution";
 import { createProvision } from "./provision";
 
@@ -136,5 +139,97 @@ describe("findContributionsByUserAndProvision", () => {
 
     const all = await findContributionsByUserAndProvision(prisma, user.id, provision.id);
     expect(all).toHaveLength(2);
+  });
+});
+
+describe("findContributionById", () => {
+  it("returns null for another user's contribution", async () => {
+    const owner = await createTestUser(primaryEmail);
+    const attacker = await createTestUser(otherEmail);
+    const provision = await seedProvision(owner.id);
+    const contribution = await createContribution(prisma, owner.id, {
+      date: parseCalendarDate("2026-10-03"),
+      amount: moneyFromEuros(100),
+      provisionId: provision.id,
+      origin: "manual",
+    });
+
+    expect(await findContributionById(prisma, attacker.id, contribution.id)).toBeNull();
+    expect(await findContributionById(prisma, owner.id, contribution.id)).not.toBeNull();
+  });
+});
+
+describe("updateContribution", () => {
+  it("revises a contribution's amount", async () => {
+    const user = await createTestUser(primaryEmail);
+    const provision = await seedProvision(user.id);
+    const contribution = await createContribution(prisma, user.id, {
+      date: parseCalendarDate("2026-10-03"),
+      amount: moneyFromEuros(100),
+      provisionId: provision.id,
+      origin: "manual",
+    });
+
+    await updateContribution(prisma, user.id, contribution.id, {
+      date: parseCalendarDate("2026-10-04"),
+      amount: moneyFromEuros(120),
+      provisionId: provision.id,
+      origin: "manual",
+    });
+
+    const updated = await findContributionById(prisma, user.id, contribution.id);
+    expect(moneyToEuros(updated?.amount ?? moneyFromEuros(-1))).toBe(120);
+  });
+
+  it("rejects updating another user's contribution", async () => {
+    const owner = await createTestUser(primaryEmail);
+    const attacker = await createTestUser(otherEmail);
+    const provision = await seedProvision(owner.id);
+    const contribution = await createContribution(prisma, owner.id, {
+      date: parseCalendarDate("2026-10-03"),
+      amount: moneyFromEuros(100),
+      provisionId: provision.id,
+      origin: "manual",
+    });
+
+    await expect(
+      updateContribution(prisma, attacker.id, contribution.id, {
+        date: parseCalendarDate("2026-10-03"),
+        amount: moneyFromEuros(999),
+        provisionId: provision.id,
+        origin: "manual",
+      }),
+    ).rejects.toThrow();
+  });
+});
+
+describe("deleteContribution", () => {
+  it("removes a contribution", async () => {
+    const user = await createTestUser(primaryEmail);
+    const provision = await seedProvision(user.id);
+    const contribution = await createContribution(prisma, user.id, {
+      date: parseCalendarDate("2026-10-03"),
+      amount: moneyFromEuros(100),
+      provisionId: provision.id,
+      origin: "manual",
+    });
+
+    await deleteContribution(prisma, user.id, contribution.id);
+
+    expect(await findContributionById(prisma, user.id, contribution.id)).toBeNull();
+  });
+
+  it("rejects deleting another user's contribution", async () => {
+    const owner = await createTestUser(primaryEmail);
+    const attacker = await createTestUser(otherEmail);
+    const provision = await seedProvision(owner.id);
+    const contribution = await createContribution(prisma, owner.id, {
+      date: parseCalendarDate("2026-10-03"),
+      amount: moneyFromEuros(100),
+      provisionId: provision.id,
+      origin: "manual",
+    });
+
+    await expect(deleteContribution(prisma, attacker.id, contribution.id)).rejects.toThrow();
   });
 });

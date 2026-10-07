@@ -9,7 +9,6 @@ import {
   prisma,
 } from "@budget/db";
 import {
-  type CalendarDate,
   type ConsumptionLevel,
   type Contribution,
   compareCalendarDates,
@@ -46,15 +45,13 @@ import { requireSession } from "@/lib/session";
 import { AddContributionForm } from "./add-contribution-form";
 import { AddExpenseForm } from "./add-expense-form";
 import { CloseMonthForm } from "./close-month-form";
+import { ContributionRow } from "./contribution-row";
+import { ExpenseRow } from "./expense-row";
 import { OpenMonthForm } from "./open-month-form";
 import { ReopenMonthForm } from "./reopen-month-form";
 
 function euros(amount: number): string {
   return `${amount.toFixed(2)} €`;
-}
-
-function formatDay(date: CalendarDate): string {
-  return `${date.day.toString().padStart(2, "0")}/${date.month.toString().padStart(2, "0")}`;
 }
 
 const CONSUMPTION_LEVEL_LABELS: Record<ConsumptionLevel, string> = {
@@ -421,23 +418,29 @@ export default async function MonthPage({ params }: { params: Promise<{ month: s
         </CardHeader>
         <CardContent>
           {expenses.length > 0 ? (
-            <ul className="flex flex-col gap-1 text-sm">
+            <ul className="flex flex-col gap-2">
               {expenses.map((expense) => (
-                <li key={expense.id} className="flex justify-between gap-2">
-                  <span className="text-muted-foreground">{formatDay(expense.date)}</span>
-                  <span className="flex-1">
-                    {expense.place ? `${expense.place} · ` : ""}
-                    {expense.description ?? categoryLabels.get(expense.categoryId)}
-                    <span className="text-muted-foreground"> · {targetLabel(expense.source)}</span>
-                    {expense.savingsDraw ? (
-                      <span className="text-destructive">
-                        {" "}
-                        · {euros(moneyToEuros(expense.savingsDraw))} financés par l'épargne
-                      </span>
-                    ) : null}
-                  </span>
-                  <span>{euros(moneyToEuros(expense.amount))}</span>
-                </li>
+                <ExpenseRow
+                  key={expense.id}
+                  expense={expense}
+                  categoryLabel={categoryLabels.get(expense.categoryId) ?? ""}
+                  targetLabel={targetLabel(expense.source)}
+                  envelopes={budgetMonth.envelopeBudgets.map((entry) => ({
+                    id: entry.envelopeId,
+                    label: entry.label,
+                  }))}
+                  provisions={budgetMonth.provisionTargets.map((entry) => ({
+                    id: entry.provisionId,
+                    label: entry.label,
+                  }))}
+                  categories={categories.map((category) => ({
+                    id: category.id,
+                    label: category.label,
+                  }))}
+                  minDate={formatCalendarDate(firstDayOfMonth(currentMonth))}
+                  maxDate={formatCalendarDate(lastDayOfMonth(currentMonth))}
+                  editable={budgetMonth.status === "open"}
+                />
               ))}
             </ul>
           ) : (
@@ -452,13 +455,20 @@ export default async function MonthPage({ params }: { params: Promise<{ month: s
         </CardHeader>
         <CardContent>
           {contributionsThisMonth.length > 0 ? (
-            <ul className="flex flex-col gap-1 text-sm">
+            <ul className="flex flex-col gap-2">
               {contributionsThisMonth.map((contribution) => (
-                <li key={contribution.id} className="flex justify-between gap-2">
-                  <span className="text-muted-foreground">{formatDay(contribution.date)}</span>
-                  <span className="flex-1">{provisionLabels.get(contribution.provisionId)}</span>
-                  <span>{euros(moneyToEuros(contribution.amount))}</span>
-                </li>
+                <ContributionRow
+                  key={contribution.id}
+                  contribution={contribution}
+                  provisionLabel={provisionLabels.get(contribution.provisionId) ?? ""}
+                  provisions={budgetMonth.provisionTargets.map((entry) => ({
+                    id: entry.provisionId,
+                    label: entry.label,
+                  }))}
+                  minDate={formatCalendarDate(firstDayOfMonth(currentMonth))}
+                  maxDate={formatCalendarDate(lastDayOfMonth(currentMonth))}
+                  editable={budgetMonth.status === "open"}
+                />
               ))}
             </ul>
           ) : (

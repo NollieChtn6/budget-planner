@@ -2,17 +2,22 @@
 
 import {
   createExpense,
+  deleteExpense,
   findBudgetMonthByMonth,
   findCategoriesByUser,
   findContributionsByUserAndProvision,
+  findExpenseById,
   findExpensesByUserAndProvision,
   prisma,
+  updateExpense,
 } from "@budget/db";
 import {
   computeProvisionBalance,
   type ExpenseSource,
   formatMonth,
+  isSameMonth,
   moneyFromEuros,
+  monthOfCalendarDate,
   parseCalendarDate,
   type RecordExpenseFailure,
   recordExpense,
@@ -22,7 +27,7 @@ import { revalidatePath } from "next/cache";
 import type { VariableEnvelopeActionState } from "@/actions/variable-envelope-state";
 import { resolveCurrentMonth } from "@/lib/current-month";
 import { requireSession } from "@/lib/session";
-import { createExpenseSchema } from "@/schemas/expense";
+import { createExpenseSchema, deleteExpenseSchema, updateExpenseSchema } from "@/schemas/expense";
 
 function describeRecordExpenseFailure(error: RecordExpenseFailure): string {
   switch (error.type) {
@@ -151,6 +156,149 @@ export async function createExpenseAction(
     place: parsed.data.place || undefined,
     description: parsed.data.description || undefined,
   });
+
+  if (result.status === "success") {
+    revalidatePath(`/months/${formatMonth(resolveCurrentMonth())}`);
+  }
+  return result;
+}
+
+export type UpdateExpenseInput = CreateExpenseInput & { id: string };
+
+/** Session-free core, same split as `createExpenseForUser`. */
+export async function updateExpenseForUser(
+  prismaClient: PrismaClient,
+  userId: string,
+  input: UpdateExpenseInput,
+): Promise<VariableEnvelopeActionState> {
+  let amount: ReturnType<typeof moneyFromEuros>;
+  try {
+    amount = moneyFromEuros(input.amountEuros);
+  } catch {
+    return { status: "error", message: "Montant invalide (centimes uniquement)." };
+  }
+
+  let date: ReturnType<typeof parseCalendarDate>;
+  try {
+    date = parseCalendarDate(input.date);
+  } catch {
+    return { status: "error", message: "Date invalide." };
+  }
+
+  const target = parseTarget(input.target);
+  if (!target) {
+    return { status: "error", message: "Choisis une enveloppe ou une provision." };
+  }
+
+  const currentMonth = resolveCurrentMonth();
+  const budgetMonth = await findBudgetMonthByMonth(prismaClient, userId, currentMonth);
+  if (budgetMonth?.status !== "open") {
+    return { status: "error", message: "Le mois n'est pas ouvert." };
+  }
+
+  const existing = await findExpenseById(prismaClient, userId, input.id);
+  if (!existing || !isSameMonth(monthOfCalendarDate(existing.date), currentMonth)) {
+    return { status: "error", message: "Dépense introuvable." };
+  }
+
+  const categories = await findCategoriesByUser(prismaClient, userId);
+
+  let provisionBalance: ReturnType<typeof moneyFromEuros> | undefined;
+  if (target.type === "provision") {
+    const [contributions, provisionExpenses] = await Promise.all([
+      findContributionsByUserAndProvision(prismaClient, userId, target.provisionId),
+      findExpensesByUserAndProvision(prismaClient, userId, target.provisionId),
+    ]);
+    provisionBalance = computeProvisionBalance(
+      contributions.map((c) => c.amount),
+      provisionExpenses.filter((e) => e.id !== input.id),
+    );
+  }
+
+  const result = recordExpense(
+    {
+      date,
+      amount,
+      place: input.place,
+      description: input.description,
+      categoryId: input.categoryId,
+      target,
+    },
+    {
+      currentMonth,
+      categories,
+      snapshotEnvelopeIds: budgetMonth.envelopeBudgets.map((entry) => entry.envelopeId),
+      snapshotProvisionIds: budgetMonth.provisionTargets.map((entry) => entry.provisionId),
+      provisionBalance,
+    },
+  );
+
+  if (!result.ok) {
+    return { status: "error", message: describeRecordExpenseFailure(result.error) };
+  }
+
+  await updateExpense(prismaClient, userId, input.id, result.expense);
+  return { status: "success", message: "Dépense modifiée." };
+}
+
+export async function updateExpenseAction(
+  _prevState: VariableEnvelopeActionState,
+  formData: FormData,
+): Promise<VariableEnvelopeActionState> {
+  const session = await requireSession();
+  const parsed = updateExpenseSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) {
+    return { status: "error", message: parsed.error.issues[0]?.message ?? "Entrée invalide." };
+  }
+
+  const result = await updateExpenseForUser(prisma, session.user.id, {
+    id: parsed.data.id,
+    amountEuros: parsed.data.amountEuros,
+    date: parsed.data.date,
+    categoryId: parsed.data.categoryId,
+    target: parsed.data.target,
+    place: parsed.data.place || undefined,
+    description: parsed.data.description || undefined,
+  });
+
+  if (result.status === "success") {
+    revalidatePath(`/months/${formatMonth(resolveCurrentMonth())}`);
+  }
+  return result;
+}
+
+/** Session-free core, same split as `createExpenseForUser`. */
+export async function deleteExpenseForUser(
+  prismaClient: PrismaClient,
+  userId: string,
+  expenseId: string,
+): Promise<VariableEnvelopeActionState> {
+  const currentMonth = resolveCurrentMonth();
+  const budgetMonth = await findBudgetMonthByMonth(prismaClient, userId, currentMonth);
+  if (budgetMonth?.status !== "open") {
+    return { status: "error", message: "Le mois n'est pas ouvert." };
+  }
+
+  const existing = await findExpenseById(prismaClient, userId, expenseId);
+  if (!existing || !isSameMonth(monthOfCalendarDate(existing.date), currentMonth)) {
+    return { status: "error", message: "Dépense introuvable." };
+  }
+
+  await deleteExpense(prismaClient, userId, expenseId);
+  return { status: "success", message: "Dépense supprimée." };
+}
+
+export async function deleteExpenseAction(
+  _prevState: VariableEnvelopeActionState,
+  formData: FormData,
+): Promise<VariableEnvelopeActionState> {
+  const session = await requireSession();
+  const parsed = deleteExpenseSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) {
+    return { status: "error", message: parsed.error.issues[0]?.message ?? "Entrée invalide." };
+  }
+
+  const result = await deleteExpenseForUser(prisma, session.user.id, parsed.data.id);
 
   if (result.status === "success") {
     revalidatePath(`/months/${formatMonth(resolveCurrentMonth())}`);

@@ -100,6 +100,7 @@ export {
 } from "./months/open-month";
 export {
   type Contribution,
+  canModifyContribution,
   type RecordContributionContext,
   type RecordContributionFailure,
   type RecordContributionInput,

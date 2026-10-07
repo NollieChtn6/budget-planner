@@ -1,6 +1,7 @@
 import {
   createCategory,
   createContribution,
+  createExpense,
   createProvision,
   createTestPrismaClient,
   createVariableEnvelope,
@@ -9,8 +10,8 @@ import {
 import { moneyFromEuros, moneyToCents, moneyToEuros, parseCalendarDate } from "@budget/domain";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { resolveCurrentMonth } from "../lib/current-month";
-import { createExpenseForUser } from "./expense";
-import { openMonthForUser } from "./month";
+import { createExpenseForUser, deleteExpenseForUser, updateExpenseForUser } from "./expense";
+import { closeMonthForUser, openMonthForUser } from "./month";
 
 const prisma = createTestPrismaClient();
 
@@ -238,5 +239,134 @@ describe("createExpenseForUser — malformed target", () => {
     });
 
     expect(result.status).toBe("error");
+  });
+});
+
+describe("updateExpenseForUser", () => {
+  it("revises an expense's amount", async () => {
+    const user = await createTestUser();
+    const { envelope, category } = await seedOpenMonth(user.id);
+    const expense = await createExpense(prisma, user.id, {
+      date: parseCalendarDate(today),
+      amount: moneyFromEuros(15),
+      categoryId: category.id,
+      source: { type: "envelope", envelopeId: envelope.id },
+    });
+
+    const result = await updateExpenseForUser(prisma, user.id, {
+      id: expense.id,
+      amountEuros: 25,
+      date: today,
+      categoryId: category.id,
+      target: `envelope:${envelope.id}`,
+    });
+
+    expect(result.status).toBe("success");
+    const expenses = await findExpensesByUserAndMonth(prisma, user.id, currentMonth);
+    expect(moneyToCents(expenses[0]?.amount ?? moneyFromEuros(-1))).toBe(2500);
+  });
+
+  it("recomputes the savings draw (R22) excluding the expense's own prior amount", async () => {
+    const user = await createTestUser();
+    const { provision, category } = await seedOpenMonth(user.id);
+    await createContribution(prisma, user.id, {
+      date: parseCalendarDate(today),
+      amount: moneyFromEuros(250),
+      provisionId: provision.id,
+      origin: "manual",
+    });
+    const expense = await createExpense(prisma, user.id, {
+      date: parseCalendarDate(today),
+      amount: moneyFromEuros(100),
+      categoryId: category.id,
+      source: { type: "provision", provisionId: provision.id },
+    });
+
+    const result = await updateExpenseForUser(prisma, user.id, {
+      id: expense.id,
+      amountEuros: 300,
+      date: today,
+      categoryId: category.id,
+      target: `provision:${provision.id}`,
+    });
+
+    expect(result.status).toBe("success");
+    const expenses = await findExpensesByUserAndMonth(prisma, user.id, currentMonth);
+    expect(moneyToEuros(expenses[0]?.savingsDraw ?? moneyFromEuros(-1))).toBe(50);
+  });
+
+  it("rejects when the month isn't open", async () => {
+    const user = await createTestUser();
+    const { envelope, category } = await seedOpenMonth(user.id);
+    const expense = await createExpense(prisma, user.id, {
+      date: parseCalendarDate(today),
+      amount: moneyFromEuros(15),
+      categoryId: category.id,
+      source: { type: "envelope", envelopeId: envelope.id },
+    });
+    await closeMonthForUser(prisma, user.id, { allocations: [] });
+
+    const result = await updateExpenseForUser(prisma, user.id, {
+      id: expense.id,
+      amountEuros: 25,
+      date: today,
+      categoryId: category.id,
+      target: `envelope:${envelope.id}`,
+    });
+
+    expect(result.status).toBe("error");
+    expect(result.message).toContain("ouvert");
+  });
+
+  it("rejects an unknown expense id", async () => {
+    const user = await createTestUser();
+    const { envelope, category } = await seedOpenMonth(user.id);
+
+    const result = await updateExpenseForUser(prisma, user.id, {
+      id: "00000000-0000-0000-0000-000000000000",
+      amountEuros: 25,
+      date: today,
+      categoryId: category.id,
+      target: `envelope:${envelope.id}`,
+    });
+
+    expect(result.status).toBe("error");
+    expect(result.message).toContain("introuvable");
+  });
+});
+
+describe("deleteExpenseForUser", () => {
+  it("removes an expense", async () => {
+    const user = await createTestUser();
+    const { envelope, category } = await seedOpenMonth(user.id);
+    const expense = await createExpense(prisma, user.id, {
+      date: parseCalendarDate(today),
+      amount: moneyFromEuros(15),
+      categoryId: category.id,
+      source: { type: "envelope", envelopeId: envelope.id },
+    });
+
+    const result = await deleteExpenseForUser(prisma, user.id, expense.id);
+
+    expect(result.status).toBe("success");
+    const expenses = await findExpensesByUserAndMonth(prisma, user.id, currentMonth);
+    expect(expenses).toHaveLength(0);
+  });
+
+  it("rejects when the month isn't open", async () => {
+    const user = await createTestUser();
+    const { envelope, category } = await seedOpenMonth(user.id);
+    const expense = await createExpense(prisma, user.id, {
+      date: parseCalendarDate(today),
+      amount: moneyFromEuros(15),
+      categoryId: category.id,
+      source: { type: "envelope", envelopeId: envelope.id },
+    });
+    await closeMonthForUser(prisma, user.id, { allocations: [] });
+
+    const result = await deleteExpenseForUser(prisma, user.id, expense.id);
+
+    expect(result.status).toBe("error");
+    expect(result.message).toContain("ouvert");
   });
 });

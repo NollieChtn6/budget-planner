@@ -34,6 +34,15 @@ export async function findContributionsByUserAndProvision(
   return rows.map(toDomainContribution);
 }
 
+export async function findContributionById(
+  prisma: PrismaClient,
+  userId: string,
+  id: string,
+): Promise<Contribution | null> {
+  const row = await prisma.contribution.findFirst({ where: { id, userId } });
+  return row ? toDomainContribution(row) : null;
+}
+
 /**
  * `provisionId` ownership is checked explicitly here, like
  * `addVariableEnvelopeVersion` does for its own foreign row: Prisma's
@@ -56,4 +65,38 @@ export async function createContribution(
     data: { userId, ...toPrismaContributionData(contribution) },
   });
   return toDomainContribution(row);
+}
+
+export async function updateContribution(
+  prisma: PrismaClient,
+  userId: string,
+  id: string,
+  contribution: Omit<Contribution, "id">,
+): Promise<void> {
+  const provision = await prisma.provision.findFirst({
+    where: { id: contribution.provisionId, userId },
+    select: { id: true },
+  });
+  if (!provision) {
+    throw new Error(`Provision ${contribution.provisionId} not found for this user`);
+  }
+
+  const updated = await prisma.contribution.updateMany({
+    where: { id, userId },
+    data: toPrismaContributionData(contribution),
+  });
+  if (updated.count === 0) {
+    throw new Error("Contribution not found for this user");
+  }
+}
+
+export async function deleteContribution(
+  prisma: PrismaClient,
+  userId: string,
+  id: string,
+): Promise<void> {
+  const deleted = await prisma.contribution.deleteMany({ where: { id, userId } });
+  if (deleted.count === 0) {
+    throw new Error("Contribution not found for this user");
+  }
 }

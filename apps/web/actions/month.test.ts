@@ -10,7 +10,7 @@ import {
 import { formatMonth, moneyFromEuros, moneyToCents, parseCalendarDate } from "@budget/domain";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { resolveCurrentMonth } from "../lib/current-month";
-import { closeMonthForUser, openMonthForUser } from "./month";
+import { closeMonthForUser, openMonthForUser, reopenMonthForUser } from "./month";
 
 const prisma = createTestPrismaClient();
 
@@ -194,5 +194,47 @@ describe("closeMonthForUser", () => {
 
     expect(result.status).toBe("error");
     expect(result.message).toContain("budget de ce mois");
+  });
+});
+
+describe("reopenMonthForUser", () => {
+  it("unlocks a closed month, allowing a forgotten operation to be added", async () => {
+    const user = await createTestUser();
+    const { provision } = await seedParameterization(user.id);
+    await openMonthForUser(prisma, user.id, 2800);
+    await closeMonthForUser(prisma, user.id, { allocations: [] });
+
+    const result = await reopenMonthForUser(prisma, user.id);
+    expect(result.status).toBe("success");
+
+    const reopened = await findBudgetMonthByMonth(prisma, user.id, currentMonth);
+    expect(reopened?.status).toBe("open");
+
+    // R29: a forgotten contribution can now be added, then the month re-closed.
+    const added = await closeMonthForUser(prisma, user.id, {
+      allocations: [{ destination: "provision", provisionId: provision.id, amountEuros: 10 }],
+    });
+    expect(added.status).toBe("success");
+    const closedAgain = await findBudgetMonthByMonth(prisma, user.id, currentMonth);
+    expect(closedAgain?.status).toBe("closed");
+  });
+
+  it("rejects reopening a month that isn't closed", async () => {
+    const user = await createTestUser();
+    await seedParameterization(user.id);
+    await openMonthForUser(prisma, user.id, 2800);
+
+    const result = await reopenMonthForUser(prisma, user.id);
+
+    expect(result.status).toBe("error");
+    expect(result.message).toContain("clôturé");
+  });
+
+  it("rejects reopening when no month has ever been opened", async () => {
+    const user = await createTestUser();
+
+    const result = await reopenMonthForUser(prisma, user.id);
+
+    expect(result.status).toBe("error");
   });
 });

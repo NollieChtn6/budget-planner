@@ -1,6 +1,7 @@
 import type { CalendarDate } from "../calendar-date";
 import { type Money, moneyFromCents, moneyToCents, sumMoney } from "../money";
 import type { Contribution } from "../operations/contribution";
+import type { BudgetMonthStatus } from "./open-month";
 
 /** R24: the leftover sums every variable envelope's remainder, negative included. */
 export function computeLeftover(envelopeRemainders: Money[]): Money {
@@ -12,13 +13,15 @@ export function computeSavingsFundedAmount(leftover: Money): Money {
   return moneyToCents(leftover) < 0 ? moneyFromCents(-moneyToCents(leftover)) : moneyFromCents(0);
 }
 
-export type LeftoverAllocation =
+export type LeftoverAllocationInput =
   | { destination: "savings"; amount: Money }
   | { destination: "provision"; provisionId: string; amount: Money };
 
+export type LeftoverAllocation = LeftoverAllocationInput & { id: string };
+
 export type CloseMonthInput = {
   date: CalendarDate;
-  allocations: LeftoverAllocation[];
+  allocations: LeftoverAllocationInput[];
   /** The month's frozen instantané (docs/domain/model.md), not the live provision list. */
   snapshotProvisionIds: string[];
 };
@@ -28,7 +31,7 @@ export type CloseMonthFailure =
   | { type: "provisionNotInSnapshot" };
 
 export type CloseMonthResult =
-  | { ok: true; allocations: LeftoverAllocation[]; contributions: Omit<Contribution, "id">[] }
+  | { ok: true; allocations: LeftoverAllocationInput[]; contributions: Omit<Contribution, "id">[] }
   | { ok: false; error: CloseMonthFailure };
 
 /**
@@ -55,7 +58,7 @@ export function closeMonth(input: CloseMonthInput): CloseMonthResult {
 
   const contributions: Omit<Contribution, "id">[] = input.allocations
     .filter(
-      (allocation): allocation is Extract<LeftoverAllocation, { destination: "provision" }> =>
+      (allocation): allocation is Extract<LeftoverAllocationInput, { destination: "provision" }> =>
         allocation.destination === "provision",
     )
     .map((allocation) => ({
@@ -66,4 +69,23 @@ export function closeMonth(input: CloseMonthInput): CloseMonthResult {
     }));
 
   return { ok: true, allocations: input.allocations, contributions };
+}
+
+export type ReopenMonthFailure = { type: "notClosed" };
+export type ReopenMonthResult = { ok: true } | { ok: false; error: ReopenMonthFailure };
+
+/**
+ * R29: only the last closed month can be reopened — in this app's V1 (no
+ * multi-month navigation, see issue #11), the only month ever addressable is
+ * the real current one, so "closed" already implies "the last closed month".
+ * What becomes modifiable again (income, expenses, contributions, pointage —
+ * never the frozen snapshot, R7) and how a later re-closing revalidates the
+ * leftover split (R25) are the caller's concern: there's nothing else to
+ * validate here.
+ */
+export function reopenMonth(status: BudgetMonthStatus): ReopenMonthResult {
+  if (status !== "closed") {
+    return { ok: false, error: { type: "notClosed" } };
+  }
+  return { ok: true };
 }

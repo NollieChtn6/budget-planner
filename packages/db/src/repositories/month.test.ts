@@ -9,7 +9,12 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { createTestPrismaClient } from "../testing";
 import { findContributionsByUserAndProvision } from "./contribution";
 import { createFixedEntry } from "./fixed-entry";
-import { closeBudgetMonth, createBudgetMonth, findBudgetMonthByMonth } from "./month";
+import {
+  closeBudgetMonth,
+  createBudgetMonth,
+  findBudgetMonthByMonth,
+  reopenBudgetMonth,
+} from "./month";
 import { createProvision } from "./provision";
 import { createVariableEnvelope } from "./variable-envelope";
 
@@ -197,6 +202,67 @@ describe("closeBudgetMonth", () => {
         contributions: [],
       }),
     ).rejects.toThrow();
+  });
+});
+
+describe("reopenBudgetMonth", () => {
+  it("unlocks a closed month", async () => {
+    const user = await createTestUser(primaryEmail);
+    const seed = await seedParameterization(user.id);
+    await createBudgetMonth(prisma, user.id, buildBudgetMonth(seed));
+    await closeBudgetMonth(prisma, user.id, month, {
+      closedAt: new Date("2026-01-31T12:00:00.000Z"),
+      allocations: [],
+      contributions: [],
+    });
+
+    await reopenBudgetMonth(prisma, user.id, month);
+
+    const reopened = await findBudgetMonthByMonth(prisma, user.id, month);
+    expect(reopened?.status).toBe("open");
+  });
+
+  it("allows closing it again afterwards", async () => {
+    const user = await createTestUser(primaryEmail);
+    const seed = await seedParameterization(user.id);
+    await createBudgetMonth(prisma, user.id, buildBudgetMonth(seed));
+    await closeBudgetMonth(prisma, user.id, month, {
+      closedAt: new Date("2026-01-31T12:00:00.000Z"),
+      allocations: [],
+      contributions: [],
+    });
+    await reopenBudgetMonth(prisma, user.id, month);
+
+    await closeBudgetMonth(prisma, user.id, month, {
+      closedAt: new Date("2026-02-01T09:00:00.000Z"),
+      allocations: [],
+      contributions: [],
+    });
+
+    const closedAgain = await findBudgetMonthByMonth(prisma, user.id, month);
+    expect(closedAgain?.status).toBe("closed");
+  });
+
+  it("rejects reopening a month that isn't closed", async () => {
+    const user = await createTestUser(primaryEmail);
+    const seed = await seedParameterization(user.id);
+    await createBudgetMonth(prisma, user.id, buildBudgetMonth(seed));
+
+    await expect(reopenBudgetMonth(prisma, user.id, month)).rejects.toThrow();
+  });
+
+  it("rejects reopening another user's month", async () => {
+    const owner = await createTestUser(primaryEmail);
+    const attacker = await createTestUser(otherEmail);
+    const seed = await seedParameterization(owner.id);
+    await createBudgetMonth(prisma, owner.id, buildBudgetMonth(seed));
+    await closeBudgetMonth(prisma, owner.id, month, {
+      closedAt: new Date("2026-01-31T12:00:00.000Z"),
+      allocations: [],
+      contributions: [],
+    });
+
+    await expect(reopenBudgetMonth(prisma, attacker.id, month)).rejects.toThrow();
   });
 });
 

@@ -6,6 +6,7 @@ import {
   closeMonth,
   computeLeftover,
   computeSavingsFundedAmount,
+  reopenMonth,
 } from "./close-month";
 
 describe("computeLeftover (R24)", () => {
@@ -91,5 +92,15 @@ describe("closeMonth (R25, R26)", () => {
       }),
     );
     expect(result).toEqual({ ok: false, error: { type: "provisionNotInSnapshot" } });
+  });
+});
+
+describe("reopenMonth (R29)", () => {
+  it("accepts a closed month", () => {
+    expect(reopenMonth("closed")).toEqual({ ok: true });
+  });
+
+  it("rejects a month that isn't closed", () => {
+    expect(reopenMonth("open")).toEqual({ ok: false, error: { type: "notClosed" } });
   });
 });

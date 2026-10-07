@@ -4,6 +4,7 @@ import {
   findContributionsByUserAndProvision,
   findExpensesByUserAndMonth,
   findExpensesByUserAndProvision,
+  findLeftoverAllocationsByUserAndMonth,
   findProvisionsByUser,
   prisma,
 } from "@budget/db";
@@ -35,6 +36,7 @@ import {
   moneyToEuros,
   monthOfCalendarDate,
   previousMonth,
+  subtractMoney,
   sumMoney,
 } from "@budget/domain";
 import { redirect } from "next/navigation";
@@ -45,6 +47,7 @@ import { AddContributionForm } from "./add-contribution-form";
 import { AddExpenseForm } from "./add-expense-form";
 import { CloseMonthForm } from "./close-month-form";
 import { OpenMonthForm } from "./open-month-form";
+import { ReopenMonthForm } from "./reopen-month-form";
 
 function euros(amount: number): string {
   return `${amount.toFixed(2)} €`;
@@ -204,6 +207,21 @@ export default async function MonthPage({ params }: { params: Promise<{ month: s
   );
   const savingsFunded = computeSavingsFundedAmount(leftover);
 
+  const existingAllocations = await findLeftoverAllocationsByUserAndMonth(
+    prisma,
+    session.user.id,
+    currentMonth,
+  );
+  const previouslyAllocated = sumMoney(existingAllocations.map((a) => a.amount));
+  const allocatable = subtractMoney(leftover, previouslyAllocated);
+  const previousAllocationsDisplay = existingAllocations.map((allocation) => ({
+    label:
+      allocation.destination === "savings"
+        ? "Épargne"
+        : (provisionLabels.get(allocation.provisionId) ?? "Provision"),
+    amount: moneyToEuros(allocation.amount),
+  }));
+
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-6 p-6">
       <h1 className="text-2xl font-semibold">{formatMonth(currentMonth)}</h1>
@@ -213,7 +231,7 @@ export default async function MonthPage({ params }: { params: Promise<{ month: s
           <CardHeader>
             <CardTitle>Mois clôturé</CardTitle>
           </CardHeader>
-          <CardContent className="flex flex-col gap-1 text-sm">
+          <CardContent className="flex flex-col gap-3 text-sm">
             <p>
               Reliquat de clôture :{" "}
               <strong className={leftover.cents < 0 ? "text-destructive" : ""}>
@@ -223,6 +241,18 @@ export default async function MonthPage({ params }: { params: Promise<{ month: s
                 ? ` dont ${euros(moneyToEuros(savingsFunded))} financés par l'épargne`
                 : ""}
             </p>
+            {previousAllocationsDisplay.length > 0 ? (
+              <ul className="flex flex-col gap-1 text-muted-foreground">
+                {previousAllocationsDisplay.map((allocation, index) => (
+                  // biome-ignore lint/suspicious/noArrayIndexKey: several allocations can share the same destination across closings
+                  <li key={`${allocation.label}-${index}`} className="flex justify-between">
+                    <span>Réparti vers {allocation.label}</span>
+                    <span>{euros(allocation.amount)}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+            <ReopenMonthForm />
           </CardContent>
         </Card>
       ) : null}
@@ -441,6 +471,8 @@ export default async function MonthPage({ params }: { params: Promise<{ month: s
         <CloseMonthForm
           envelopeRemainders={envelopeRemainders}
           leftover={moneyToEuros(leftover)}
+          allocatable={moneyToEuros(allocatable)}
+          previousAllocations={previousAllocationsDisplay}
           provisions={budgetMonth.provisionTargets.map((entry) => ({
             id: entry.provisionId,
             label: entry.label,

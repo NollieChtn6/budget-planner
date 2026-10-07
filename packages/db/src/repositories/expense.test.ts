@@ -4,8 +4,11 @@ import { createTestPrismaClient } from "../testing";
 import { createCategory } from "./category";
 import {
   createExpense,
+  deleteExpense,
+  findExpenseById,
   findExpensesByUserAndMonth,
   findExpensesByUserAndProvision,
+  updateExpense,
 } from "./expense";
 import { createProvision } from "./provision";
 import { createVariableEnvelope } from "./variable-envelope";
@@ -241,5 +244,97 @@ describe("findExpensesByUserAndMonth", () => {
     const october = await findExpensesByUserAndMonth(prisma, user.id, parseMonth("2026-10"));
     expect(october).toHaveLength(1);
     expect(moneyToEuros(october[0]?.amount ?? moneyFromEuros(-1))).toBe(15);
+  });
+});
+
+describe("findExpenseById", () => {
+  it("returns null for another user's expense", async () => {
+    const owner = await createTestUser(primaryEmail);
+    const attacker = await createTestUser(otherEmail);
+    const { envelope, category } = await seedEnvelopeAndCategory(owner.id);
+    const expense = await createExpense(prisma, owner.id, {
+      date: parseCalendarDate("2026-10-05"),
+      amount: moneyFromEuros(15),
+      categoryId: category.id,
+      source: { type: "envelope", envelopeId: envelope.id },
+    });
+
+    expect(await findExpenseById(prisma, attacker.id, expense.id)).toBeNull();
+    expect(await findExpenseById(prisma, owner.id, expense.id)).not.toBeNull();
+  });
+});
+
+describe("updateExpense", () => {
+  it("revises an expense's amount and target", async () => {
+    const user = await createTestUser(primaryEmail);
+    const { envelope, category } = await seedEnvelopeAndCategory(user.id);
+    const expense = await createExpense(prisma, user.id, {
+      date: parseCalendarDate("2026-10-05"),
+      amount: moneyFromEuros(15),
+      categoryId: category.id,
+      source: { type: "envelope", envelopeId: envelope.id },
+    });
+
+    await updateExpense(prisma, user.id, expense.id, {
+      date: parseCalendarDate("2026-10-06"),
+      amount: moneyFromEuros(20),
+      categoryId: category.id,
+      source: { type: "envelope", envelopeId: envelope.id },
+    });
+
+    const updated = await findExpenseById(prisma, user.id, expense.id);
+    expect(moneyToEuros(updated?.amount ?? moneyFromEuros(-1))).toBe(20);
+  });
+
+  it("rejects updating another user's expense", async () => {
+    const owner = await createTestUser(primaryEmail);
+    const attacker = await createTestUser(otherEmail);
+    const { envelope, category } = await seedEnvelopeAndCategory(owner.id);
+    const expense = await createExpense(prisma, owner.id, {
+      date: parseCalendarDate("2026-10-05"),
+      amount: moneyFromEuros(15),
+      categoryId: category.id,
+      source: { type: "envelope", envelopeId: envelope.id },
+    });
+
+    await expect(
+      updateExpense(prisma, attacker.id, expense.id, {
+        date: parseCalendarDate("2026-10-05"),
+        amount: moneyFromEuros(99),
+        categoryId: category.id,
+        source: { type: "envelope", envelopeId: envelope.id },
+      }),
+    ).rejects.toThrow();
+  });
+});
+
+describe("deleteExpense", () => {
+  it("removes an expense", async () => {
+    const user = await createTestUser(primaryEmail);
+    const { envelope, category } = await seedEnvelopeAndCategory(user.id);
+    const expense = await createExpense(prisma, user.id, {
+      date: parseCalendarDate("2026-10-05"),
+      amount: moneyFromEuros(15),
+      categoryId: category.id,
+      source: { type: "envelope", envelopeId: envelope.id },
+    });
+
+    await deleteExpense(prisma, user.id, expense.id);
+
+    expect(await findExpenseById(prisma, user.id, expense.id)).toBeNull();
+  });
+
+  it("rejects deleting another user's expense", async () => {
+    const owner = await createTestUser(primaryEmail);
+    const attacker = await createTestUser(otherEmail);
+    const { envelope, category } = await seedEnvelopeAndCategory(owner.id);
+    const expense = await createExpense(prisma, owner.id, {
+      date: parseCalendarDate("2026-10-05"),
+      amount: moneyFromEuros(15),
+      categoryId: category.id,
+      source: { type: "envelope", envelopeId: envelope.id },
+    });
+
+    await expect(deleteExpense(prisma, attacker.id, expense.id)).rejects.toThrow();
   });
 });

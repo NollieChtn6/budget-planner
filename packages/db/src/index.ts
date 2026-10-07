@@ -7,13 +7,19 @@ export {
 } from "./repositories/category";
 export {
   createContribution,
+  deleteContribution,
+  findContributionById,
   findContributionsByUserAndMonth,
   findContributionsByUserAndProvision,
+  updateContribution,
 } from "./repositories/contribution";
 export {
   createExpense,
+  deleteExpense,
+  findExpenseById,
   findExpensesByUserAndMonth,
   findExpensesByUserAndProvision,
+  updateExpense,
 } from "./repositories/expense";
 export {
   createFixedEntry,

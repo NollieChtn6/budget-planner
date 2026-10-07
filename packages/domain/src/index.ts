@@ -74,6 +74,15 @@ export {
   previousMonth,
 } from "./month";
 export {
+  type CloseMonthFailure,
+  type CloseMonthInput,
+  type CloseMonthResult,
+  closeMonth,
+  computeLeftover,
+  computeSavingsFundedAmount,
+  type LeftoverAllocation,
+} from "./months/close-month";
+export {
   type BudgetMonth,
   type BudgetMonthStatus,
   type OpenMonthFailure,

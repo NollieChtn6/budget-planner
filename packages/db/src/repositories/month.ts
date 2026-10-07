@@ -1,6 +1,8 @@
-import type { BudgetMonth, Month } from "@budget/domain";
+import type { BudgetMonth, Contribution, LeftoverAllocation, Month } from "@budget/domain";
 import { moneyToCents } from "@budget/domain";
 import type { PrismaClient } from "@prisma/client";
+import { toPrismaContributionData } from "../mappers/contribution";
+import { toPrismaLeftoverAllocationData } from "../mappers/leftover-allocation";
 import {
   monthToDate,
   toDomainBudgetMonth,
@@ -55,4 +57,54 @@ export async function createBudgetMonth(
     include: WITH_SNAPSHOT,
   });
   return toDomainBudgetMonth(row);
+}
+
+/**
+ * R26: locks the month while recording its leftover split (R25) and the
+ * contributions that split toward a provision creates — in one transaction,
+ * per docs/domain/architecture.md's "aucun état intermédiaire ne doit être
+ * visible" for month operations.
+ */
+export async function closeBudgetMonth(
+  prisma: PrismaClient,
+  userId: string,
+  month: Month,
+  input: {
+    closedAt: Date;
+    allocations: LeftoverAllocation[];
+    contributions: Omit<Contribution, "id">[];
+  },
+): Promise<void> {
+  await prisma.$transaction(async (tx) => {
+    const existing = await tx.budgetMonth.findFirst({
+      where: { userId, month: monthToDate(month), status: "open" },
+      select: { id: true },
+    });
+    if (!existing) {
+      throw new Error("Open budget month not found for this user");
+    }
+
+    await tx.budgetMonth.update({
+      where: { id: existing.id },
+      data: { status: "closed", closedAt: input.closedAt },
+    });
+
+    if (input.allocations.length > 0) {
+      await tx.leftoverAllocation.createMany({
+        data: input.allocations.map((allocation) => ({
+          budgetMonthId: existing.id,
+          ...toPrismaLeftoverAllocationData(allocation),
+        })),
+      });
+    }
+
+    if (input.contributions.length > 0) {
+      await tx.contribution.createMany({
+        data: input.contributions.map((contribution) => ({
+          userId,
+          ...toPrismaContributionData(contribution),
+        })),
+      });
+    }
+  });
 }

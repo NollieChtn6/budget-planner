@@ -210,12 +210,13 @@ model Provision {
   archivedFrom       DateTime?       @map("archived_from") @db.Date
   previousCycleId    String?         @unique @map("previous_cycle_id") @db.Uuid
 
-  user            User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  previousCycle   Provision?                @relation("ProvisionRenewal", fields: [previousCycleId], references: [id], onDelete: SetNull)
-  nextCycle       Provision?                @relation("ProvisionRenewal")
-  snapshotTargets SnapshotProvisionTarget[]
-  expenses        Expense[]
-  contributions   Contribution[]
+  user                User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  previousCycle       Provision?                @relation("ProvisionRenewal", fields: [previousCycleId], references: [id], onDelete: SetNull)
+  nextCycle           Provision?                @relation("ProvisionRenewal")
+  snapshotTargets     SnapshotProvisionTarget[]
+  expenses            Expense[]
+  contributions       Contribution[]
+  leftoverAllocations LeftoverAllocation[]
 
   @@index([userId])
   @@map("provisions")
@@ -270,10 +271,11 @@ model BudgetMonth {
   closedAt    DateTime?         @map("closed_at")
   reopenedAt  DateTime?         @map("reopened_at")
 
-  user             User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  fixedEntries     SnapshotFixedEntry[]
-  envelopeBudgets  SnapshotEnvelopeBudget[]
-  provisionTargets SnapshotProvisionTarget[]
+  user                User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fixedEntries        SnapshotFixedEntry[]
+  envelopeBudgets     SnapshotEnvelopeBudget[]
+  provisionTargets    SnapshotProvisionTarget[]
+  leftoverAllocations LeftoverAllocation[]
 
   @@unique([userId, month])
   @@index([userId])
@@ -324,8 +326,37 @@ model SnapshotProvisionTarget {
   @@map("snapshot_provision_targets")
 }
 
-// Opérations (docs/domain/model.md). V1 : une dépense n'est imputable qu'à
-// une enveloppe variable (source "provision" à venir, voir issue #11).
+// Clôture du mois (R24-R26, R30 ; docs/domain/model.md). Une répartition
+// vers une provision crée en plus un Contribution d'origine "closing" (R25).
+
+enum LeftoverAllocationDestination {
+  savings
+  provision
+
+  @@map("leftover_allocation_destination")
+}
+
+model LeftoverAllocation {
+  id            String                        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  budgetMonthId String                        @map("budget_month_id") @db.Uuid
+  provisionId   String?                       @map("provision_id") @db.Uuid
+  destination   LeftoverAllocationDestination
+  amountCents   Int                           @map("amount_cents")
+
+  budgetMonth BudgetMonth @relation(fields: [budgetMonthId], references: [id], onDelete: Cascade)
+  // Cascade, unlike Expense/Contribution's Restrict on the same relation:
+  // this row is a record of a closing-time decision, not an active ledger
+  // entry (the balance-affecting side is the Contribution it creates), so
+  // nothing reads it back yet — and Restrict here deadlocks User cascade
+  // deletes, since it sits two hops away (User -> Provision is one hop).
+  provision   Provision?  @relation(fields: [provisionId], references: [id], onDelete: Cascade)
+
+  @@index([budgetMonthId])
+  @@map("leftover_allocations")
+}
+
+// Opérations (docs/domain/model.md). Une dépense est imputable à une
+// enveloppe variable ou à une provision.
 
 model Expense {
   id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid

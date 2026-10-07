@@ -3,6 +3,7 @@ import { parseCalendarDate } from "../calendar-date";
 import { moneyFromEuros } from "../money";
 import { parseMonth } from "../month";
 import {
+  canModifyContribution,
   type RecordContributionContext,
   type RecordContributionInput,
   recordContribution,
@@ -54,5 +55,15 @@ describe("recordContribution", () => {
   it("rejects a provision that isn't part of this month's snapshot", () => {
     const result = recordContribution(baseInput({ provisionId: "unknown" }), context);
     expect(result).toEqual({ ok: false, error: { type: "provisionNotInSnapshot" } });
+  });
+});
+
+describe("canModifyContribution", () => {
+  it("allows a manually-entered contribution", () => {
+    expect(canModifyContribution({ origin: "manual" })).toBe(true);
+  });
+
+  it("rejects a contribution created by a month closing", () => {
+    expect(canModifyContribution({ origin: "closing" })).toBe(false);
   });
 });

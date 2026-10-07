@@ -1,4 +1,4 @@
-import type { BudgetMonth, Contribution, LeftoverAllocation, Month } from "@budget/domain";
+import type { BudgetMonth, Contribution, LeftoverAllocationInput, Month } from "@budget/domain";
 import { moneyToCents } from "@budget/domain";
 import type { PrismaClient } from "@prisma/client";
 import { toPrismaContributionData } from "../mappers/contribution";
@@ -71,7 +71,7 @@ export async function closeBudgetMonth(
   month: Month,
   input: {
     closedAt: Date;
-    allocations: LeftoverAllocation[];
+    allocations: LeftoverAllocationInput[];
     contributions: Omit<Contribution, "id">[];
   },
 ): Promise<void> {
@@ -107,4 +107,19 @@ export async function closeBudgetMonth(
       });
     }
   });
+}
+
+/** R29: unlocks a closed month again, without touching its frozen snapshot (R7). */
+export async function reopenBudgetMonth(
+  prisma: PrismaClient,
+  userId: string,
+  month: Month,
+): Promise<void> {
+  const updated = await prisma.budgetMonth.updateMany({
+    where: { userId, month: monthToDate(month), status: "closed" },
+    data: { status: "open", reopenedAt: new Date() },
+  });
+  if (updated.count === 0) {
+    throw new Error("Closed budget month not found for this user");
+  }
 }

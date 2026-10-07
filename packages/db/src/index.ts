@@ -22,10 +22,12 @@ export {
   persistFixedEntryVersion,
   setFixedEntryArchivedFrom,
 } from "./repositories/fixed-entry";
+export { findLeftoverAllocationsByUserAndMonth } from "./repositories/leftover-allocation";
 export {
   closeBudgetMonth,
   createBudgetMonth,
   findBudgetMonthByMonth,
+  reopenBudgetMonth,
 } from "./repositories/month";
 export {
   type CreateProvisionInput,

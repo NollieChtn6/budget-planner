@@ -17,8 +17,10 @@ import {
   computeContributionSurplus,
   computeDisposableIncome,
   computeForecastMargin,
+  computeLeftover,
   computeProvisionBalance,
   computeRemaining,
+  computeSavingsFundedAmount,
   computeSpent,
   computeUnallocated,
   type Expense,
@@ -41,6 +43,7 @@ import { resolveCurrentMonth } from "@/lib/current-month";
 import { requireSession } from "@/lib/session";
 import { AddContributionForm } from "./add-contribution-form";
 import { AddExpenseForm } from "./add-expense-form";
+import { CloseMonthForm } from "./close-month-form";
 import { OpenMonthForm } from "./open-month-form";
 
 function euros(amount: number): string {
@@ -190,9 +193,39 @@ export default async function MonthPage({ params }: { params: Promise<{ month: s
   }
   contributionsThisMonth.sort((a, b) => compareCalendarDates(a.date, b.date));
 
+  const envelopeRemainders = budgetMonth.envelopeBudgets.map((entry) => ({
+    label: entry.label,
+    remaining: moneyToEuros(envelopeConsumption.get(entry.envelopeId)?.remaining ?? entry.budget),
+  }));
+  const leftover = computeLeftover(
+    budgetMonth.envelopeBudgets.map(
+      (entry) => envelopeConsumption.get(entry.envelopeId)?.remaining ?? entry.budget,
+    ),
+  );
+  const savingsFunded = computeSavingsFundedAmount(leftover);
+
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-6 p-6">
       <h1 className="text-2xl font-semibold">{formatMonth(currentMonth)}</h1>
+
+      {budgetMonth.status === "closed" ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Mois clôturé</CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-1 text-sm">
+            <p>
+              Reliquat de clôture :{" "}
+              <strong className={leftover.cents < 0 ? "text-destructive" : ""}>
+                {euros(moneyToEuros(leftover))}
+              </strong>
+              {savingsFunded.cents > 0
+                ? ` dont ${euros(moneyToEuros(savingsFunded))} financés par l'épargne`
+                : ""}
+            </p>
+          </CardContent>
+        </Card>
+      ) : null}
 
       <Card>
         <CardHeader>
@@ -403,6 +436,17 @@ export default async function MonthPage({ params }: { params: Promise<{ month: s
           )}
         </CardContent>
       </Card>
+
+      {budgetMonth.status === "open" ? (
+        <CloseMonthForm
+          envelopeRemainders={envelopeRemainders}
+          leftover={moneyToEuros(leftover)}
+          provisions={budgetMonth.provisionTargets.map((entry) => ({
+            id: entry.provisionId,
+            label: entry.label,
+          }))}
+        />
+      ) : null}
     </div>
   );
 }

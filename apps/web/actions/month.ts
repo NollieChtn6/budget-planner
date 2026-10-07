@@ -1,18 +1,25 @@
 "use server";
 
 import {
+  closeBudgetMonth,
   createBudgetMonth,
   findBudgetMonthByMonth,
+  findContributionsByUserAndProvision,
+  findExpensesByUserAndProvision,
   findFixedEntriesByUser,
   findProvisionsByUser,
   findVariableEnvelopesByUser,
   prisma,
 } from "@budget/db";
 import {
+  type CloseMonthFailure,
+  closeMonth,
+  computeProvisionBalance,
   formatMonth,
-  moneyFromCents,
+  type LeftoverAllocation,
   moneyFromEuros,
   openMonth,
+  parseCalendarDate,
   previousMonth,
 } from "@budget/domain";
 import type { PrismaClient } from "@prisma/client";
@@ -20,7 +27,7 @@ import { revalidatePath } from "next/cache";
 import type { VariableEnvelopeActionState } from "@/actions/variable-envelope-state";
 import { resolveCurrentMonth } from "@/lib/current-month";
 import { requireSession } from "@/lib/session";
-import { openMonthSchema } from "@/schemas/month";
+import { closeMonthSchema, openMonthSchema } from "@/schemas/month";
 
 /**
  * Session-free core: takes userId and the Prisma client explicitly so it can
@@ -57,15 +64,32 @@ export async function openMonthForUser(
     findProvisionsByUser(prismaClient, userId),
   ]);
 
+  // R18/R21's starting point: each provision's real balance from every
+  // contribution and provision-expense ever recorded against it, not just
+  // this very first opening's (necessarily empty) history.
+  const provisionsWithBalance = await Promise.all(
+    provisions.map(async (provision) => {
+      const [contributions, expenses] = await Promise.all([
+        findContributionsByUserAndProvision(prismaClient, userId, provision.id),
+        findExpensesByUserAndProvision(prismaClient, userId, provision.id),
+      ]);
+      return {
+        ...provision,
+        balance: computeProvisionBalance(
+          contributions.map((c) => c.amount),
+          expenses,
+        ),
+      };
+    }),
+  );
+
   const result = openMonth({
     month: currentMonth,
     income,
     previousMonthStatus: previousMonthRow ? previousMonthRow.status : "none",
     fixedEntries,
     envelopes,
-    // Contribution/Expense don't exist yet, so no provision can have a
-    // balance before this very first opening (see issue #11).
-    provisions: provisions.map((provision) => ({ ...provision, balance: moneyFromCents(0) })),
+    provisions: provisionsWithBalance,
   });
 
   if (!result.ok) {
@@ -90,6 +114,99 @@ export async function openMonthAction(
   if (result.status === "success") {
     // revalidatePath needs a Next.js request context, unlike openMonthForUser
     // above — kept here so the core stays testable (see its doc comment).
+    revalidatePath(`/months/${formatMonth(resolveCurrentMonth())}`);
+  }
+  return result;
+}
+
+function describeCloseMonthFailure(error: CloseMonthFailure): string {
+  switch (error.type) {
+    case "invalidAllocationAmount":
+      return "Saisis un montant supérieur à 0 pour chaque répartition.";
+    case "provisionNotInSnapshot":
+      return "Cette provision ne fait pas partie du budget de ce mois.";
+  }
+}
+
+export type CloseMonthAllocationInput = {
+  destination: "savings" | "provision";
+  provisionId: string;
+  amountEuros: number;
+};
+
+/**
+ * Session-free core, same split as `openMonthForUser` above. R25: a
+ * provision split is dated the day of the closing itself — never a date the
+ * client supplies, like `date` is never taken from client input for the
+ * month being closed (see `resolveCurrentMonth`'s own comment).
+ */
+export async function closeMonthForUser(
+  prismaClient: PrismaClient,
+  userId: string,
+  input: { allocations: CloseMonthAllocationInput[] },
+): Promise<VariableEnvelopeActionState> {
+  const closedAt = new Date();
+  const date = parseCalendarDate(closedAt.toISOString().slice(0, 10));
+
+  const currentMonth = resolveCurrentMonth();
+  const budgetMonth = await findBudgetMonthByMonth(prismaClient, userId, currentMonth);
+  if (budgetMonth?.status !== "open") {
+    return { status: "error", message: "Le mois n'est pas ouvert." };
+  }
+
+  // A blank or 0 row means "nothing allocated here", not an error (R25
+  // never requires every destination to be filled).
+  const allocations: LeftoverAllocation[] = input.allocations.flatMap(
+    (allocation): LeftoverAllocation[] => {
+      if (allocation.amountEuros <= 0) return [];
+      let amount: ReturnType<typeof moneyFromEuros>;
+      try {
+        amount = moneyFromEuros(allocation.amountEuros);
+      } catch {
+        return [];
+      }
+      return allocation.destination === "savings"
+        ? [{ destination: "savings", amount }]
+        : [{ destination: "provision", provisionId: allocation.provisionId, amount }];
+    },
+  );
+
+  const result = closeMonth({
+    date,
+    allocations,
+    snapshotProvisionIds: budgetMonth.provisionTargets.map((entry) => entry.provisionId),
+  });
+
+  if (!result.ok) {
+    return { status: "error", message: describeCloseMonthFailure(result.error) };
+  }
+
+  await closeBudgetMonth(prismaClient, userId, currentMonth, {
+    closedAt,
+    allocations: result.allocations,
+    contributions: result.contributions,
+  });
+  return { status: "success", message: "Mois clôturé." };
+}
+
+export async function closeMonthAction(
+  _prevState: VariableEnvelopeActionState,
+  formData: FormData,
+): Promise<VariableEnvelopeActionState> {
+  const session = await requireSession();
+  const parsed = closeMonthSchema.safeParse({
+    allocations: formData.getAll("allocationDestination").map((destination, index) => ({
+      destination,
+      provisionId: formData.getAll("allocationProvisionId")[index],
+      amountEuros: formData.getAll("allocationAmountEuros")[index],
+    })),
+  });
+  if (!parsed.success) {
+    return { status: "error", message: parsed.error.issues[0]?.message ?? "Entrée invalide." };
+  }
+
+  const result = await closeMonthForUser(prisma, session.user.id, parsed.data);
+  if (result.status === "success") {
     revalidatePath(`/months/${formatMonth(resolveCurrentMonth())}`);
   }
   return result;

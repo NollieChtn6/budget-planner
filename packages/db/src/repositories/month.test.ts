@@ -1,8 +1,15 @@
-import { type BudgetMonth, moneyFromEuros, moneyToCents, parseMonth } from "@budget/domain";
+import {
+  type BudgetMonth,
+  moneyFromEuros,
+  moneyToCents,
+  parseCalendarDate,
+  parseMonth,
+} from "@budget/domain";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { createTestPrismaClient } from "../testing";
+import { findContributionsByUserAndProvision } from "./contribution";
 import { createFixedEntry } from "./fixed-entry";
-import { createBudgetMonth, findBudgetMonthByMonth } from "./month";
+import { closeBudgetMonth, createBudgetMonth, findBudgetMonthByMonth } from "./month";
 import { createProvision } from "./provision";
 import { createVariableEnvelope } from "./variable-envelope";
 
@@ -130,6 +137,69 @@ describe("createBudgetMonth / findBudgetMonthByMonth", () => {
   });
 });
 
+describe("closeBudgetMonth", () => {
+  it("locks the month and records a savings + provision split, creating a closing contribution", async () => {
+    const user = await createTestUser(primaryEmail);
+    const seed = await seedParameterization(user.id);
+    await createBudgetMonth(prisma, user.id, buildBudgetMonth(seed));
+
+    await closeBudgetMonth(prisma, user.id, month, {
+      closedAt: new Date("2026-01-31T12:00:00.000Z"),
+      allocations: [
+        { destination: "savings", amount: moneyFromEuros(20) },
+        { destination: "provision", provisionId: seed.provision.id, amount: moneyFromEuros(30) },
+      ],
+      contributions: [
+        {
+          date: parseCalendarDate("2026-01-31"),
+          amount: moneyFromEuros(30),
+          provisionId: seed.provision.id,
+          origin: "closing",
+        },
+      ],
+    });
+
+    const closed = await findBudgetMonthByMonth(prisma, user.id, month);
+    expect(closed?.status).toBe("closed");
+
+    const contributions = await findContributionsByUserAndProvision(
+      prisma,
+      user.id,
+      seed.provision.id,
+    );
+    expect(contributions).toHaveLength(1);
+    expect(contributions[0]?.origin).toBe("closing");
+    expect(moneyToCents(contributions[0]?.amount ?? moneyFromEuros(-1))).toBe(3000);
+  });
+
+  it("closes with no allocation at all", async () => {
+    const user = await createTestUser(primaryEmail);
+    const seed = await seedParameterization(user.id);
+    await createBudgetMonth(prisma, user.id, buildBudgetMonth(seed));
+
+    await closeBudgetMonth(prisma, user.id, month, {
+      closedAt: new Date("2026-01-31T12:00:00.000Z"),
+      allocations: [],
+      contributions: [],
+    });
+
+    const closed = await findBudgetMonthByMonth(prisma, user.id, month);
+    expect(closed?.status).toBe("closed");
+  });
+
+  it("rejects closing a month that isn't open for this user", async () => {
+    const user = await createTestUser(primaryEmail);
+
+    await expect(
+      closeBudgetMonth(prisma, user.id, month, {
+        closedAt: new Date("2026-01-31T12:00:00.000Z"),
+        allocations: [],
+        contributions: [],
+      }),
+    ).rejects.toThrow();
+  });
+});
+
 describe("database constraints", () => {
   it("rejects a negative income", async () => {
     const user = await createTestUser(primaryEmail);
@@ -150,6 +220,41 @@ describe("database constraints", () => {
           month: new Date("2026-01-15T00:00:00.000Z"),
           incomeCents: 100000,
         },
+      }),
+    ).rejects.toThrow();
+  });
+
+  it("rejects a leftover allocation whose destination/provision_id pairing is inconsistent", async () => {
+    const user = await createTestUser(primaryEmail);
+    const seed = await seedParameterization(user.id);
+    await createBudgetMonth(prisma, user.id, buildBudgetMonth(seed));
+    const row = await prisma.budgetMonth.findFirstOrThrow({
+      where: { userId: user.id, month: new Date("2026-01-01T00:00:00.000Z") },
+    });
+
+    await expect(
+      prisma.leftoverAllocation.create({
+        data: {
+          budgetMonthId: row.id,
+          destination: "savings",
+          provisionId: seed.provision.id,
+          amountCents: 1000,
+        },
+      }),
+    ).rejects.toThrow();
+  });
+
+  it("rejects a non-positive leftover allocation amount", async () => {
+    const user = await createTestUser(primaryEmail);
+    const seed = await seedParameterization(user.id);
+    await createBudgetMonth(prisma, user.id, buildBudgetMonth(seed));
+    const row = await prisma.budgetMonth.findFirstOrThrow({
+      where: { userId: user.id, month: new Date("2026-01-01T00:00:00.000Z") },
+    });
+
+    await expect(
+      prisma.leftoverAllocation.create({
+        data: { budgetMonthId: row.id, destination: "savings", amountCents: 0 },
       }),
     ).rejects.toThrow();
   });

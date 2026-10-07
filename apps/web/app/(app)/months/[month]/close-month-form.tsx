@@ -15,10 +15,15 @@ function euros(amount: number): string {
 export function CloseMonthForm({
   envelopeRemainders,
   leftover,
+  allocatable,
+  previousAllocations,
   provisions,
 }: {
   envelopeRemainders: { label: string; remaining: number }[];
   leftover: number;
+  /** What's left to decide on this time: the leftover minus whatever was already allocated at a previous closing (R29). */
+  allocatable: number;
+  previousAllocations: { label: string; amount: number }[];
   provisions: { id: string; label: string }[];
 }) {
   const [state, formAction, pending] = useActionState(
@@ -32,7 +37,7 @@ export function CloseMonthForm({
       Object.values(amounts).reduce((sum, value) => sum + (Number.isFinite(value) ? value : 0), 0),
     [amounts],
   );
-  const overAllocated = allocated > Math.max(0, leftover);
+  const overAllocated = allocated > Math.max(0, allocatable);
 
   const rows: {
     key: string;
@@ -79,8 +84,28 @@ export function CloseMonthForm({
           </p>
         ) : null}
 
+        {previousAllocations.length > 0 ? (
+          <div className="flex flex-col gap-1 text-sm">
+            <p className="font-medium">Déjà réparti</p>
+            <ul className="flex flex-col gap-1 text-muted-foreground">
+              {previousAllocations.map((allocation) => (
+                <li key={allocation.label} className="flex justify-between">
+                  <span>{allocation.label}</span>
+                  <span>{euros(allocation.amount)}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+
         <form action={formAction} className="flex flex-col gap-3">
-          <p className="text-sm font-medium">Répartition du reliquat</p>
+          <p className="text-sm font-medium">
+            {previousAllocations.length > 0
+              ? allocatable > 0
+                ? "Répartir le reste"
+                : "Rien de plus à répartir pour l'instant"
+              : "Répartition du reliquat"}
+          </p>
           {rows.map((row) => (
             <Field key={row.key}>
               <FieldLabel htmlFor={`allocation-${row.key}`}>{row.label}</FieldLabel>
@@ -104,8 +129,8 @@ export function CloseMonthForm({
           ))}
           {overAllocated ? (
             <p className="text-sm text-muted-foreground">
-              Tu répartis {euros(allocated - Math.max(0, leftover))} de plus que le reliquat. C'est
-              possible, mais cet argent viendra d'ailleurs.
+              Tu répartis {euros(allocated - Math.max(0, allocatable))} de plus que ce qu'il reste à
+              répartir. C'est possible, mais cet argent viendra d'ailleurs.
             </p>
           ) : null}
           {state.status === "error" ? <FieldError>{state.message}</FieldError> : null}

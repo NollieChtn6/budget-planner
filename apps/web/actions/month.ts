@@ -10,17 +10,20 @@ import {
   findProvisionsByUser,
   findVariableEnvelopesByUser,
   prisma,
+  reopenBudgetMonth,
 } from "@budget/db";
 import {
   type CloseMonthFailure,
   closeMonth,
   computeProvisionBalance,
   formatMonth,
-  type LeftoverAllocation,
+  type LeftoverAllocationInput,
   moneyFromEuros,
   openMonth,
   parseCalendarDate,
   previousMonth,
+  type ReopenMonthFailure,
+  reopenMonth,
 } from "@budget/domain";
 import type { PrismaClient } from "@prisma/client";
 import { revalidatePath } from "next/cache";
@@ -156,8 +159,8 @@ export async function closeMonthForUser(
 
   // A blank or 0 row means "nothing allocated here", not an error (R25
   // never requires every destination to be filled).
-  const allocations: LeftoverAllocation[] = input.allocations.flatMap(
-    (allocation): LeftoverAllocation[] => {
+  const allocations: LeftoverAllocationInput[] = input.allocations.flatMap(
+    (allocation): LeftoverAllocationInput[] => {
       if (allocation.amountEuros <= 0) return [];
       let amount: ReturnType<typeof moneyFromEuros>;
       try {
@@ -206,6 +209,39 @@ export async function closeMonthAction(
   }
 
   const result = await closeMonthForUser(prisma, session.user.id, parsed.data);
+  if (result.status === "success") {
+    revalidatePath(`/months/${formatMonth(resolveCurrentMonth())}`);
+  }
+  return result;
+}
+
+function describeReopenMonthFailure(_error: ReopenMonthFailure): string {
+  return "Ce mois n'est pas clôturé.";
+}
+
+/** Session-free core, same split as `openMonthForUser` above. */
+export async function reopenMonthForUser(
+  prismaClient: PrismaClient,
+  userId: string,
+): Promise<VariableEnvelopeActionState> {
+  const currentMonth = resolveCurrentMonth();
+  const budgetMonth = await findBudgetMonthByMonth(prismaClient, userId, currentMonth);
+
+  const result = reopenMonth(budgetMonth?.status ?? "open");
+  if (!result.ok) {
+    return { status: "error", message: describeReopenMonthFailure(result.error) };
+  }
+
+  await reopenBudgetMonth(prismaClient, userId, currentMonth);
+  return { status: "success", message: "Mois réouvert." };
+}
+
+export async function reopenMonthAction(
+  _prevState: VariableEnvelopeActionState,
+  _formData: FormData,
+): Promise<VariableEnvelopeActionState> {
+  const session = await requireSession();
+  const result = await reopenMonthForUser(prisma, session.user.id);
   if (result.status === "success") {
     revalidatePath(`/months/${formatMonth(resolveCurrentMonth())}`);
   }

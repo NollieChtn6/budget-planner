@@ -88,8 +88,12 @@ export type OpenMonthResult =
     }
   | { ok: false; error: OpenMonthFailure };
 
+/** R23 "Clôturer"/"Renouveler": a closed provision's cycle has ended and never reappears. */
 function isProvisionActiveAt(provision: Provision, month: Month): boolean {
-  return !provision.archivedFrom || isMonthBefore(month, provision.archivedFrom);
+  return (
+    provision.status !== "closed" &&
+    (!provision.archivedFrom || isMonthBefore(month, provision.archivedFrom))
+  );
 }
 
 /**

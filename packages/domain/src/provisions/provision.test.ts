@@ -3,9 +3,12 @@ import { moneyFromEuros, moneyToCents } from "../money";
 import { type Month, nextMonth, parseMonth, previousMonth } from "../month";
 import {
   archiveProvision,
+  closeProvision,
   computeMonthlyTarget,
   dueMonth,
+  isProvisionExhaustedBy,
   type Provision,
+  renewProvision,
   unarchiveProvision,
 } from "./provision";
 
@@ -190,5 +193,75 @@ describe("unarchiveProvision — R8", () => {
     const notArchived = reserveProvision("imprevus", "Imprévus", 250, 50);
     const result = unarchiveProvision(notArchived, currentMonth);
     expect(result.ok).toBe(false);
+  });
+});
+
+describe("isProvisionExhaustedBy — R23", () => {
+  const deadline = deadlineProvision("orthodontie", "Orthodontie", "2026-01", 6, 400);
+  const reserve = reserveProvision("imprevus", "Imprévus", 250, 50);
+
+  it("is true when a deadline provision's balance drops from positive to 0 (E12)", () => {
+    expect(isProvisionExhaustedBy(deadline, moneyFromEuros(400), moneyFromEuros(0))).toBe(true);
+  });
+
+  it("is false when the balance was already 0", () => {
+    expect(isProvisionExhaustedBy(deadline, moneyFromEuros(0), moneyFromEuros(0))).toBe(false);
+  });
+
+  it("is false when the balance stays positive", () => {
+    expect(isProvisionExhaustedBy(deadline, moneyFromEuros(400), moneyFromEuros(100))).toBe(false);
+  });
+
+  it("is false for a reserve (R23: never prompted)", () => {
+    expect(isProvisionExhaustedBy(reserve, moneyFromEuros(250), moneyFromEuros(0))).toBe(false);
+  });
+
+  it("is false for an already-closed provision", () => {
+    expect(
+      isProvisionExhaustedBy(
+        { ...deadline, status: "closed" },
+        moneyFromEuros(400),
+        moneyFromEuros(0),
+      ),
+    ).toBe(false);
+  });
+});
+
+describe("closeProvision — R23", () => {
+  it("closes a deadline provision", () => {
+    const provision = deadlineProvision("orthodontie", "Orthodontie", "2026-01", 6, 400);
+    const result = closeProvision(provision);
+    expect(result).toEqual({ ok: true, provision: { ...provision, status: "closed" } });
+  });
+
+  it("rejects a reserve", () => {
+    const provision = reserveProvision("imprevus", "Imprévus", 250, 50);
+    const result = closeProvision(provision);
+    expect(result).toEqual({ ok: false, error: { type: "notDeadlineProvision" } });
+  });
+});
+
+describe("renewProvision — R23", () => {
+  it("closes the current cycle and starts an identical one next month", () => {
+    const provision = deadlineProvision("orthodontie", "Orthodontie", "2026-01", 6, 400);
+    const result = renewProvision(provision, parseMonth("2026-06"));
+    expect(result).toEqual({
+      ok: true,
+      closedProvision: { ...provision, status: "closed" },
+      newProvision: {
+        label: "Orthodontie",
+        type: "deadline",
+        target: moneyFromEuros(400),
+        startMonth: parseMonth("2026-07"),
+        durationMonths: 6,
+        previousCycleId: "orthodontie",
+      },
+    });
+  });
+
+  it("rejects a reserve", () => {
+    const provision = reserveProvision("imprevus", "Imprévus", 250, 50);
+    const result = renewProvision(provision, parseMonth("2026-06"));
+    expect(result).toEqual({ ok: false, error: { type: "notDeadlineProvision" } });
   });
 });

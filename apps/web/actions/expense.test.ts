@@ -370,3 +370,109 @@ describe("deleteExpenseForUser", () => {
     expect(result.message).toContain("ouvert");
   });
 });
+
+describe("createExpenseForUser / updateExpenseForUser — provision exhaustion (R23)", () => {
+  async function seedOpenMonthWithDeadlineProvision(userId: string) {
+    const provision = await createProvision(prisma, userId, {
+      type: "deadline",
+      label: "Orthodontie",
+      target: moneyFromEuros(400),
+      startMonth: currentMonth,
+      durationMonths: 6,
+    });
+    const category = await createCategory(prisma, userId, { label: "Santé" });
+    await openMonthForUser(prisma, userId, 2800);
+    return { provision, category };
+  }
+
+  it("flags the provision when an expense empties it exactly (E12)", async () => {
+    const user = await createTestUser();
+    const { provision, category } = await seedOpenMonthWithDeadlineProvision(user.id);
+    await createContribution(prisma, user.id, {
+      date: parseCalendarDate(today),
+      amount: moneyFromEuros(400),
+      provisionId: provision.id,
+      origin: "manual",
+    });
+
+    const result = await createExpenseForUser(prisma, user.id, {
+      amountEuros: 400,
+      date: today,
+      categoryId: category.id,
+      target: `provision:${provision.id}`,
+    });
+
+    expect(result.status).toBe("success");
+    expect(result.provisionExhausted).toEqual({ provisionId: provision.id, label: "Orthodontie" });
+  });
+
+  it("does not flag the provision when a balance remains", async () => {
+    const user = await createTestUser();
+    const { provision, category } = await seedOpenMonthWithDeadlineProvision(user.id);
+    await createContribution(prisma, user.id, {
+      date: parseCalendarDate(today),
+      amount: moneyFromEuros(400),
+      provisionId: provision.id,
+      origin: "manual",
+    });
+
+    const result = await createExpenseForUser(prisma, user.id, {
+      amountEuros: 100,
+      date: today,
+      categoryId: category.id,
+      target: `provision:${provision.id}`,
+    });
+
+    expect(result.status).toBe("success");
+    expect(result.provisionExhausted).toBeUndefined();
+  });
+
+  it("does not flag a reserve, even when fully consumed", async () => {
+    const user = await createTestUser();
+    const { provision, category } = await seedOpenMonth(user.id);
+    await createContribution(prisma, user.id, {
+      date: parseCalendarDate(today),
+      amount: moneyFromEuros(250),
+      provisionId: provision.id,
+      origin: "manual",
+    });
+
+    const result = await createExpenseForUser(prisma, user.id, {
+      amountEuros: 250,
+      date: today,
+      categoryId: category.id,
+      target: `provision:${provision.id}`,
+    });
+
+    expect(result.status).toBe("success");
+    expect(result.provisionExhausted).toBeUndefined();
+  });
+
+  it("flags the provision when an edit lowers the balance to exactly 0", async () => {
+    const user = await createTestUser();
+    const { provision, category } = await seedOpenMonthWithDeadlineProvision(user.id);
+    await createContribution(prisma, user.id, {
+      date: parseCalendarDate(today),
+      amount: moneyFromEuros(400),
+      provisionId: provision.id,
+      origin: "manual",
+    });
+    const expense = await createExpense(prisma, user.id, {
+      date: parseCalendarDate(today),
+      amount: moneyFromEuros(100),
+      categoryId: category.id,
+      source: { type: "provision", provisionId: provision.id },
+    });
+
+    const result = await updateExpenseForUser(prisma, user.id, {
+      id: expense.id,
+      amountEuros: 400,
+      date: today,
+      categoryId: category.id,
+      target: `provision:${provision.id}`,
+    });
+
+    expect(result.status).toBe("success");
+    expect(result.provisionExhausted).toEqual({ provisionId: provision.id, label: "Orthodontie" });
+  });
+});

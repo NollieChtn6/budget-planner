@@ -1,20 +1,25 @@
 "use server";
 
 import {
+  closeProvision as closeProvisionRow,
   createProvision,
   findProvisionById,
   prisma,
+  renewProvision as renewProvisionRow,
   setProvisionArchivedFrom,
   updateProvisionGoal,
 } from "@budget/db";
 import {
   type ArchiveProvisionFailure,
   archiveProvision,
+  closeProvision,
+  formatMonth,
   type Money,
   type Month,
   moneyFromEuros,
   nextMonth,
   parseMonth,
+  renewProvision,
   unarchiveProvision,
 } from "@budget/domain";
 import { revalidatePath } from "next/cache";
@@ -23,12 +28,18 @@ import { resolveCurrentMonth } from "@/lib/current-month";
 import { requireSession } from "@/lib/session";
 import {
   archiveProvisionSchema,
+  closeProvisionSchema,
   createProvisionSchema,
+  renewProvisionSchema,
   unarchiveProvisionSchema,
   updateProvisionGoalSchema,
 } from "@/schemas/provision";
 
 const PROVISIONS_PATH = "/settings/provisions";
+
+function monthPath(): string {
+  return `/months/${formatMonth(resolveCurrentMonth())}`;
+}
 
 function resolveEffectiveFrom(choice: "current" | "next", currentMonth: Month): Month {
   return choice === "current" ? currentMonth : nextMonth(currentMonth);
@@ -189,4 +200,56 @@ export async function unarchiveProvisionAction(
   await setProvisionArchivedFrom(prisma, session.user.id, parsed.data.provisionId, null);
   revalidatePath(PROVISIONS_PATH);
   return { status: "success", message: "Provision désarchivée." };
+}
+
+export async function closeProvisionAction(
+  _prevState: VariableEnvelopeActionState,
+  formData: FormData,
+): Promise<VariableEnvelopeActionState> {
+  const session = await requireSession();
+  const parsed = closeProvisionSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) {
+    return { status: "error", message: "Entrée invalide." };
+  }
+
+  const provision = await findProvisionById(prisma, session.user.id, parsed.data.provisionId);
+  if (!provision) {
+    return { status: "error", message: "Provision introuvable." };
+  }
+
+  const result = closeProvision(provision);
+  if (!result.ok) {
+    return { status: "error", message: "Seule une provision à échéance peut être clôturée." };
+  }
+
+  await closeProvisionRow(prisma, session.user.id, parsed.data.provisionId);
+  revalidatePath(monthPath());
+  revalidatePath(PROVISIONS_PATH);
+  return { status: "success", message: "Provision clôturée." };
+}
+
+export async function renewProvisionAction(
+  _prevState: VariableEnvelopeActionState,
+  formData: FormData,
+): Promise<VariableEnvelopeActionState> {
+  const session = await requireSession();
+  const parsed = renewProvisionSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) {
+    return { status: "error", message: "Entrée invalide." };
+  }
+
+  const provision = await findProvisionById(prisma, session.user.id, parsed.data.provisionId);
+  if (!provision) {
+    return { status: "error", message: "Provision introuvable." };
+  }
+
+  const result = renewProvision(provision, resolveCurrentMonth());
+  if (!result.ok) {
+    return { status: "error", message: "Seule une provision à échéance peut être renouvelée." };
+  }
+
+  await renewProvisionRow(prisma, session.user.id, parsed.data.provisionId, result.newProvision);
+  revalidatePath(monthPath());
+  revalidatePath(PROVISIONS_PATH);
+  return { status: "success", message: "Provision renouvelée pour le mois prochain." };
 }

@@ -9,6 +9,7 @@ import {
 } from "@budget/domain";
 import { useActionState, useEffect, useState } from "react";
 import { deleteExpenseAction, updateExpenseAction } from "@/actions/expense";
+import { initialExpenseActionState } from "@/actions/expense-state";
 import { initialVariableEnvelopeActionState } from "@/actions/variable-envelope-state";
 import { Button } from "@/components/ui/button";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
@@ -22,6 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { ProvisionExhaustionPrompt } from "./provision-exhaustion-prompt";
 
 function euros(amount: number): string {
   return `${amount.toFixed(2)} €`;
@@ -61,18 +63,34 @@ export function ExpenseRow({
   const [isEditing, setIsEditing] = useState(false);
   const [updateState, updateAction, updatePending] = useActionState(
     updateExpenseAction,
-    initialVariableEnvelopeActionState,
+    initialExpenseActionState,
   );
   const [deleteState, deleteAction, deletePending] = useActionState(
     deleteExpenseAction,
     initialVariableEnvelopeActionState,
   );
+  const [exhaustionResolved, setExhaustionResolved] = useState(false);
 
   useEffect(() => {
     if (updateState.status === "success") {
       setIsEditing(false);
     }
-  }, [updateState.status]);
+    if (updateState.provisionExhausted) {
+      setExhaustionResolved(false);
+    }
+  }, [updateState.status, updateState.provisionExhausted]);
+
+  if (updateState.provisionExhausted && !exhaustionResolved) {
+    return (
+      <li>
+        <ProvisionExhaustionPrompt
+          provisionId={updateState.provisionExhausted.provisionId}
+          label={updateState.provisionExhausted.label}
+          onResolved={() => setExhaustionResolved(true)}
+        />
+      </li>
+    );
+  }
 
   if (!isEditing) {
     return (

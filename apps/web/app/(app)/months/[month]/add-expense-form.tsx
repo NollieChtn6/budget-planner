@@ -1,8 +1,8 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { createExpenseAction } from "@/actions/expense";
-import { initialVariableEnvelopeActionState } from "@/actions/variable-envelope-state";
+import { initialExpenseActionState } from "@/actions/expense-state";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
@@ -16,6 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { ProvisionExhaustionPrompt } from "./provision-exhaustion-prompt";
 
 export function AddExpenseForm({
   envelopes,
@@ -34,10 +35,26 @@ export function AddExpenseForm({
 }) {
   const [state, formAction, pending] = useActionState(
     createExpenseAction,
-    initialVariableEnvelopeActionState,
+    initialExpenseActionState,
   );
+  const [exhaustionResolved, setExhaustionResolved] = useState(false);
+  useEffect(() => {
+    if (state.provisionExhausted) {
+      setExhaustionResolved(false);
+    }
+  }, [state.provisionExhausted]);
   const defaultTarget =
     envelopes.length > 0 ? `envelope:${envelopes[0]?.id}` : `provision:${provisions[0]?.id}`;
+
+  if (state.provisionExhausted && !exhaustionResolved) {
+    return (
+      <ProvisionExhaustionPrompt
+        provisionId={state.provisionExhausted.provisionId}
+        label={state.provisionExhausted.label}
+        onResolved={() => setExhaustionResolved(true)}
+      />
+    );
+  }
 
   return (
     <Card>

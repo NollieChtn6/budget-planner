@@ -8,14 +8,19 @@ import {
   findContributionsByUserAndProvision,
   findExpenseById,
   findExpensesByUserAndProvision,
+  findProvisionById,
   prisma,
   updateExpense,
 } from "@budget/db";
 import {
+  type Contribution,
   computeProvisionBalance,
+  type Expense,
   type ExpenseSource,
   formatMonth,
+  isProvisionExhaustedBy,
   isSameMonth,
+  type Money,
   moneyFromEuros,
   monthOfCalendarDate,
   parseCalendarDate,
@@ -24,10 +29,38 @@ import {
 } from "@budget/domain";
 import type { PrismaClient } from "@prisma/client";
 import { revalidatePath } from "next/cache";
+import type { ExpenseActionState } from "@/actions/expense-state";
 import type { VariableEnvelopeActionState } from "@/actions/variable-envelope-state";
 import { resolveCurrentMonth } from "@/lib/current-month";
 import { requireSession } from "@/lib/session";
 import { createExpenseSchema, deleteExpenseSchema, updateExpenseSchema } from "@/schemas/expense";
+
+/** R23: checked after the expense is persisted, against the balance as it now stands (including this expense). */
+async function detectProvisionExhaustion(
+  prismaClient: PrismaClient,
+  userId: string,
+  target: ExpenseSource,
+  balanceBefore: Money,
+  contributions: Contribution[],
+  provisionExpenses: Expense[],
+  newExpense: Omit<Expense, "id">,
+): Promise<ExpenseActionState["provisionExhausted"]> {
+  if (target.type !== "provision") {
+    return undefined;
+  }
+  const provision = await findProvisionById(prismaClient, userId, target.provisionId);
+  if (!provision) {
+    return undefined;
+  }
+  const balanceAfter = computeProvisionBalance(
+    contributions.map((c) => c.amount),
+    [...provisionExpenses, newExpense],
+  );
+  if (!isProvisionExhaustedBy(provision, balanceBefore, balanceAfter)) {
+    return undefined;
+  }
+  return { provisionId: provision.id, label: provision.label };
+}
 
 function describeRecordExpenseFailure(error: RecordExpenseFailure): string {
   switch (error.type) {
@@ -72,7 +105,7 @@ export async function createExpenseForUser(
   prismaClient: PrismaClient,
   userId: string,
   input: CreateExpenseInput,
-): Promise<VariableEnvelopeActionState> {
+): Promise<ExpenseActionState> {
   let amount: ReturnType<typeof moneyFromEuros>;
   try {
     amount = moneyFromEuros(input.amountEuros);
@@ -101,8 +134,10 @@ export async function createExpenseForUser(
   const categories = await findCategoriesByUser(prismaClient, userId);
 
   let provisionBalance: ReturnType<typeof moneyFromEuros> | undefined;
+  let contributions: Contribution[] = [];
+  let provisionExpenses: Expense[] = [];
   if (target.type === "provision") {
-    const [contributions, provisionExpenses] = await Promise.all([
+    [contributions, provisionExpenses] = await Promise.all([
       findContributionsByUserAndProvision(prismaClient, userId, target.provisionId),
       findExpensesByUserAndProvision(prismaClient, userId, target.provisionId),
     ]);
@@ -135,13 +170,24 @@ export async function createExpenseForUser(
   }
 
   await createExpense(prismaClient, userId, result.expense);
-  return { status: "success", message: "Dépense enregistrée." };
+
+  const provisionExhausted = await detectProvisionExhaustion(
+    prismaClient,
+    userId,
+    target,
+    provisionBalance ?? moneyFromEuros(0),
+    contributions,
+    provisionExpenses,
+    result.expense,
+  );
+
+  return { status: "success", message: "Dépense enregistrée.", provisionExhausted };
 }
 
 export async function createExpenseAction(
-  _prevState: VariableEnvelopeActionState,
+  _prevState: ExpenseActionState,
   formData: FormData,
-): Promise<VariableEnvelopeActionState> {
+): Promise<ExpenseActionState> {
   const session = await requireSession();
   const parsed = createExpenseSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) {
@@ -170,7 +216,7 @@ export async function updateExpenseForUser(
   prismaClient: PrismaClient,
   userId: string,
   input: UpdateExpenseInput,
-): Promise<VariableEnvelopeActionState> {
+): Promise<ExpenseActionState> {
   let amount: ReturnType<typeof moneyFromEuros>;
   try {
     amount = moneyFromEuros(input.amountEuros);
@@ -204,14 +250,18 @@ export async function updateExpenseForUser(
   const categories = await findCategoriesByUser(prismaClient, userId);
 
   let provisionBalance: ReturnType<typeof moneyFromEuros> | undefined;
+  let contributions: Contribution[] = [];
+  let provisionExpenses: Expense[] = [];
   if (target.type === "provision") {
-    const [contributions, provisionExpenses] = await Promise.all([
+    const [allContributions, allProvisionExpenses] = await Promise.all([
       findContributionsByUserAndProvision(prismaClient, userId, target.provisionId),
       findExpensesByUserAndProvision(prismaClient, userId, target.provisionId),
     ]);
+    contributions = allContributions;
+    provisionExpenses = allProvisionExpenses.filter((e) => e.id !== input.id);
     provisionBalance = computeProvisionBalance(
       contributions.map((c) => c.amount),
-      provisionExpenses.filter((e) => e.id !== input.id),
+      provisionExpenses,
     );
   }
 
@@ -238,13 +288,24 @@ export async function updateExpenseForUser(
   }
 
   await updateExpense(prismaClient, userId, input.id, result.expense);
-  return { status: "success", message: "Dépense modifiée." };
+
+  const provisionExhausted = await detectProvisionExhaustion(
+    prismaClient,
+    userId,
+    target,
+    provisionBalance ?? moneyFromEuros(0),
+    contributions,
+    provisionExpenses,
+    result.expense,
+  );
+
+  return { status: "success", message: "Dépense modifiée.", provisionExhausted };
 }
 
 export async function updateExpenseAction(
-  _prevState: VariableEnvelopeActionState,
+  _prevState: ExpenseActionState,
   formData: FormData,
-): Promise<VariableEnvelopeActionState> {
+): Promise<ExpenseActionState> {
   const session = await requireSession();
   const parsed = updateExpenseSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) {

@@ -33,6 +33,7 @@ export {
   closeBudgetMonth,
   createBudgetMonth,
   findBudgetMonthByMonth,
+  findClosedBudgetMonthsByUser,
   reopenBudgetMonth,
 } from "./repositories/month";
 export {

@@ -13,6 +13,7 @@ import {
   closeBudgetMonth,
   createBudgetMonth,
   findBudgetMonthByMonth,
+  findClosedBudgetMonthsByUser,
   reopenBudgetMonth,
 } from "./month";
 import { createProvision } from "./provision";
@@ -139,6 +140,54 @@ describe("createBudgetMonth / findBudgetMonthByMonth", () => {
     await createBudgetMonth(prisma, user.id, buildBudgetMonth(seed));
 
     await expect(createBudgetMonth(prisma, user.id, buildBudgetMonth(seed))).rejects.toThrow();
+  });
+});
+
+describe("findClosedBudgetMonthsByUser", () => {
+  it("returns only closed months, most recent first", async () => {
+    const user = await createTestUser(primaryEmail);
+    const seed = await seedParameterization(user.id);
+    await createBudgetMonth(prisma, user.id, buildBudgetMonth(seed));
+    await createBudgetMonth(
+      prisma,
+      user.id,
+      buildBudgetMonth(seed, { month: parseMonth("2026-02") }),
+    );
+    await createBudgetMonth(
+      prisma,
+      user.id,
+      buildBudgetMonth(seed, { month: parseMonth("2026-03") }),
+    );
+    await closeBudgetMonth(prisma, user.id, month, {
+      closedAt: new Date("2026-01-31T12:00:00.000Z"),
+      allocations: [],
+      contributions: [],
+    });
+    await closeBudgetMonth(prisma, user.id, parseMonth("2026-02"), {
+      closedAt: new Date("2026-02-28T12:00:00.000Z"),
+      allocations: [],
+      contributions: [],
+    });
+    // 2026-03 stays open.
+
+    const closedMonths = await findClosedBudgetMonthsByUser(prisma, user.id);
+
+    expect(closedMonths.map((m) => m.month)).toEqual([parseMonth("2026-02"), month]);
+  });
+
+  it("only returns the requesting user's months", async () => {
+    const user = await createTestUser(primaryEmail);
+    const otherUser = await createTestUser(otherEmail);
+    const seed = await seedParameterization(user.id);
+    await createBudgetMonth(prisma, user.id, buildBudgetMonth(seed));
+    await closeBudgetMonth(prisma, user.id, month, {
+      closedAt: new Date("2026-01-31T12:00:00.000Z"),
+      allocations: [],
+      contributions: [],
+    });
+
+    const closedMonths = await findClosedBudgetMonthsByUser(prisma, otherUser.id);
+    expect(closedMonths).toHaveLength(0);
   });
 });
 

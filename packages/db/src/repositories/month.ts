@@ -29,6 +29,19 @@ export async function findBudgetMonthByMonth(
   return row ? toDomainBudgetMonth(row) : null;
 }
 
+/** Most recent first, for the read-only month history view. */
+export async function findClosedBudgetMonthsByUser(
+  prisma: PrismaClient,
+  userId: string,
+): Promise<BudgetMonth[]> {
+  const rows = await prisma.budgetMonth.findMany({
+    where: { userId, status: "closed" },
+    include: WITH_SNAPSHOT,
+    orderBy: { month: "desc" },
+  });
+  return rows.map(toDomainBudgetMonth);
+}
+
 /**
  * Creates the month and its three snapshot collections in one write:
  * nested creates on a single top-level mutation run inside one DB

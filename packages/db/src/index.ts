@@ -37,9 +37,12 @@ export {
 } from "./repositories/month";
 export {
   type CreateProvisionInput,
+  closeProvision,
   createProvision,
   findProvisionById,
   findProvisionsByUser,
+  type RenewProvisionInput,
+  renewProvision,
   setProvisionArchivedFrom,
   type UpdateProvisionGoalInput,
   updateProvisionGoal,

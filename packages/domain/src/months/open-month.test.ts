@@ -215,6 +215,17 @@ describe("openMonth — R8", () => {
       "orthodontie",
     );
   });
+
+  it("omits a provision closed by R23", () => {
+    const [orthodontie, vacances, imprevus] = referenceProvisions();
+    const closed = { ...orthodontie, status: "closed" as const };
+    const result = openMonth({ ...referenceInput(), provisions: [closed, vacances, imprevus] });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.budgetMonth.provisionTargets.map((entry) => entry.provisionId)).not.toContain(
+      "orthodontie",
+    );
+  });
 });
 
 describe("openMonth — R13", () => {

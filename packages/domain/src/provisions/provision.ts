@@ -86,6 +86,72 @@ export function archiveProvision(
   return { ok: true, provision: { ...provision, archivedFrom: input.effectiveFrom } };
 }
 
+/**
+ * R23: an expense "empties" a deadline provision when its balance was
+ * positive and drops to exactly 0 as a result. A reserve is never prompted
+ * (R23, last line): it simply refills per R21.
+ */
+export function isProvisionExhaustedBy(
+  provision: Provision,
+  balanceBefore: Money,
+  balanceAfter: Money,
+): boolean {
+  return (
+    provision.type === "deadline" &&
+    provision.status !== "closed" &&
+    moneyToCents(balanceBefore) > 0 &&
+    moneyToCents(balanceAfter) === 0
+  );
+}
+
+export type ProvisionChoiceFailure = { type: "notDeadlineProvision" };
+
+export type CloseProvisionResult =
+  | { ok: true; provision: Provision }
+  | { ok: false; error: ProvisionChoiceFailure };
+
+/** R23 "Clôturer": ends this provision's lifecycle — it won't appear in any future month's snapshot (R18/R21). */
+export function closeProvision(provision: Provision): CloseProvisionResult {
+  if (provision.type !== "deadline") {
+    return { ok: false, error: { type: "notDeadlineProvision" } };
+  }
+  return { ok: true, provision: { ...provision, status: "closed" } };
+}
+
+export type RenewProvisionResult =
+  | {
+      ok: true;
+      closedProvision: Provision;
+      newProvision: {
+        label: string;
+        type: "deadline";
+        target: Money;
+        startMonth: Month;
+        durationMonths: number;
+        previousCycleId: string;
+      };
+    }
+  | { ok: false; error: ProvisionChoiceFailure };
+
+/** R23 "Renouveler": closes this cycle and starts an identical one next month, same target and duration. */
+export function renewProvision(provision: Provision, currentMonth: Month): RenewProvisionResult {
+  if (provision.type !== "deadline") {
+    return { ok: false, error: { type: "notDeadlineProvision" } };
+  }
+  return {
+    ok: true,
+    closedProvision: { ...provision, status: "closed" },
+    newProvision: {
+      label: provision.label,
+      type: "deadline",
+      target: provision.target,
+      startMonth: nextMonth(currentMonth),
+      durationMonths: provision.durationMonths,
+      previousCycleId: provision.id,
+    },
+  };
+}
+
 export type UnarchiveProvisionFailure = { type: "notArchivedOrAlreadyEffective" };
 export type UnarchiveProvisionResult =
   | { ok: true; provision: Provision }

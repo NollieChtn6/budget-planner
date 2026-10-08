@@ -209,6 +209,7 @@ model Provision {
   monthlyAmountCents Int?            @map("monthly_amount_cents")
   archivedFrom       DateTime?       @map("archived_from") @db.Date
   previousCycleId    String?         @unique @map("previous_cycle_id") @db.Uuid
+  closedAt           DateTime?       @map("closed_at")
 
   user                User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
   previousCycle       Provision?                @relation("ProvisionRenewal", fields: [previousCycleId], references: [id], onDelete: SetNull)

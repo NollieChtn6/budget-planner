@@ -89,6 +89,65 @@ export async function updateProvisionGoal(
   return result;
 }
 
+/** R23 "Clôturer": ends this provision's own lifecycle (status), independent of archiving (R8). */
+export async function closeProvision(
+  prisma: PrismaClient,
+  userId: string,
+  provisionId: string,
+): Promise<void> {
+  const updated = await prisma.provision.updateMany({
+    where: { id: provisionId, userId },
+    data: { status: "closed", closedAt: new Date() },
+  });
+  if (updated.count === 0) {
+    throw new Error(`Provision ${provisionId} not found for this user`);
+  }
+}
+
+export type RenewProvisionInput = {
+  label: string;
+  type: "deadline";
+  target: Money;
+  startMonth: Month;
+  durationMonths: number;
+};
+
+/** R23 "Renouveler": closes the current cycle and creates its successor in one transaction. */
+export async function renewProvision(
+  prisma: PrismaClient,
+  userId: string,
+  provisionId: string,
+  newProvision: RenewProvisionInput,
+): Promise<Provision> {
+  const created = await prisma.$transaction(async (tx) => {
+    const updated = await tx.provision.updateMany({
+      where: { id: provisionId, userId },
+      data: { status: "closed", closedAt: new Date() },
+    });
+    if (updated.count === 0) {
+      throw new Error(`Provision ${provisionId} not found for this user`);
+    }
+
+    return tx.provision.create({
+      data: {
+        userId,
+        ...toPrismaProvisionData({
+          id: "pending",
+          status: "active",
+          type: "deadline",
+          label: newProvision.label,
+          target: newProvision.target,
+          startMonth: newProvision.startMonth,
+          durationMonths: newProvision.durationMonths,
+        }),
+        previousCycleId: provisionId,
+      },
+    });
+  });
+
+  return toDomainProvision(created);
+}
+
 export async function setProvisionArchivedFrom(
   prisma: PrismaClient,
   userId: string,

@@ -2,9 +2,11 @@ import { moneyFromEuros, moneyToCents, parseMonth } from "@budget/domain";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { createTestPrismaClient } from "../testing";
 import {
+  closeProvision,
   createProvision,
   findProvisionById,
   findProvisionsByUser,
+  renewProvision,
   setProvisionArchivedFrom,
   updateProvisionGoal,
 } from "./provision";
@@ -194,6 +196,91 @@ describe("setProvisionArchivedFrom", () => {
 
     const untouched = await findProvisionById(prisma, owner.id, created.id);
     expect(untouched?.archivedFrom).toBeUndefined();
+  });
+});
+
+describe("closeProvision — R23", () => {
+  it("closes a provision", async () => {
+    const user = await createTestUser(primaryEmail);
+    const created = await createProvision(prisma, user.id, {
+      type: "deadline",
+      label: "Orthodontie",
+      target: moneyFromEuros(400),
+      startMonth: parseMonth("2026-01"),
+      durationMonths: 6,
+    });
+
+    await closeProvision(prisma, user.id, created.id);
+
+    const found = await findProvisionById(prisma, user.id, created.id);
+    expect(found?.status).toBe("closed");
+  });
+
+  it("rejects closing another user's provision", async () => {
+    const owner = await createTestUser(primaryEmail);
+    const attacker = await createTestUser(otherEmail);
+    const created = await createProvision(prisma, owner.id, {
+      type: "deadline",
+      label: "Orthodontie",
+      target: moneyFromEuros(400),
+      startMonth: parseMonth("2026-01"),
+      durationMonths: 6,
+    });
+
+    await expect(closeProvision(prisma, attacker.id, created.id)).rejects.toThrow();
+  });
+});
+
+describe("renewProvision — R23", () => {
+  it("closes the current cycle and creates its successor", async () => {
+    const user = await createTestUser(primaryEmail);
+    const created = await createProvision(prisma, user.id, {
+      type: "deadline",
+      label: "Orthodontie",
+      target: moneyFromEuros(400),
+      startMonth: parseMonth("2026-01"),
+      durationMonths: 6,
+    });
+
+    const renewed = await renewProvision(prisma, user.id, created.id, {
+      label: "Orthodontie",
+      type: "deadline",
+      target: moneyFromEuros(400),
+      startMonth: parseMonth("2026-07"),
+      durationMonths: 6,
+    });
+
+    expect(renewed.status).toBe("active");
+    expect(renewed.type === "deadline" && renewed.startMonth).toEqual(parseMonth("2026-07"));
+    expect(renewed.previousCycleId).toBe(created.id);
+
+    const closedOriginal = await findProvisionById(prisma, user.id, created.id);
+    expect(closedOriginal?.status).toBe("closed");
+  });
+
+  it("rejects renewing another user's provision", async () => {
+    const owner = await createTestUser(primaryEmail);
+    const attacker = await createTestUser(otherEmail);
+    const created = await createProvision(prisma, owner.id, {
+      type: "deadline",
+      label: "Orthodontie",
+      target: moneyFromEuros(400),
+      startMonth: parseMonth("2026-01"),
+      durationMonths: 6,
+    });
+
+    await expect(
+      renewProvision(prisma, attacker.id, created.id, {
+        label: "Orthodontie",
+        type: "deadline",
+        target: moneyFromEuros(400),
+        startMonth: parseMonth("2026-07"),
+        durationMonths: 6,
+      }),
+    ).rejects.toThrow();
+
+    const untouched = await findProvisionById(prisma, owner.id, created.id);
+    expect(untouched?.status).toBe("active");
   });
 });
 

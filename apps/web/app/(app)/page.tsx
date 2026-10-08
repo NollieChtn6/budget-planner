@@ -13,6 +13,9 @@ export default async function Home() {
       <Link href={`/months/${formatMonth(resolveCurrentMonth())}`} className="underline">
         Mois en cours
       </Link>
+      <Link href="/months" className="underline">
+        Historique des mois
+      </Link>
       <Link href="/settings/envelopes" className="underline">
         Enveloppes variables
       </Link>

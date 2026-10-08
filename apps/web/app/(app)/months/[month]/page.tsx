@@ -28,16 +28,20 @@ import {
   firstDayOfMonth,
   formatCalendarDate,
   formatMonth,
+  isMonthBefore,
   isProvisionDone,
   isSameMonth,
   lastDayOfMonth,
   type Money,
+  type Month,
   moneyToEuros,
   monthOfCalendarDate,
+  parseMonth,
   previousMonth,
   subtractMoney,
   sumMoney,
 } from "@budget/domain";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { resolveCurrentMonth } from "@/lib/current-month";
@@ -76,24 +80,39 @@ export default async function MonthPage({ params }: { params: Promise<{ month: s
   const { month: monthParam } = await params;
   const session = await requireSession();
   const currentMonth = resolveCurrentMonth();
+  const isHistorical = monthParam !== formatMonth(currentMonth);
 
-  if (monthParam !== formatMonth(currentMonth)) {
-    redirect(`/months/${formatMonth(currentMonth)}`);
+  let viewedMonth: Month;
+  if (!isHistorical) {
+    viewedMonth = currentMonth;
+  } else {
+    try {
+      viewedMonth = parseMonth(monthParam);
+    } catch {
+      redirect(`/months/${formatMonth(currentMonth)}`);
+    }
+    if (!isMonthBefore(viewedMonth, currentMonth)) {
+      redirect(`/months/${formatMonth(currentMonth)}`);
+    }
   }
 
-  const budgetMonth = await findBudgetMonthByMonth(prisma, session.user.id, currentMonth);
+  const budgetMonth = await findBudgetMonthByMonth(prisma, session.user.id, viewedMonth);
 
   if (!budgetMonth) {
+    if (isHistorical) {
+      redirect(`/months/${formatMonth(currentMonth)}`);
+    }
+
     const previousMonthRow = await findBudgetMonthByMonth(
       prisma,
       session.user.id,
-      previousMonth(currentMonth),
+      previousMonth(viewedMonth),
     );
     const canOpen = !previousMonthRow || previousMonthRow.status === "closed";
 
     return (
       <div className="mx-auto flex max-w-2xl flex-col gap-6 p-6">
-        <h1 className="text-2xl font-semibold">{formatMonth(currentMonth)}</h1>
+        <h1 className="text-2xl font-semibold">{formatMonth(viewedMonth)}</h1>
         {canOpen ? (
           <OpenMonthForm />
         ) : (
@@ -125,7 +144,7 @@ export default async function MonthPage({ params }: { params: Promise<{ month: s
   );
 
   const [expenses, categories, provisions] = await Promise.all([
-    findExpensesByUserAndMonth(prisma, session.user.id, currentMonth),
+    findExpensesByUserAndMonth(prisma, session.user.id, viewedMonth),
     findCategoriesByUser(prisma, session.user.id),
     findProvisionsByUser(prisma, session.user.id),
   ]);
@@ -180,7 +199,7 @@ export default async function MonthPage({ params }: { params: Promise<{ month: s
       provisionExpenses,
     );
     const thisMonth = contributions.filter((c) =>
-      isSameMonth(monthOfCalendarDate(c.date), currentMonth),
+      isSameMonth(monthOfCalendarDate(c.date), viewedMonth),
     );
     contributionsThisMonth.push(...thisMonth);
     const paidThisMonth = sumMoney(thisMonth.map((c) => c.amount));
@@ -207,7 +226,7 @@ export default async function MonthPage({ params }: { params: Promise<{ month: s
   const existingAllocations = await findLeftoverAllocationsByUserAndMonth(
     prisma,
     session.user.id,
-    currentMonth,
+    viewedMonth,
   );
   const previouslyAllocated = sumMoney(existingAllocations.map((a) => a.amount));
   const allocatable = subtractMoney(leftover, previouslyAllocated);
@@ -221,7 +240,19 @@ export default async function MonthPage({ params }: { params: Promise<{ month: s
 
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-6 p-6">
-      <h1 className="text-2xl font-semibold">{formatMonth(currentMonth)}</h1>
+      <div className="flex items-baseline justify-between">
+        <h1 className="text-2xl font-semibold">{formatMonth(viewedMonth)}</h1>
+        {isHistorical ? (
+          <Link href={`/months/${formatMonth(currentMonth)}`} className="text-sm underline">
+            Mois en cours
+          </Link>
+        ) : null}
+      </div>
+      {isHistorical ? (
+        <p className="text-sm text-muted-foreground">
+          Mois passé, affiché en lecture seule : seul le dernier mois clôturé peut être rouvert.
+        </p>
+      ) : null}
 
       {budgetMonth.status === "closed" ? (
         <Card>
@@ -249,7 +280,7 @@ export default async function MonthPage({ params }: { params: Promise<{ month: s
                 ))}
               </ul>
             ) : null}
-            <ReopenMonthForm />
+            {isHistorical ? null : <ReopenMonthForm />}
           </CardContent>
         </Card>
       ) : null}
@@ -389,8 +420,8 @@ export default async function MonthPage({ params }: { params: Promise<{ month: s
               id: category.id,
               label: category.label,
             }))}
-            minDate={formatCalendarDate(firstDayOfMonth(currentMonth))}
-            maxDate={formatCalendarDate(lastDayOfMonth(currentMonth))}
+            minDate={formatCalendarDate(firstDayOfMonth(viewedMonth))}
+            maxDate={formatCalendarDate(lastDayOfMonth(viewedMonth))}
             defaultDate={new Date().toISOString().slice(0, 10)}
           />
         ) : (
@@ -406,8 +437,8 @@ export default async function MonthPage({ params }: { params: Promise<{ month: s
             id: entry.provisionId,
             label: entry.label,
           }))}
-          minDate={formatCalendarDate(firstDayOfMonth(currentMonth))}
-          maxDate={formatCalendarDate(lastDayOfMonth(currentMonth))}
+          minDate={formatCalendarDate(firstDayOfMonth(viewedMonth))}
+          maxDate={formatCalendarDate(lastDayOfMonth(viewedMonth))}
           defaultDate={new Date().toISOString().slice(0, 10)}
         />
       ) : null}
@@ -437,8 +468,8 @@ export default async function MonthPage({ params }: { params: Promise<{ month: s
                     id: category.id,
                     label: category.label,
                   }))}
-                  minDate={formatCalendarDate(firstDayOfMonth(currentMonth))}
-                  maxDate={formatCalendarDate(lastDayOfMonth(currentMonth))}
+                  minDate={formatCalendarDate(firstDayOfMonth(viewedMonth))}
+                  maxDate={formatCalendarDate(lastDayOfMonth(viewedMonth))}
                   editable={budgetMonth.status === "open"}
                 />
               ))}
@@ -465,8 +496,8 @@ export default async function MonthPage({ params }: { params: Promise<{ month: s
                     id: entry.provisionId,
                     label: entry.label,
                   }))}
-                  minDate={formatCalendarDate(firstDayOfMonth(currentMonth))}
-                  maxDate={formatCalendarDate(lastDayOfMonth(currentMonth))}
+                  minDate={formatCalendarDate(firstDayOfMonth(viewedMonth))}
+                  maxDate={formatCalendarDate(lastDayOfMonth(viewedMonth))}
                   editable={budgetMonth.status === "open"}
                 />
               ))}

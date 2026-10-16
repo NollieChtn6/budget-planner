@@ -35,6 +35,18 @@ export async function findBudgetMonthByMonth(
   return row ? toDomainBudgetMonth(row) : null;
 }
 
+/** At most one open month per user at a time (R4/R26): used to resolve the active month. */
+export async function findOpenBudgetMonthByUser(
+  prisma: PrismaClient,
+  userId: string,
+): Promise<BudgetMonth | null> {
+  const row = await prisma.budgetMonth.findFirst({
+    where: { userId, status: "open" },
+    include: WITH_SNAPSHOT,
+  });
+  return row ? toDomainBudgetMonth(row) : null;
+}
+
 /** Most recent first, for the read-only month history view. */
 export async function findClosedBudgetMonthsByUser(
   prisma: PrismaClient,

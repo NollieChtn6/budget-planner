@@ -8,6 +8,8 @@ import {
   findExpenseById,
   findExpensesByUserAndMonth,
   findExpensesByUserAndProvision,
+  findKnownPlacesByUser,
+  findLastUsedCategoryIdByUser,
   updateExpense,
 } from "./expense";
 import { createProvision } from "./provision";
@@ -342,5 +344,91 @@ describe("deleteExpense", () => {
     });
 
     await expect(deleteExpense(prisma, attacker.id, expense.id)).rejects.toThrow();
+  });
+});
+
+describe("findKnownPlacesByUser", () => {
+  it("returns distinct places, most recently used first", async () => {
+    const user = await createTestUser(primaryEmail);
+    const { envelope, category } = await seedEnvelopeAndCategory(user.id);
+    const source = { type: "envelope" as const, envelopeId: envelope.id };
+
+    await createExpense(prisma, user.id, {
+      date: parseCalendarDate("2026-10-01"),
+      amount: moneyFromEuros(10),
+      place: "Monoprix",
+      categoryId: category.id,
+      source,
+    });
+    await createExpense(prisma, user.id, {
+      date: parseCalendarDate("2026-10-10"),
+      amount: moneyFromEuros(20),
+      place: "Carrefour",
+      categoryId: category.id,
+      source,
+    });
+    await createExpense(prisma, user.id, {
+      date: parseCalendarDate("2026-10-05"),
+      amount: moneyFromEuros(5),
+      place: "Monoprix",
+      categoryId: category.id,
+      source,
+    });
+    await createExpense(prisma, user.id, {
+      date: parseCalendarDate("2026-10-02"),
+      amount: moneyFromEuros(8),
+      categoryId: category.id,
+      source,
+    });
+
+    expect(await findKnownPlacesByUser(prisma, user.id)).toEqual(["Carrefour", "Monoprix"]);
+  });
+
+  it("only returns the requesting user's places", async () => {
+    const owner = await createTestUser(primaryEmail);
+    const other = await createTestUser(otherEmail);
+    const { envelope, category } = await seedEnvelopeAndCategory(owner.id);
+    await createExpense(prisma, owner.id, {
+      date: parseCalendarDate("2026-10-01"),
+      amount: moneyFromEuros(10),
+      place: "Monoprix",
+      categoryId: category.id,
+      source: { type: "envelope", envelopeId: envelope.id },
+    });
+
+    expect(await findKnownPlacesByUser(prisma, other.id)).toEqual([]);
+  });
+});
+
+describe("findLastUsedCategoryIdByUser", () => {
+  it("returns the category of the most recent expense", async () => {
+    const user = await createTestUser(primaryEmail);
+    const { envelope, category } = await seedEnvelopeAndCategory(user.id);
+    const otherCategory = await createCategory(prisma, user.id, {
+      label: "Sorties",
+      color: "#22C55E",
+    });
+    const source = { type: "envelope" as const, envelopeId: envelope.id };
+
+    await createExpense(prisma, user.id, {
+      date: parseCalendarDate("2026-10-01"),
+      amount: moneyFromEuros(10),
+      categoryId: category.id,
+      source,
+    });
+    await createExpense(prisma, user.id, {
+      date: parseCalendarDate("2026-10-15"),
+      amount: moneyFromEuros(20),
+      categoryId: otherCategory.id,
+      source,
+    });
+
+    expect(await findLastUsedCategoryIdByUser(prisma, user.id)).toBe(otherCategory.id);
+  });
+
+  it("returns null when the user has no expense yet", async () => {
+    const user = await createTestUser(primaryEmail);
+
+    expect(await findLastUsedCategoryIdByUser(prisma, user.id)).toBeNull();
   });
 });

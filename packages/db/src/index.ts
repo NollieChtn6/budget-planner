@@ -19,6 +19,8 @@ export {
   findExpenseById,
   findExpensesByUserAndMonth,
   findExpensesByUserAndProvision,
+  findKnownPlacesByUser,
+  findLastUsedCategoryIdByUser,
   updateExpense,
 } from "./repositories/expense";
 export {

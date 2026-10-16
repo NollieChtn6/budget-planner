@@ -34,6 +34,39 @@ export async function findExpensesByUserAndProvision(
   return rows.map(toDomainExpense);
 }
 
+/**
+ * Derived data (docs/domain/model.md, "Données dérivées"): known places,
+ * used for the place field's autocompletion, most recently used first.
+ */
+export async function findKnownPlacesByUser(
+  prisma: PrismaClient,
+  userId: string,
+): Promise<string[]> {
+  const rows = await prisma.expense.findMany({
+    where: { userId, place: { not: null } },
+    select: { place: true },
+    distinct: ["place"],
+    orderBy: { date: "desc" },
+  });
+  return rows.flatMap((row) => (row.place ? [row.place] : []));
+}
+
+/**
+ * Derived data (docs/domain/model.md, "Données dérivées"): the category of
+ * the user's most recent expense, used to default the category field.
+ */
+export async function findLastUsedCategoryIdByUser(
+  prisma: PrismaClient,
+  userId: string,
+): Promise<string | null> {
+  const row = await prisma.expense.findFirst({
+    where: { userId },
+    orderBy: [{ date: "desc" }, { createdAt: "desc" }],
+    select: { categoryId: true },
+  });
+  return row?.categoryId ?? null;
+}
+
 export async function findExpenseById(
   prisma: PrismaClient,
   userId: string,

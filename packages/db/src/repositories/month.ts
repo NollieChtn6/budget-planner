@@ -35,13 +35,21 @@ export async function findBudgetMonthByMonth(
   return row ? toDomainBudgetMonth(row) : null;
 }
 
-/** At most one open month per user at a time (R4/R26): used to resolve the active month. */
+/**
+ * At most one open month per user at a time (R4/R26): used to resolve the
+ * active month. Explicitly ordered — without it, `findFirst` is free to
+ * return rows in whatever order the database happens to produce, which is
+ * unspecified and can differ between environments; if that invariant is
+ * ever violated, the oldest open month is the one that matters (it's the
+ * active month, per glossary.md).
+ */
 export async function findOpenBudgetMonthByUser(
   prisma: PrismaClient,
   userId: string,
 ): Promise<BudgetMonth | null> {
   const row = await prisma.budgetMonth.findFirst({
     where: { userId, status: "open" },
+    orderBy: { month: "asc" },
     include: WITH_SNAPSHOT,
   });
   return row ? toDomainBudgetMonth(row) : null;

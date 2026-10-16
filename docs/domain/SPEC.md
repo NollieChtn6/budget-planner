@@ -50,7 +50,7 @@ Quand la dépense prévue arrive (paiement de l'orthodontiste, imprévu), elle e
 
 ### Clôture du mois
 
-L'utilisatrice clôture le mois : l'app affiche le reliquat de chaque enveloppe variable et le total (R24). Elle le répartit vers l'épargne ou des provisions (R25). Un reliquat négatif est enregistré comme financé par l'épargne (R30). Le mois est ensuite verrouillé (R26).
+L'utilisatrice clôture le mois : l'app affiche le reliquat de chaque enveloppe variable et le total (R24). Elle le répartit vers l'épargne, des provisions, des enveloppes variables (bonus du mois suivant, R31), ou le laisse sans destination pour qu'il profite au mois suivant (report, R32) (R25). Un reliquat négatif est enregistré comme financé par l'épargne (R30). Le mois est ensuite verrouillé (R26).
 
 En cas d'erreur découverte après coup, elle peut rouvrir le dernier mois clôturé, corriger ses opérations, puis le clôturer à nouveau (R29).
 

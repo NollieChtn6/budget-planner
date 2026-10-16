@@ -337,6 +337,7 @@ export async function closeMonthAction(
   if (result.status === "success") {
     revalidatePath("/");
     revalidatePath("/operations");
+    revalidatePath("/history");
   }
   return result;
 }
@@ -375,6 +376,7 @@ export async function reopenMonthAction(
   if (result.status === "success") {
     revalidatePath("/");
     revalidatePath("/operations");
+    revalidatePath("/history");
   }
   return result;
 }

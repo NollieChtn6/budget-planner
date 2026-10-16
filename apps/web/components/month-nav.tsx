@@ -8,11 +8,14 @@ export function MonthNav({
   min,
   max,
   buildHref,
+  showLabel = true,
 }: {
   month: Month;
   min: Month;
   max: Month;
   buildHref: (month: Month) => string;
+  /** Hide the centered month name, e.g. when a heading already shows it. */
+  showLabel?: boolean;
 }) {
   const atMin = isSameMonth(month, min);
   const atMax = isSameMonth(month, max);
@@ -32,9 +35,11 @@ export function MonthNav({
           ‹
         </Link>
       )}
-      <span className="min-w-[120px] px-1 text-center font-semibold">
-        {formatMonthLabel(month)}
-      </span>
+      {showLabel ? (
+        <span className="min-w-[120px] px-1 text-center font-semibold">
+          {formatMonthLabel(month)}
+        </span>
+      ) : null}
       {atMax ? (
         <span className="px-2 py-1.5 text-muted-foreground/40" aria-hidden="true">
           ›

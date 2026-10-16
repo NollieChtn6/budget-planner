@@ -59,14 +59,14 @@ import { resolveActiveMonth, resolveCurrentMonth } from "@/lib/current-month";
 import { formatEuros } from "@/lib/format-money";
 import { formatMonthLabel } from "@/lib/format-month-label";
 import { requireSession } from "@/lib/session";
-import { AddContributionForm } from "./months/[month]/add-contribution-form";
-import { AddExpenseForm } from "./months/[month]/add-expense-form";
-import { CloseMonthForm } from "./months/[month]/close-month-form";
-import { ContributionRow } from "./months/[month]/contribution-row";
-import { ExpenseRow } from "./months/[month]/expense-row";
-import { OpenMonthForm } from "./months/[month]/open-month-form";
-import { PointageCheckbox } from "./months/[month]/pointage-checkbox";
-import { ReopenMonthForm } from "./months/[month]/reopen-month-form";
+import { AddContributionForm } from "./_components/add-contribution-form";
+import { AddExpenseForm } from "./_components/add-expense-form";
+import { CloseMonthForm } from "./_components/close-month-form";
+import { ContributionRow } from "./_components/contribution-row";
+import { ExpenseRow } from "./_components/expense-row";
+import { OpenMonthForm } from "./_components/open-month-form";
+import { PointageCheckbox } from "./_components/pointage-checkbox";
+import { ReopenMonthForm } from "./_components/reopen-month-form";
 
 const FIXED_ENTRY_TYPE_LABELS: Record<FixedEntryType, string> = {
   charge: "Charges",

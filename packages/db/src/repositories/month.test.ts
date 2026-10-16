@@ -2,6 +2,7 @@ import {
   type BudgetMonth,
   moneyFromEuros,
   moneyToCents,
+  nextMonth,
   parseCalendarDate,
   parseMonth,
 } from "@budget/domain";
@@ -215,6 +216,22 @@ describe("findOpenBudgetMonthByUser", () => {
 
     const open = await findOpenBudgetMonthByUser(prisma, user.id);
     expect(open).toBeNull();
+  });
+
+  it("returns the oldest open month if the invariant is ever violated", async () => {
+    // Guards R4/R26's "at most one open month" invariant: should that ever
+    // be violated (as actions/month.test.ts's R33 test simulates), the query
+    // must still resolve deterministically rather than depend on whatever
+    // row order the database happens to produce. Insert the later month
+    // first, specifically to catch any accidental reliance on insertion
+    // order.
+    const user = await createTestUser(primaryEmail);
+    const seed = await seedParameterization(user.id);
+    await createBudgetMonth(prisma, user.id, buildBudgetMonth(seed, { month: nextMonth(month) }));
+    await createBudgetMonth(prisma, user.id, buildBudgetMonth(seed));
+
+    const open = await findOpenBudgetMonthByUser(prisma, user.id);
+    expect(open?.month).toEqual(month);
   });
 
   it("only returns the requesting user's open month", async () => {

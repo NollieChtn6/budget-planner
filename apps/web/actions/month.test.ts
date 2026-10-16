@@ -354,9 +354,12 @@ describe("closeMonthForUser", () => {
     const { envelope } = await seedParameterization(user.id);
     await openMonthForUser(prisma, user.id, 2800);
     // Simulates the reopened-current-month/already-open-next-month state R33
-    // guards against — unreachable through the actions layer today (issue
-    // #11: every action is pinned to the real wall-clock month), but a valid
-    // state to defend against at the domain/action boundary regardless.
+    // guards against — still unreachable through the actions layer (opening
+    // a month always targets the active month, and refuses when one is
+    // already open), but a valid state to defend against at the
+    // domain/action boundary regardless. Also exercises
+    // findOpenBudgetMonthByUser's "more than one open month" edge case —
+    // see its own ordering test in packages/db.
     await createBudgetMonth(prisma, user.id, {
       month: nextMonth(currentMonth),
       status: "open",

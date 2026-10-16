@@ -35,6 +35,7 @@ export {
   findBudgetMonthByMonth,
   findClosedBudgetMonthsByUser,
   reopenBudgetMonth,
+  updateSnapshotFixedEntryStatus,
 } from "./repositories/month";
 export {
   type CreateProvisionInput,

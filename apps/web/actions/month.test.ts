@@ -10,7 +10,12 @@ import {
 import { formatMonth, moneyFromEuros, moneyToCents, parseCalendarDate } from "@budget/domain";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { resolveCurrentMonth } from "../lib/current-month";
-import { closeMonthForUser, openMonthForUser, reopenMonthForUser } from "./month";
+import {
+  closeMonthForUser,
+  openMonthForUser,
+  pointFixedEntryForUser,
+  reopenMonthForUser,
+} from "./month";
 
 const prisma = createTestPrismaClient();
 
@@ -124,6 +129,54 @@ describe("openMonthForUser", () => {
     const budgetMonth = await findBudgetMonthByMonth(prisma, user.id, currentMonth);
     // (400 - 100) / 6 = 50
     expect(moneyToCents(budgetMonth?.provisionTargets[0]?.target ?? moneyFromEuros(-1))).toBe(5000);
+  });
+});
+
+describe("pointFixedEntryForUser", () => {
+  it("points a planned fixed entry to done, then back to planned", async () => {
+    const user = await createTestUser();
+    await seedParameterization(user.id);
+    await openMonthForUser(prisma, user.id, 2800);
+    const budgetMonth = await findBudgetMonthByMonth(prisma, user.id, currentMonth);
+    const fixedEntryId = budgetMonth?.fixedEntries[0]?.fixedEntryId ?? "";
+
+    const done = await pointFixedEntryForUser(prisma, user.id, { fixedEntryId, done: true });
+    expect(done.status).toBe("success");
+    expect(
+      (await findBudgetMonthByMonth(prisma, user.id, currentMonth))?.fixedEntries[0]?.status,
+    ).toBe("done");
+
+    const planned = await pointFixedEntryForUser(prisma, user.id, { fixedEntryId, done: false });
+    expect(planned.status).toBe("success");
+    expect(
+      (await findBudgetMonthByMonth(prisma, user.id, currentMonth))?.fixedEntries[0]?.status,
+    ).toBe("planned");
+  });
+
+  it("rejects pointing when no month is open", async () => {
+    const user = await createTestUser();
+    await seedParameterization(user.id);
+
+    const result = await pointFixedEntryForUser(prisma, user.id, {
+      fixedEntryId: "unknown",
+      done: true,
+    });
+
+    expect(result.status).toBe("error");
+    expect(result.message).toContain("pas ouvert");
+  });
+
+  it("rejects a fixed entry outside this month's snapshot", async () => {
+    const user = await createTestUser();
+    await seedParameterization(user.id);
+    await openMonthForUser(prisma, user.id, 2800);
+
+    const result = await pointFixedEntryForUser(prisma, user.id, {
+      fixedEntryId: "unknown",
+      done: true,
+    });
+
+    expect(result.status).toBe("error");
   });
 });
 

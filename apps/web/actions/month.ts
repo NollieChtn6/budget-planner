@@ -11,6 +11,7 @@ import {
   findVariableEnvelopesByUser,
   prisma,
   reopenBudgetMonth,
+  updateSnapshotFixedEntryStatus,
 } from "@budget/db";
 import {
   type CloseMonthFailure,
@@ -20,7 +21,9 @@ import {
   type LeftoverAllocationInput,
   moneyFromEuros,
   openMonth,
+  type PointFixedEntryFailure,
   parseCalendarDate,
+  pointFixedEntry,
   previousMonth,
   type ReopenMonthFailure,
   reopenMonth,
@@ -30,7 +33,7 @@ import { revalidatePath } from "next/cache";
 import type { VariableEnvelopeActionState } from "@/actions/variable-envelope-state";
 import { resolveCurrentMonth } from "@/lib/current-month";
 import { requireSession } from "@/lib/session";
-import { closeMonthSchema, openMonthSchema } from "@/schemas/month";
+import { closeMonthSchema, openMonthSchema, pointFixedEntrySchema } from "@/schemas/month";
 
 /**
  * Session-free core: takes userId and the Prisma client explicitly so it can
@@ -117,6 +120,54 @@ export async function openMonthAction(
   if (result.status === "success") {
     // revalidatePath needs a Next.js request context, unlike openMonthForUser
     // above — kept here so the core stays testable (see its doc comment).
+    revalidatePath(`/months/${formatMonth(resolveCurrentMonth())}`);
+  }
+  return result;
+}
+
+function describePointFixedEntryFailure(_error: PointFixedEntryFailure): string {
+  return "Ce poste fixe ne fait pas partie du budget de ce mois.";
+}
+
+/** Session-free core, same split as `openMonthForUser` above. */
+export async function pointFixedEntryForUser(
+  prismaClient: PrismaClient,
+  userId: string,
+  input: { fixedEntryId: string; done: boolean },
+): Promise<VariableEnvelopeActionState> {
+  const currentMonth = resolveCurrentMonth();
+  const budgetMonth = await findBudgetMonthByMonth(prismaClient, userId, currentMonth);
+  if (budgetMonth?.status !== "open") {
+    return { status: "error", message: "Le mois n'est pas ouvert." };
+  }
+
+  const result = pointFixedEntry(budgetMonth.fixedEntries, input.fixedEntryId, input.done);
+  if (!result.ok) {
+    return { status: "error", message: describePointFixedEntryFailure(result.error) };
+  }
+
+  await updateSnapshotFixedEntryStatus(
+    prismaClient,
+    userId,
+    currentMonth,
+    input.fixedEntryId,
+    input.done ? "done" : "planned",
+  );
+  return { status: "success", message: input.done ? "Poste fixe pointé." : "Pointage annulé." };
+}
+
+export async function pointFixedEntryAction(
+  _prevState: VariableEnvelopeActionState,
+  formData: FormData,
+): Promise<VariableEnvelopeActionState> {
+  const session = await requireSession();
+  const parsed = pointFixedEntrySchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) {
+    return { status: "error", message: parsed.error.issues[0]?.message ?? "Entrée invalide." };
+  }
+
+  const result = await pointFixedEntryForUser(prisma, session.user.id, parsed.data);
+  if (result.status === "success") {
     revalidatePath(`/months/${formatMonth(resolveCurrentMonth())}`);
   }
   return result;

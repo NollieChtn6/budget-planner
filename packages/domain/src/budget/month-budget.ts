@@ -1,8 +1,22 @@
-import { floorPercentageOf, type Money, moneyFromCents, subtractMoney, sumMoney } from "../money";
+import {
+  addMoney,
+  floorPercentageOf,
+  type Money,
+  moneyFromCents,
+  subtractMoney,
+  sumMoney,
+} from "../money";
 
-/** R9: what's left of the income once every fixed entry is deducted. */
-export function computeDisposableIncome(income: Money, fixedEntryAmounts: Money[]): Money {
-  return subtractMoney(income, sumMoney(fixedEntryAmounts));
+/**
+ * R9: what's left of the income, plus whatever was carried over from last
+ * month's closing (R32), once every fixed entry is deducted.
+ */
+export function computeDisposableIncome(
+  income: Money,
+  carriedOver: Money,
+  fixedEntryAmounts: Money[],
+): Money {
+  return subtractMoney(addMoney(income, carriedOver), sumMoney(fixedEntryAmounts));
 }
 
 /** R11: the amount percentage-mode envelopes apply their share to. Can be negative (R13). */

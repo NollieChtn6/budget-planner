@@ -78,6 +78,8 @@ export {
   type CloseMonthInput,
   type CloseMonthResult,
   closeMonth,
+  computeCarriedOver,
+  computeEnvelopeBonus,
   computeLeftover,
   computeSavingsFundedAmount,
   type LeftoverAllocation,

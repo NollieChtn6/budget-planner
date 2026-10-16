@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { parseCalendarDate } from "../calendar-date";
-import { moneyFromEuros, moneyToEuros } from "../money";
+import { moneyFromEuros, moneyToCents, moneyToEuros } from "../money";
 import {
   type CloseMonthInput,
   closeMonth,
+  computeCarriedOver,
+  computeEnvelopeBonus,
   computeLeftover,
   computeSavingsFundedAmount,
   reopenMonth,
@@ -36,6 +38,8 @@ function baseInput(overrides: Partial<CloseMonthInput> = {}): CloseMonthInput {
     date: parseCalendarDate("2026-10-31"),
     allocations: [],
     snapshotProvisionIds: ["p1"],
+    nextMonthActiveEnvelopeIds: ["e1"],
+    nextMonthIsOpen: false,
     ...overrides,
   };
 }
@@ -92,6 +96,95 @@ describe("closeMonth (R25, R26)", () => {
       }),
     );
     expect(result).toEqual({ ok: false, error: { type: "provisionNotInSnapshot" } });
+  });
+
+  it("accepts a split toward an envelope and a report (R31, R32), with no contribution created", () => {
+    const result = closeMonth(
+      baseInput({
+        allocations: [
+          { destination: "envelope", envelopeId: "e1", amount: moneyFromEuros(20) },
+          { destination: "report", amount: moneyFromEuros(10) },
+        ],
+      }),
+    );
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.contributions).toEqual([]);
+    }
+  });
+
+  it("rejects an envelope that isn't active next month (R31)", () => {
+    const result = closeMonth(
+      baseInput({
+        allocations: [
+          { destination: "envelope", envelopeId: "unknown", amount: moneyFromEuros(20) },
+        ],
+      }),
+    );
+    expect(result).toEqual({ ok: false, error: { type: "envelopeNotActiveNextMonth" } });
+  });
+
+  it("rejects an envelope split once next month is already open (R33)", () => {
+    const result = closeMonth(
+      baseInput({
+        nextMonthIsOpen: true,
+        allocations: [{ destination: "envelope", envelopeId: "e1", amount: moneyFromEuros(20) }],
+      }),
+    );
+    expect(result).toEqual({ ok: false, error: { type: "nextMonthAlreadyOpen" } });
+  });
+
+  it("rejects a report split once next month is already open (R33)", () => {
+    const result = closeMonth(
+      baseInput({
+        nextMonthIsOpen: true,
+        allocations: [{ destination: "report", amount: moneyFromEuros(20) }],
+      }),
+    );
+    expect(result).toEqual({ ok: false, error: { type: "nextMonthAlreadyOpen" } });
+  });
+
+  it("still accepts a savings/provision split once next month is already open (R33)", () => {
+    const result = closeMonth(
+      baseInput({
+        nextMonthIsOpen: true,
+        allocations: [{ destination: "savings", amount: moneyFromEuros(20) }],
+      }),
+    );
+    expect(result.ok).toBe(true);
+  });
+});
+
+describe("computeCarriedOver (R32)", () => {
+  it("sums the report-destination allocations, ignoring the rest", () => {
+    const result = computeCarriedOver([
+      { id: "a1", destination: "report", amount: moneyFromEuros(20) },
+      { id: "a2", destination: "report", amount: moneyFromEuros(5) },
+      { id: "a3", destination: "savings", amount: moneyFromEuros(100) },
+    ]);
+    expect(moneyToCents(result)).toBe(moneyToCents(moneyFromEuros(25)));
+  });
+
+  it("is 0 when nothing was reported", () => {
+    expect(moneyToCents(computeCarriedOver([]))).toBe(0);
+  });
+});
+
+describe("computeEnvelopeBonus (R31)", () => {
+  it("sums the envelope-destination allocations for that envelope only", () => {
+    const result = computeEnvelopeBonus(
+      [
+        { id: "a1", destination: "envelope", envelopeId: "e1", amount: moneyFromEuros(20) },
+        { id: "a2", destination: "envelope", envelopeId: "e2", amount: moneyFromEuros(100) },
+        { id: "a3", destination: "report", amount: moneyFromEuros(5) },
+      ],
+      "e1",
+    );
+    expect(moneyToCents(result)).toBe(moneyToCents(moneyFromEuros(20)));
+  });
+
+  it("is 0 when this envelope received nothing", () => {
+    expect(moneyToCents(computeEnvelopeBonus([], "e1"))).toBe(0);
   });
 });
 

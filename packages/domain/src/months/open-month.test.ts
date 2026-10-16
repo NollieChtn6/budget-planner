@@ -99,6 +99,7 @@ function referenceInput() {
     month,
     income: moneyFromEuros(2800),
     previousMonthStatus: "none" as const,
+    carriedOver: moneyFromEuros(0),
     fixedEntries: [charges(), scheduledSaving()],
     envelopes: referenceEnvelopes(),
     provisions: referenceProvisions(),
@@ -162,6 +163,20 @@ describe("openMonth — rules.md reference example (E1-E4)", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(moneyToCents(result.derived.forecastMargin)).toBe(moneyToCents(moneyFromEuros(408.33)));
+  });
+});
+
+describe("openMonth — R32", () => {
+  it("adds the carried-over report to disposable income, flowing into percentage budgets", () => {
+    const result = openMonth({ ...referenceInput(), carriedOver: moneyFromEuros(100) });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    // disposableIncome = 1000 + 100 = 1100 ; allocationBase = 1100 - 150 = 950 ; 15% -> 142,50€
+    expect(moneyToCents(result.derived.disposableIncome)).toBe(moneyToCents(moneyFromEuros(1100)));
+    const sorties = result.budgetMonth.envelopeBudgets.find(
+      (entry) => entry.envelopeId === "sorties",
+    );
+    expect(moneyToCents(expectDefined(sorties).budget)).toBe(moneyToCents(moneyFromEuros(142.5)));
   });
 });
 

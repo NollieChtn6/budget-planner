@@ -18,6 +18,8 @@ export function CloseMonthForm({
   allocatable,
   previousAllocations,
   provisions,
+  nextMonthEnvelopes,
+  nextMonthIsOpen,
 }: {
   envelopeRemainders: { label: string; remaining: number }[];
   leftover: number;
@@ -25,6 +27,10 @@ export function CloseMonthForm({
   allocatable: number;
   previousAllocations: { label: string; amount: number }[];
   provisions: { id: string; label: string }[];
+  /** R31's selectable targets: envelopes active next month, not this month's snapshot. */
+  nextMonthEnvelopes: { id: string; label: string }[];
+  /** R33: next month already froze its instantané, so envelope/report rows can no longer change it. */
+  nextMonthIsOpen: boolean;
 }) {
   const [state, formAction, pending] = useActionState(
     closeMonthAction,
@@ -41,17 +47,36 @@ export function CloseMonthForm({
 
   const rows: {
     key: string;
-    destination: "savings" | "provision";
+    destination: "savings" | "provision" | "envelope" | "report";
     provisionId: string;
+    envelopeId: string;
     label: string;
+    locked?: boolean;
   }[] = [
-    { key: "savings", destination: "savings", provisionId: "", label: "Épargne" },
+    { key: "savings", destination: "savings", provisionId: "", envelopeId: "", label: "Épargne" },
     ...provisions.map((provision) => ({
       key: provision.id,
       destination: "provision" as const,
       provisionId: provision.id,
+      envelopeId: "",
       label: provision.label,
     })),
+    ...nextMonthEnvelopes.map((envelope) => ({
+      key: envelope.id,
+      destination: "envelope" as const,
+      provisionId: "",
+      envelopeId: envelope.id,
+      label: `Enveloppe (mois suivant) : ${envelope.label}`,
+      locked: nextMonthIsOpen,
+    })),
+    {
+      key: "report",
+      destination: "report" as const,
+      provisionId: "",
+      envelopeId: "",
+      label: "Reporter au mois suivant",
+      locked: nextMonthIsOpen,
+    },
   ];
 
   return (
@@ -109,8 +134,28 @@ export function CloseMonthForm({
           {rows.map((row) => (
             <Field key={row.key}>
               <FieldLabel htmlFor={`allocation-${row.key}`}>{row.label}</FieldLabel>
-              <input type="hidden" name="allocationDestination" value={row.destination} />
-              <input type="hidden" name="allocationProvisionId" value={row.provisionId} />
+              {/* Disabled alongside the amount input: a disabled field is dropped from
+                  FormData entirely, keeping every "allocation*" array aligned by index
+                  server-side — a hidden field left enabled here would submit without
+                  its amount and shift every row after it out of sync. */}
+              <input
+                type="hidden"
+                name="allocationDestination"
+                value={row.destination}
+                disabled={row.locked}
+              />
+              <input
+                type="hidden"
+                name="allocationProvisionId"
+                value={row.provisionId}
+                disabled={row.locked}
+              />
+              <input
+                type="hidden"
+                name="allocationEnvelopeId"
+                value={row.envelopeId}
+                disabled={row.locked}
+              />
               <Input
                 id={`allocation-${row.key}`}
                 name="allocationAmountEuros"
@@ -118,6 +163,7 @@ export function CloseMonthForm({
                 step="0.01"
                 min="0"
                 placeholder="0,00"
+                disabled={row.locked}
                 onChange={(event) =>
                   setAmounts((current) => ({
                     ...current,
@@ -125,6 +171,11 @@ export function CloseMonthForm({
                   }))
                 }
               />
+              {row.locked ? (
+                <p className="text-xs text-muted-foreground">
+                  Le mois suivant est déjà ouvert : plus modifiable.
+                </p>
+              ) : null}
             </Field>
           ))}
           {overAllocated ? (

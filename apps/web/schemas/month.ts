@@ -2,6 +2,15 @@ import { z } from "zod";
 
 export const openMonthSchema = z.object({ incomeEuros: z.coerce.number().nonnegative() });
 
+export const pointFixedEntrySchema = z.object({
+  fixedEntryId: z.string(),
+  // Native checkbox semantics: an unchecked box submits no "done" field at all.
+  done: z
+    .enum(["true"])
+    .optional()
+    .transform((value) => value === "true"),
+});
+
 export const closeMonthSchema = z.object({
   allocations: z.array(
     z.object({

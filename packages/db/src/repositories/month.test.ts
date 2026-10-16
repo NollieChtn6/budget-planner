@@ -15,6 +15,7 @@ import {
   findBudgetMonthByMonth,
   findClosedBudgetMonthsByUser,
   reopenBudgetMonth,
+  updateSnapshotFixedEntryStatus,
 } from "./month";
 import { createProvision } from "./provision";
 import { createVariableEnvelope } from "./variable-envelope";
@@ -312,6 +313,50 @@ describe("reopenBudgetMonth", () => {
     });
 
     await expect(reopenBudgetMonth(prisma, attacker.id, month)).rejects.toThrow();
+  });
+});
+
+describe("updateSnapshotFixedEntryStatus (R27)", () => {
+  it("toggles a fixed entry's pointage to done, then back to planned", async () => {
+    const user = await createTestUser(primaryEmail);
+    const seed = await seedParameterization(user.id);
+    await createBudgetMonth(prisma, user.id, buildBudgetMonth(seed));
+
+    await updateSnapshotFixedEntryStatus(prisma, user.id, month, seed.fixedEntry.id, "done");
+    expect((await findBudgetMonthByMonth(prisma, user.id, month))?.fixedEntries[0]?.status).toBe(
+      "done",
+    );
+
+    await updateSnapshotFixedEntryStatus(prisma, user.id, month, seed.fixedEntry.id, "planned");
+    expect((await findBudgetMonthByMonth(prisma, user.id, month))?.fixedEntries[0]?.status).toBe(
+      "planned",
+    );
+  });
+
+  it("rejects a fixed entry from a closed month", async () => {
+    const user = await createTestUser(primaryEmail);
+    const seed = await seedParameterization(user.id);
+    await createBudgetMonth(prisma, user.id, buildBudgetMonth(seed));
+    await closeBudgetMonth(prisma, user.id, month, {
+      closedAt: new Date("2026-01-31T12:00:00.000Z"),
+      allocations: [],
+      contributions: [],
+    });
+
+    await expect(
+      updateSnapshotFixedEntryStatus(prisma, user.id, month, seed.fixedEntry.id, "done"),
+    ).rejects.toThrow();
+  });
+
+  it("rejects another user's fixed entry", async () => {
+    const owner = await createTestUser(primaryEmail);
+    const attacker = await createTestUser(otherEmail);
+    const seed = await seedParameterization(owner.id);
+    await createBudgetMonth(prisma, owner.id, buildBudgetMonth(seed));
+
+    await expect(
+      updateSnapshotFixedEntryStatus(prisma, attacker.id, month, seed.fixedEntry.id, "done"),
+    ).rejects.toThrow();
   });
 });
 

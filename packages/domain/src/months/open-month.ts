@@ -71,6 +71,34 @@ export type OpenMonthInput = {
   provisions: (Provision & { balance: Money })[];
 };
 
+export type PointFixedEntryFailure = { type: "fixedEntryNotInSnapshot" };
+
+export type PointFixedEntryResult =
+  | { ok: true; fixedEntries: SnapshotFixedEntry[] }
+  | { ok: false; error: PointFixedEntryFailure };
+
+/**
+ * R27: toggles a fixed entry's pointage between "planned" and "done".
+ * Reversible both ways, as in the maquette's checkbox and R29's allowance to
+ * correct pointage on a reopened month.
+ */
+export function pointFixedEntry(
+  fixedEntries: SnapshotFixedEntry[],
+  fixedEntryId: string,
+  done: boolean,
+): PointFixedEntryResult {
+  if (!fixedEntries.some((entry) => entry.fixedEntryId === fixedEntryId)) {
+    return { ok: false, error: { type: "fixedEntryNotInSnapshot" } };
+  }
+  const status: PointageStatus = done ? "done" : "planned";
+  return {
+    ok: true,
+    fixedEntries: fixedEntries.map((entry) =>
+      entry.fixedEntryId === fixedEntryId ? { ...entry, status } : entry,
+    ),
+  };
+}
+
 export type OpenMonthFailure = { type: "previousMonthNotClosed" };
 
 export type OpenMonthResult =

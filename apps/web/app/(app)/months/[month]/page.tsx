@@ -25,6 +25,7 @@ import {
   computeUnallocated,
   type Expense,
   type ExpenseSource,
+  type FixedEntryType,
   firstDayOfMonth,
   formatCalendarDate,
   formatMonth,
@@ -52,6 +53,7 @@ import { CloseMonthForm } from "./close-month-form";
 import { ContributionRow } from "./contribution-row";
 import { ExpenseRow } from "./expense-row";
 import { OpenMonthForm } from "./open-month-form";
+import { PointageCheckbox } from "./pointage-checkbox";
 import { ReopenMonthForm } from "./reopen-month-form";
 
 function euros(amount: number): string {
@@ -65,6 +67,11 @@ const CONSUMPTION_LEVEL_LABELS: Record<ConsumptionLevel, string> = {
   warning: "Alerte",
   critical: "Presque vide",
   exceeded: "Dépassement",
+};
+
+const FIXED_ENTRY_TYPE_LABELS: Record<FixedEntryType, string> = {
+  charge: "Charges",
+  scheduledSaving: "Épargne programmée",
 };
 
 const CONSUMPTION_LEVEL_CLASSES: Record<ConsumptionLevel, string> = {
@@ -305,20 +312,48 @@ export default async function MonthPage({ params }: { params: Promise<{ month: s
 
       <Card>
         <CardHeader>
-          <CardTitle>Postes fixes</CardTitle>
+          <CardTitle>Pointage</CardTitle>
+          <CardDescription>
+            {budgetMonth.fixedEntries.filter((entry) => entry.status === "done").length} sur{" "}
+            {budgetMonth.fixedEntries.length} effectués
+          </CardDescription>
         </CardHeader>
-        <CardContent>
-          <ul className="flex flex-col gap-1 text-sm">
-            {budgetMonth.fixedEntries.map((entry) => (
-              <li key={entry.fixedEntryId} className="flex justify-between">
-                <span>{entry.label}</span>
-                <span>
-                  {euros(moneyToEuros(entry.amount))} ·{" "}
-                  {entry.status === "done" ? "effectué" : "programmé"}
-                </span>
-              </li>
-            ))}
-          </ul>
+        <CardContent className="flex flex-col gap-4">
+          {(["charge", "scheduledSaving"] as const).flatMap((type) => {
+            const entries = budgetMonth.fixedEntries.filter((entry) => entry.type === type);
+            if (entries.length === 0) return [];
+            return [
+              <div key={type} className="flex flex-col gap-1.5">
+                <p className="text-sm font-medium text-muted-foreground">
+                  {FIXED_ENTRY_TYPE_LABELS[type]}
+                </p>
+                <ul className="flex flex-col gap-1">
+                  {entries.map((entry) =>
+                    budgetMonth.status === "open" ? (
+                      <li key={`${entry.fixedEntryId}-${entry.status}`}>
+                        <PointageCheckbox
+                          fixedEntryId={entry.fixedEntryId}
+                          label={entry.label}
+                          amountLabel={euros(moneyToEuros(entry.amount))}
+                          defaultChecked={entry.status === "done"}
+                        />
+                      </li>
+                    ) : (
+                      <li key={entry.fixedEntryId} className="flex justify-between text-sm">
+                        <span className={entry.status === "done" ? "line-through" : ""}>
+                          {entry.label}
+                        </span>
+                        <span className="text-muted-foreground">
+                          {euros(moneyToEuros(entry.amount))} ·{" "}
+                          {entry.status === "done" ? "effectué" : "programmé"}
+                        </span>
+                      </li>
+                    ),
+                  )}
+                </ul>
+              </div>,
+            ];
+          })}
         </CardContent>
       </Card>
 

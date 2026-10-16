@@ -1,4 +1,10 @@
-import type { BudgetMonth, Contribution, LeftoverAllocationInput, Month } from "@budget/domain";
+import type {
+  BudgetMonth,
+  Contribution,
+  LeftoverAllocationInput,
+  Month,
+  PointageStatus,
+} from "@budget/domain";
 import { moneyToCents } from "@budget/domain";
 import type { PrismaClient } from "@prisma/client";
 import { toPrismaContributionData } from "../mappers/contribution";
@@ -120,6 +126,26 @@ export async function closeBudgetMonth(
       });
     }
   });
+}
+
+/** R27: toggles a fixed entry's pointage within the month's open snapshot. */
+export async function updateSnapshotFixedEntryStatus(
+  prisma: PrismaClient,
+  userId: string,
+  month: Month,
+  fixedEntryId: string,
+  status: PointageStatus,
+): Promise<void> {
+  const updated = await prisma.snapshotFixedEntry.updateMany({
+    where: {
+      fixedEntryId,
+      budgetMonth: { userId, month: monthToDate(month), status: "open" },
+    },
+    data: { status },
+  });
+  if (updated.count === 0) {
+    throw new Error("Open snapshot fixed entry not found for this user");
+  }
 }
 
 /** R29: unlocks a closed month again, without touching its frozen snapshot (R7). */

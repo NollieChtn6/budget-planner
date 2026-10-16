@@ -4,7 +4,7 @@ import type { VariableEnvelope } from "../budget/variable-envelope";
 import { type Money, moneyFromEuros, moneyToCents } from "../money";
 import { parseMonth } from "../month";
 import type { Provision } from "../provisions/provision";
-import { openMonth } from "./open-month";
+import { openMonth, pointFixedEntry, type SnapshotFixedEntry } from "./open-month";
 
 const month = parseMonth("2026-01");
 
@@ -261,5 +261,49 @@ describe("openMonth — R13", () => {
     for (const entry of percentageBudgets) {
       expect(moneyToCents(entry.budget)).toBe(0);
     }
+  });
+});
+
+describe("pointFixedEntry (R27)", () => {
+  function entries(): SnapshotFixedEntry[] {
+    return [
+      {
+        fixedEntryId: "loyer",
+        label: "Loyer",
+        type: "charge",
+        amount: moneyFromEuros(1000),
+        status: "planned",
+      },
+      {
+        fixedEntryId: "epargne",
+        label: "Épargne programmée",
+        type: "scheduledSaving",
+        amount: moneyFromEuros(400),
+        status: "planned",
+      },
+    ];
+  }
+
+  it("moves a planned entry to done", () => {
+    const result = pointFixedEntry(entries(), "loyer", true);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.fixedEntries.find((e) => e.fixedEntryId === "loyer")?.status).toBe("done");
+    expect(result.fixedEntries.find((e) => e.fixedEntryId === "epargne")?.status).toBe("planned");
+  });
+
+  it("moves a done entry back to planned (reversible, R29)", () => {
+    const done = entries().map((entry) =>
+      entry.fixedEntryId === "loyer" ? { ...entry, status: "done" as const } : entry,
+    );
+    const result = pointFixedEntry(done, "loyer", false);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.fixedEntries.find((e) => e.fixedEntryId === "loyer")?.status).toBe("planned");
+  });
+
+  it("rejects a fixed entry outside this month's snapshot", () => {
+    const result = pointFixedEntry(entries(), "unknown", true);
+    expect(result).toEqual({ ok: false, error: { type: "fixedEntryNotInSnapshot" } });
   });
 });

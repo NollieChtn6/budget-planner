@@ -25,8 +25,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { resolveActiveMonth } from "@/lib/current-month";
 import { formatEuros } from "@/lib/format-money";
 import { requireSession } from "@/lib/session";
-import { ContributionRow } from "../months/[month]/contribution-row";
-import { ExpenseRow } from "../months/[month]/expense-row";
+import { ContributionRow } from "../_components/contribution-row";
+import { ExpenseRow } from "../_components/expense-row";
 import { OperationsFilters } from "./operations-filters";
 
 function clampMonth(month: Month, min: Month, max: Month): Month {

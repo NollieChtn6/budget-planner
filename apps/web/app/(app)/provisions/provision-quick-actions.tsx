@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { AddContributionForm } from "../months/[month]/add-contribution-form";
-import { AddExpenseForm } from "../months/[month]/add-expense-form";
+import { AddContributionForm } from "../_components/add-contribution-form";
+import { AddExpenseForm } from "../_components/add-expense-form";
 
 export function ProvisionQuickActions({
   provisionId,

@@ -9,16 +9,21 @@ import {
   findFixedEntriesByUser,
   findProvisionsByUser,
   findVariableEnvelopesByUser,
+  markProvisionLate,
   prisma,
   reopenBudgetMonth,
   updateSnapshotFixedEntryStatus,
 } from "@budget/db";
 import {
+  becomesLateAtMonthClose,
   type CloseMonthFailure,
   closeMonth,
   computeProvisionBalance,
+  dueMonth,
   formatMonth,
+  isSameMonth,
   type LeftoverAllocationInput,
+  type Month,
   moneyFromEuros,
   openMonth,
   type PointFixedEntryFailure,
@@ -173,6 +178,39 @@ export async function pointFixedEntryAction(
   return result;
 }
 
+/**
+ * R20: once the month is closed, a deadline provision whose due month is
+ * this very month and whose balance (post-closing contributions included)
+ * falls short of its target passes to "late".
+ */
+async function applyLateProvisionTransitions(
+  prismaClient: PrismaClient,
+  userId: string,
+  closingMonth: Month,
+): Promise<void> {
+  const provisions = await findProvisionsByUser(prismaClient, userId);
+  const dueThisMonth = provisions.filter(
+    (provision) =>
+      provision.type === "deadline" &&
+      provision.status === "active" &&
+      isSameMonth(dueMonth(provision), closingMonth),
+  );
+
+  for (const provision of dueThisMonth) {
+    const [contributions, expenses] = await Promise.all([
+      findContributionsByUserAndProvision(prismaClient, userId, provision.id),
+      findExpensesByUserAndProvision(prismaClient, userId, provision.id),
+    ]);
+    const balance = computeProvisionBalance(
+      contributions.map((c) => c.amount),
+      expenses,
+    );
+    if (becomesLateAtMonthClose(provision, closingMonth, balance)) {
+      await markProvisionLate(prismaClient, userId, provision.id);
+    }
+  }
+}
+
 function describeCloseMonthFailure(error: CloseMonthFailure): string {
   switch (error.type) {
     case "invalidAllocationAmount":
@@ -240,6 +278,7 @@ export async function closeMonthForUser(
     allocations: result.allocations,
     contributions: result.contributions,
   });
+  await applyLateProvisionTransitions(prismaClient, userId, currentMonth);
   return { status: "success", message: "Mois clôturé." };
 }
 

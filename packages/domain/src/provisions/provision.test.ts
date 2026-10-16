@@ -3,9 +3,11 @@ import { moneyFromEuros, moneyToCents } from "../money";
 import { type Month, nextMonth, parseMonth, previousMonth } from "../month";
 import {
   archiveProvision,
+  becomesLateAtMonthClose,
   closeProvision,
   computeMonthlyTarget,
   dueMonth,
+  extendProvision,
   isProvisionExhaustedBy,
   type Provision,
   renewProvision,
@@ -104,6 +106,104 @@ describe("computeMonthlyTarget — deadline, R18", () => {
     const provision = deadlineProvision("orthodontie", "Orthodontie", "2026-01", 6, 400);
     const target = computeMonthlyTarget(provision, parseMonth("2026-02"), moneyFromEuros(433.33));
     expect(moneyToCents(target)).toBe(0);
+  });
+});
+
+describe("computeMonthlyTarget — deadline, R20 (late)", () => {
+  it("targets the full remainder, not divided by months, once late", () => {
+    const provision = {
+      ...deadlineProvision("orthodontie", "Orthodontie", "2026-01", 6, 400),
+      status: "late" as const,
+    };
+    const target = computeMonthlyTarget(provision, parseMonth("2026-08"), moneyFromEuros(100));
+    expect(moneyToCents(target)).toBe(30000);
+  });
+
+  it("still returns 0 once a late provision's balance reaches the target", () => {
+    const provision = {
+      ...deadlineProvision("orthodontie", "Orthodontie", "2026-01", 6, 400),
+      status: "late" as const,
+    };
+    const target = computeMonthlyTarget(provision, parseMonth("2026-08"), moneyFromEuros(400));
+    expect(moneyToCents(target)).toBe(0);
+  });
+});
+
+describe("becomesLateAtMonthClose — R20", () => {
+  it("is true when the due month closes incomplete", () => {
+    const provision = deadlineProvision("orthodontie", "Orthodontie", "2026-01", 6, 400);
+    expect(becomesLateAtMonthClose(provision, parseMonth("2026-06"), moneyFromEuros(100))).toBe(
+      true,
+    );
+  });
+
+  it("is false when the due month closes complete", () => {
+    const provision = deadlineProvision("orthodontie", "Orthodontie", "2026-01", 6, 400);
+    expect(becomesLateAtMonthClose(provision, parseMonth("2026-06"), moneyFromEuros(400))).toBe(
+      false,
+    );
+  });
+
+  it("is false when the closing month isn't the due month", () => {
+    const provision = deadlineProvision("orthodontie", "Orthodontie", "2026-01", 6, 400);
+    expect(becomesLateAtMonthClose(provision, parseMonth("2026-05"), moneyFromEuros(100))).toBe(
+      false,
+    );
+  });
+
+  it("is false for a provision that isn't active (already late or closed)", () => {
+    const provision = {
+      ...deadlineProvision("orthodontie", "Orthodontie", "2026-01", 6, 400),
+      status: "late" as const,
+    };
+    expect(becomesLateAtMonthClose(provision, parseMonth("2026-06"), moneyFromEuros(100))).toBe(
+      false,
+    );
+  });
+
+  it("is false for a reserve (R21: never late)", () => {
+    const provision = reserveProvision("imprevus", "Imprévus", 250, 50);
+    expect(becomesLateAtMonthClose(provision, parseMonth("2026-06"), moneyFromEuros(100))).toBe(
+      false,
+    );
+  });
+});
+
+describe("extendProvision — R20 Prolonger", () => {
+  it("pushes the due month back and returns the provision to active", () => {
+    const provision = {
+      ...deadlineProvision("orthodontie", "Orthodontie", "2026-01", 6, 400),
+      status: "late" as const,
+    };
+    const result = extendProvision(provision, parseMonth("2026-08"));
+    expect(result).toEqual({
+      ok: true,
+      provision: { ...provision, status: "active", durationMonths: 8 },
+    });
+  });
+
+  it("rejects a provision that isn't late", () => {
+    const provision = deadlineProvision("orthodontie", "Orthodontie", "2026-01", 6, 400);
+    const result = extendProvision(provision, parseMonth("2026-08"));
+    expect(result).toEqual({ ok: false, error: { type: "notLate" } });
+  });
+
+  it("rejects a new due month that isn't after the current one", () => {
+    const provision = {
+      ...deadlineProvision("orthodontie", "Orthodontie", "2026-01", 6, 400),
+      status: "late" as const,
+    };
+    const result = extendProvision(provision, parseMonth("2026-06"));
+    expect(result).toEqual({ ok: false, error: { type: "newDueMonthNotAfterCurrent" } });
+  });
+
+  it("rejects a reserve", () => {
+    const provision = {
+      ...reserveProvision("imprevus", "Imprévus", 250, 50),
+      status: "late" as const,
+    };
+    const result = extendProvision(provision, parseMonth("2026-08"));
+    expect(result).toEqual({ ok: false, error: { type: "notDeadlineProvision" } });
   });
 });
 

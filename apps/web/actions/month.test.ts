@@ -6,6 +6,7 @@ import {
   createVariableEnvelope,
   findBudgetMonthByMonth,
   findContributionsByUserAndProvision,
+  findProvisionById,
 } from "@budget/db";
 import { formatMonth, moneyFromEuros, moneyToCents, parseCalendarDate } from "@budget/domain";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
@@ -247,6 +248,69 @@ describe("closeMonthForUser", () => {
 
     expect(result.status).toBe("error");
     expect(result.message).toContain("budget de ce mois");
+  });
+});
+
+describe("closeMonthForUser — R20 late transition", () => {
+  it("marks a deadline provision late when its due month closes incomplete", async () => {
+    const user = await createTestUser();
+    await seedParameterization(user.id);
+    const dueThisMonth = await createProvision(prisma, user.id, {
+      type: "deadline",
+      label: "Orthodontie",
+      target: moneyFromEuros(400),
+      startMonth: currentMonth,
+      durationMonths: 1,
+    });
+    await openMonthForUser(prisma, user.id, 2800);
+
+    const result = await closeMonthForUser(prisma, user.id, { allocations: [] });
+    expect(result.status).toBe("success");
+
+    const found = await findProvisionById(prisma, user.id, dueThisMonth.id);
+    expect(found?.status).toBe("late");
+  });
+
+  it("doesn't mark a deadline provision late once its target is reached", async () => {
+    const user = await createTestUser();
+    await seedParameterization(user.id);
+    const dueThisMonth = await createProvision(prisma, user.id, {
+      type: "deadline",
+      label: "Orthodontie",
+      target: moneyFromEuros(400),
+      startMonth: currentMonth,
+      durationMonths: 1,
+    });
+    await createContribution(prisma, user.id, {
+      date: parseCalendarDate(today),
+      amount: moneyFromEuros(400),
+      provisionId: dueThisMonth.id,
+      origin: "manual",
+    });
+    await openMonthForUser(prisma, user.id, 2800);
+
+    await closeMonthForUser(prisma, user.id, { allocations: [] });
+
+    const found = await findProvisionById(prisma, user.id, dueThisMonth.id);
+    expect(found?.status).toBe("active");
+  });
+
+  it("doesn't mark a deadline provision late before its due month", async () => {
+    const user = await createTestUser();
+    await seedParameterization(user.id);
+    const dueNextMonth = await createProvision(prisma, user.id, {
+      type: "deadline",
+      label: "Vacances",
+      target: moneyFromEuros(700),
+      startMonth: currentMonth,
+      durationMonths: 2,
+    });
+    await openMonthForUser(prisma, user.id, 2800);
+
+    await closeMonthForUser(prisma, user.id, { allocations: [] });
+
+    const found = await findProvisionById(prisma, user.id, dueNextMonth.id);
+    expect(found?.status).toBe("active");
   });
 });
 

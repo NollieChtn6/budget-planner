@@ -53,6 +53,8 @@ Langage commun du projet. L'interface parle français, le code utilise les noms 
 | Taux de consommation | `usageRate` | Valeur dérivée | Part du budget d'une enveloppe déjà dépensée. |
 | Niveau d'alerte | `AlertLevel` | Énumération | Palier coloré dérivé du taux de consommation : `ok`, `watch`, `caution`, `warning`, `critical`, `exceeded`. |
 | Reliquat | `leftover` | Valeur dérivée | Restant d'une enveloppe variable à la clôture. |
+| Report | `carriedOver` | Valeur dérivée | Part du reliquat du mois précédent, répartie sans destination à la clôture, qui s'ajoute au revenu disponible du mois (reste à vivre, base de répartition, marge), sans modifier `BudgetMonth.income`. |
+| Bonus d'enveloppe | `envelopeBonus` | Valeur dérivée | Part du reliquat du mois précédent, répartie à la clôture vers une enveloppe variable, qui s'ajoute au budget de cette enveloppe pour ce seul mois, affichée séparément du budget normal. |
 
 ## Provisions
 
@@ -84,6 +86,6 @@ Langage commun du projet. L'interface parle français, le code utilise les noms 
 | Catégorie archivée | `Category.archived` | Attribut | Catégorie retirée de la saisie de nouvelles dépenses ; sans date d'effet, contrairement à `archivedFrom` (R7/R8 ne s'appliquent pas à `Category`). |
 | Versement | `Contribution` | Entité | Somme mise de côté dans une provision. |
 | Financé par l'épargne | `Expense.savingsDraw` / `savingsDraw` | Attribut / Valeur dérivée | Part d'une dépense sur provision qui excède son solde (attribut de la dépense), ou reliquat négatif d'un mois à sa clôture (valeur dérivée du mois). |
-| Répartition du reliquat | `LeftoverAllocation` | Entité | Affectation du reliquat, à la clôture, vers l'épargne ou une provision. |
+| Répartition du reliquat | `LeftoverAllocation` | Entité | Affectation du reliquat, à la clôture, vers l'épargne, une provision, une enveloppe variable (bonus, voir Bonus d'enveloppe) ou sans destination (report, voir Report). |
 | Archiver | `archive()` | Action | Fixe la date d'archivage (`archivedFrom`) d'un poste fixe, d'une enveloppe variable ou d'une provision, sans effacer son historique (R8). |
 | Désarchiver | `unarchive()` | Action | Annule l'archivage d'un élément tant que sa date d'archivage (`archivedFrom`) n'a pas encore pris effet (R8). |

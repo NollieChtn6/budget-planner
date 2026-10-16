@@ -14,8 +14,9 @@ export const pointFixedEntrySchema = z.object({
 export const closeMonthSchema = z.object({
   allocations: z.array(
     z.object({
-      destination: z.enum(["savings", "provision"]),
+      destination: z.enum(["savings", "provision", "envelope", "report"]),
       provisionId: z.string(),
+      envelopeId: z.string(),
       amountEuros: z.coerce.number(),
     }),
   ),

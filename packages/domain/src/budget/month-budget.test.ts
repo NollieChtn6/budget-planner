@@ -10,7 +10,7 @@ import {
 
 describe("computeDisposableIncome", () => {
   it("deducts fixed entries from income (E1: 2 800€ income, 1 800€ fixed -> 1 000€)", () => {
-    const disposableIncome = computeDisposableIncome(moneyFromEuros(2800), [
+    const disposableIncome = computeDisposableIncome(moneyFromEuros(2800), moneyFromEuros(0), [
       moneyFromEuros(1400),
       moneyFromEuros(400),
     ]);
@@ -18,9 +18,16 @@ describe("computeDisposableIncome", () => {
   });
 
   it("returns the full income when there are no fixed entries", () => {
-    expect(moneyToCents(computeDisposableIncome(moneyFromEuros(1000), []))).toBe(
+    expect(moneyToCents(computeDisposableIncome(moneyFromEuros(1000), moneyFromEuros(0), []))).toBe(
       moneyToCents(moneyFromEuros(1000)),
     );
+  });
+
+  it("adds the carried-over report on top of income (R32)", () => {
+    const disposableIncome = computeDisposableIncome(moneyFromEuros(1000), moneyFromEuros(20), [
+      moneyFromEuros(400),
+    ]);
+    expect(moneyToCents(disposableIncome)).toBe(moneyToCents(moneyFromEuros(620)));
   });
 });
 

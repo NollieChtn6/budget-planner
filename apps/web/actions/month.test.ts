@@ -1,4 +1,6 @@
 import {
+  closeBudgetMonth,
+  createBudgetMonth,
   createContribution,
   createFixedEntry,
   createProvision,
@@ -8,7 +10,14 @@ import {
   findContributionsByUserAndProvision,
   findProvisionById,
 } from "@budget/db";
-import { formatMonth, moneyFromEuros, moneyToCents, parseCalendarDate } from "@budget/domain";
+import {
+  formatMonth,
+  moneyFromEuros,
+  moneyToCents,
+  nextMonth,
+  parseCalendarDate,
+  previousMonth,
+} from "@budget/domain";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { resolveCurrentMonth } from "../lib/current-month";
 import {
@@ -43,7 +52,7 @@ async function seedParameterization(userId: string) {
       amount: moneyFromEuros(1000),
     },
   });
-  await createVariableEnvelope(prisma, userId, {
+  const envelope = await createVariableEnvelope(prisma, userId, {
     label: "Vie quotidienne",
     firstVersion: {
       envelopeId: "pending",
@@ -58,7 +67,7 @@ async function seedParameterization(userId: string) {
     target: moneyFromEuros(250),
     monthlyAmount: moneyFromEuros(50),
   });
-  return { provision };
+  return { provision, envelope };
 }
 
 beforeAll(cleanup);
@@ -133,6 +142,53 @@ describe("openMonthForUser", () => {
   });
 });
 
+describe("openMonthForUser — R32", () => {
+  it("adds the previous month's report to disposable income, flowing into percentage budgets", async () => {
+    const user = await createTestUser();
+    await createFixedEntry(prisma, user.id, {
+      label: "Loyer",
+      type: "charge",
+      firstVersion: {
+        fixedEntryId: "pending",
+        effectiveFrom: previousMonth(currentMonth),
+        amount: moneyFromEuros(1000),
+      },
+    });
+    await createVariableEnvelope(prisma, user.id, {
+      label: "Sorties",
+      firstVersion: {
+        envelopeId: "pending",
+        effectiveFrom: previousMonth(currentMonth),
+        mode: "percentage",
+        value: 10,
+      },
+    });
+    await createBudgetMonth(prisma, user.id, {
+      month: previousMonth(currentMonth),
+      status: "open",
+      income: moneyFromEuros(2000),
+      fixedEntries: [],
+      envelopeBudgets: [],
+      provisionTargets: [],
+    });
+    await closeBudgetMonth(prisma, user.id, previousMonth(currentMonth), {
+      closedAt: new Date(),
+      allocations: [{ destination: "report", amount: moneyFromEuros(100) }],
+      contributions: [],
+    });
+
+    const result = await openMonthForUser(prisma, user.id, 2000);
+    expect(result.status).toBe("success");
+
+    const budgetMonth = await findBudgetMonthByMonth(prisma, user.id, currentMonth);
+    // disposableIncome = 2000 + 100 - 1000 = 1100 ; 10% -> 110€
+    const sorties = budgetMonth?.envelopeBudgets.find((entry) => entry.label === "Sorties");
+    expect(moneyToCents(sorties?.budget ?? moneyFromEuros(-1))).toBe(
+      moneyToCents(moneyFromEuros(110)),
+    );
+  });
+});
+
 describe("pointFixedEntryForUser", () => {
   it("points a planned fixed entry to done, then back to planned", async () => {
     const user = await createTestUser();
@@ -189,8 +245,8 @@ describe("closeMonthForUser", () => {
 
     const result = await closeMonthForUser(prisma, user.id, {
       allocations: [
-        { destination: "savings", provisionId: "", amountEuros: 20 },
-        { destination: "provision", provisionId: provision.id, amountEuros: 30 },
+        { destination: "savings", provisionId: "", envelopeId: "", amountEuros: 20 },
+        { destination: "provision", provisionId: provision.id, envelopeId: "", amountEuros: 30 },
       ],
     });
 
@@ -211,8 +267,13 @@ describe("closeMonthForUser", () => {
 
     const result = await closeMonthForUser(prisma, user.id, {
       allocations: [
-        { destination: "savings", provisionId: "", amountEuros: 0 },
-        { destination: "provision", provisionId: provision.id, amountEuros: Number.NaN },
+        { destination: "savings", provisionId: "", envelopeId: "", amountEuros: 0 },
+        {
+          destination: "provision",
+          provisionId: provision.id,
+          envelopeId: "",
+          amountEuros: Number.NaN,
+        },
       ],
     });
 
@@ -243,11 +304,98 @@ describe("closeMonthForUser", () => {
     });
 
     const result = await closeMonthForUser(prisma, user.id, {
-      allocations: [{ destination: "provision", provisionId: otherProvision.id, amountEuros: 10 }],
+      allocations: [
+        {
+          destination: "provision",
+          provisionId: otherProvision.id,
+          envelopeId: "",
+          amountEuros: 10,
+        },
+      ],
     });
 
     expect(result.status).toBe("error");
     expect(result.message).toContain("budget de ce mois");
+  });
+
+  it("splits the leftover toward an envelope bonus and a report (R31, R32)", async () => {
+    const user = await createTestUser();
+    const { envelope } = await seedParameterization(user.id);
+    await openMonthForUser(prisma, user.id, 2800);
+
+    const result = await closeMonthForUser(prisma, user.id, {
+      allocations: [
+        { destination: "envelope", provisionId: "", envelopeId: envelope.id, amountEuros: 20 },
+        { destination: "report", provisionId: "", envelopeId: "", amountEuros: 10 },
+      ],
+    });
+
+    expect(result.status).toBe("success");
+    const closed = await findBudgetMonthByMonth(prisma, user.id, currentMonth);
+    expect(closed?.status).toBe("closed");
+  });
+
+  it("rejects an envelope that won't be active next month (R31)", async () => {
+    const user = await createTestUser();
+    await seedParameterization(user.id);
+    await openMonthForUser(prisma, user.id, 2800);
+
+    const result = await closeMonthForUser(prisma, user.id, {
+      allocations: [
+        { destination: "envelope", provisionId: "", envelopeId: "unknown", amountEuros: 20 },
+      ],
+    });
+
+    expect(result.status).toBe("error");
+  });
+
+  it("rejects an envelope or report split once next month is already open (R33)", async () => {
+    const user = await createTestUser();
+    const { envelope } = await seedParameterization(user.id);
+    await openMonthForUser(prisma, user.id, 2800);
+    // Simulates the reopened-current-month/already-open-next-month state R33
+    // guards against — unreachable through the actions layer today (issue
+    // #11: every action is pinned to the real wall-clock month), but a valid
+    // state to defend against at the domain/action boundary regardless.
+    await createBudgetMonth(prisma, user.id, {
+      month: nextMonth(currentMonth),
+      status: "open",
+      income: moneyFromEuros(2800),
+      fixedEntries: [],
+      envelopeBudgets: [],
+      provisionTargets: [],
+    });
+
+    const result = await closeMonthForUser(prisma, user.id, {
+      allocations: [
+        { destination: "envelope", provisionId: "", envelopeId: envelope.id, amountEuros: 20 },
+      ],
+    });
+
+    expect(result.status).toBe("error");
+    expect(result.message).toContain("déjà ouvert");
+  });
+
+  it("still allows a savings/provision split once next month is already open (R33)", async () => {
+    const user = await createTestUser();
+    const { provision } = await seedParameterization(user.id);
+    await openMonthForUser(prisma, user.id, 2800);
+    await createBudgetMonth(prisma, user.id, {
+      month: nextMonth(currentMonth),
+      status: "open",
+      income: moneyFromEuros(2800),
+      fixedEntries: [],
+      envelopeBudgets: [],
+      provisionTargets: [],
+    });
+
+    const result = await closeMonthForUser(prisma, user.id, {
+      allocations: [
+        { destination: "provision", provisionId: provision.id, envelopeId: "", amountEuros: 20 },
+      ],
+    });
+
+    expect(result.status).toBe("success");
   });
 });
 
@@ -329,7 +477,9 @@ describe("reopenMonthForUser", () => {
 
     // R29: a forgotten contribution can now be added, then the month re-closed.
     const added = await closeMonthForUser(prisma, user.id, {
-      allocations: [{ destination: "provision", provisionId: provision.id, amountEuros: 10 }],
+      allocations: [
+        { destination: "provision", provisionId: provision.id, envelopeId: "", amountEuros: 10 },
+      ],
     });
     expect(added.status).toBe("success");
     const closedAgain = await findBudgetMonthByMonth(prisma, user.id, currentMonth);

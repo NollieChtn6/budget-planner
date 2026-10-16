@@ -8,16 +8,21 @@ import {
   findLastUsedCategoryIdByUser,
   findLeftoverAllocationsByUserAndMonth,
   findProvisionsByUser,
+  findVariableEnvelopesByUser,
   prisma,
 } from "@budget/db";
 import {
+  activeVersionAt,
+  addMoney,
   type ConsumptionLevel,
   type Contribution,
   compareCalendarDates,
   computeAllocationBase,
+  computeCarriedOver,
   computeConsumptionLevel,
   computeContributionSurplus,
   computeDisposableIncome,
+  computeEnvelopeBonus,
   computeForecastMargin,
   computeLeftover,
   computeProvisionBalance,
@@ -37,8 +42,10 @@ import {
   lastDayOfMonth,
   type Money,
   type Month,
+  moneyFromCents,
   moneyToEuros,
   monthOfCalendarDate,
+  nextMonth,
   parseMonth,
   previousMonth,
   subtractMoney,
@@ -133,8 +140,29 @@ export default async function MonthPage({ params }: { params: Promise<{ month: s
     );
   }
 
+  const [previousMonthAllocations, allEnvelopes, nextMonthRow] = await Promise.all([
+    findLeftoverAllocationsByUserAndMonth(prisma, session.user.id, previousMonth(viewedMonth)),
+    findVariableEnvelopesByUser(prisma, session.user.id),
+    findBudgetMonthByMonth(prisma, session.user.id, nextMonth(viewedMonth)),
+  ]);
+  const carriedOver = computeCarriedOver(previousMonthAllocations);
+  const envelopeBonuses = new Map(
+    budgetMonth.envelopeBudgets.map((entry) => [
+      entry.envelopeId,
+      computeEnvelopeBonus(previousMonthAllocations, entry.envelopeId),
+    ]),
+  );
+  const nextMonthEnvelopes = allEnvelopes
+    .filter((envelope) => activeVersionAt(envelope, nextMonth(viewedMonth)))
+    .map((envelope) => ({ id: envelope.id, label: envelope.label }));
+  const nextMonthIsOpen = nextMonthRow?.status === "open";
+
   const fixedEntryAmounts = budgetMonth.fixedEntries.map((entry) => entry.amount);
-  const disposableIncome = computeDisposableIncome(budgetMonth.income, fixedEntryAmounts);
+  const disposableIncome = computeDisposableIncome(
+    budgetMonth.income,
+    carriedOver,
+    fixedEntryAmounts,
+  );
 
   const amountModeValues = budgetMonth.envelopeBudgets
     .filter((entry) => entry.mode === "amount")
@@ -188,10 +216,14 @@ export default async function MonthPage({ params }: { params: Promise<{ month: s
         )
         .map((expense) => expense.amount),
     );
+    const effectiveBudget = addMoney(
+      entry.budget,
+      envelopeBonuses.get(entry.envelopeId) ?? moneyFromCents(0),
+    );
     envelopeConsumption.set(entry.envelopeId, {
       spent,
-      remaining: computeRemaining(entry.budget, spent),
-      level: computeConsumptionLevel(entry.budget, spent),
+      remaining: computeRemaining(effectiveBudget, spent),
+      level: computeConsumptionLevel(effectiveBudget, spent),
     });
   }
 
@@ -241,11 +273,23 @@ export default async function MonthPage({ params }: { params: Promise<{ month: s
   );
   const previouslyAllocated = sumMoney(existingAllocations.map((a) => a.amount));
   const allocatable = subtractMoney(leftover, previouslyAllocated);
+  const envelopeLabelsForAllocations = new Map(
+    allEnvelopes.map((envelope) => [envelope.id, envelope.label]),
+  );
+  function allocationLabel(allocation: (typeof existingAllocations)[number]): string {
+    switch (allocation.destination) {
+      case "savings":
+        return "Épargne";
+      case "report":
+        return "Report sur le mois suivant";
+      case "envelope":
+        return `Enveloppe (mois suivant) : ${envelopeLabelsForAllocations.get(allocation.envelopeId) ?? ""}`;
+      case "provision":
+        return provisionLabels.get(allocation.provisionId) ?? "Provision";
+    }
+  }
   const previousAllocationsDisplay = existingAllocations.map((allocation) => ({
-    label:
-      allocation.destination === "savings"
-        ? "Épargne"
-        : (provisionLabels.get(allocation.provisionId) ?? "Provision"),
+    label: allocationLabel(allocation),
     amount: moneyToEuros(allocation.amount),
   }));
 
@@ -303,6 +347,11 @@ export default async function MonthPage({ params }: { params: Promise<{ month: s
         </CardHeader>
         <CardContent className="flex flex-col gap-1 text-sm">
           <p className="text-lg font-medium">{euros(moneyToEuros(disposableIncome))}</p>
+          {carriedOver.cents > 0 ? (
+            <p className="text-muted-foreground">
+              Dont {euros(moneyToEuros(carriedOver))} reportés du mois précédent
+            </p>
+          ) : null}
           {allocationBase.cents < 0 ? (
             <p className="text-destructive">
               Les postes fixes et enveloppes en montant dépassent le reste à vivre.
@@ -369,12 +418,19 @@ export default async function MonthPage({ params }: { params: Promise<{ month: s
           <ul className="flex flex-col gap-2 text-sm">
             {budgetMonth.envelopeBudgets.map((entry) => {
               const consumption = envelopeConsumption.get(entry.envelopeId);
+              const bonus = envelopeBonuses.get(entry.envelopeId) ?? moneyFromCents(0);
               return (
                 <li key={entry.envelopeId} className="flex flex-col gap-0.5">
                   <div className="flex justify-between">
                     <span>{entry.label}</span>
                     <span>{euros(moneyToEuros(entry.budget))}</span>
                   </div>
+                  {bonus.cents > 0 ? (
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>Bonus reporté du mois précédent</span>
+                      <span>+{euros(moneyToEuros(bonus))}</span>
+                    </div>
+                  ) : null}
                   {consumption ? (
                     <div className="flex justify-between text-xs text-muted-foreground">
                       <span className={CONSUMPTION_LEVEL_CLASSES[consumption.level]}>
@@ -559,6 +615,8 @@ export default async function MonthPage({ params }: { params: Promise<{ month: s
             id: entry.provisionId,
             label: entry.label,
           }))}
+          nextMonthEnvelopes={nextMonthEnvelopes}
+          nextMonthIsOpen={nextMonthIsOpen}
         />
       ) : null}
     </div>

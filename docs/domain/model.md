@@ -65,7 +65,8 @@ L'instantané (`MonthSnapshot`) est l'ensemble de ces trois collections. Il n'a 
 Les libellés sont copiés volontairement : renommer un élément ne modifie pas les mois passés.
 
 **LeftoverAllocation**
-- `month`, `destination` : `savings` | `provision`, `provisionId?`, `amount`
+- `month`, `destination` : `savings` | `provision` | `envelope` | `report`, `provisionId?`, `envelopeId?`, `amount`
+- Une répartition `provision` crée un versement immédiat (R25) ; une répartition `envelope` ou `report` ne prend effet qu'à l'ouverture du mois suivant (R31, R32), sans ligne d'instantané dédiée — c'est une donnée dérivée (voir « Données dérivées »).
 
 ### Opérations
 
@@ -106,6 +107,8 @@ Ces valeurs sont toujours calculées, jamais stockées, pour éviter toute déri
 - consommé, restant et niveau d'alerte d'une enveloppe sur un mois ;
 - reste à vivre, base de répartition, marge prévisionnelle (à partir de l'instantané) ;
 - montant financé par l'épargne d'un mois clôturé : l'opposé du reliquat s'il est négatif, 0 sinon ;
+- report d'un mois : somme des `LeftoverAllocation` du mois précédent dont `destination = report` (R32) ;
+- bonus d'une enveloppe sur un mois : somme des `LeftoverAllocation` du mois précédent dont `destination = envelope` pour cette enveloppe (R31) ;
 - places connues et dernière catégorie utilisée (à partir des dépenses).
 
 ## Cycles de vie

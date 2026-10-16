@@ -34,7 +34,7 @@ async function seedOpenMonth(userId: string) {
     type: "charge",
     firstVersion: { fixedEntryId: "pending", effectiveFrom: month, amount: moneyFromEuros(1000) },
   });
-  await createVariableEnvelope(prisma, userId, {
+  const envelope = await createVariableEnvelope(prisma, userId, {
     label: "Vie quotidienne",
     firstVersion: {
       envelopeId: "pending",
@@ -61,7 +61,7 @@ async function seedOpenMonth(userId: string) {
     ],
   };
   await createBudgetMonth(prisma, userId, budgetMonth);
-  return { provision };
+  return { provision, envelope };
 }
 
 beforeAll(cleanup);
@@ -125,5 +125,27 @@ describe("findLeftoverAllocationsByUserAndMonth", () => {
 
     const allocations = await findLeftoverAllocationsByUserAndMonth(prisma, user.id, month);
     expect(allocations).toHaveLength(0);
+  });
+
+  it("round-trips envelope and report destinations (R31, R32)", async () => {
+    const user = await createTestUser(primaryEmail);
+    const { envelope } = await seedOpenMonth(user.id);
+
+    await closeBudgetMonth(prisma, user.id, month, {
+      closedAt: new Date("2026-01-31T12:00:00.000Z"),
+      allocations: [
+        { destination: "envelope", envelopeId: envelope.id, amount: moneyFromEuros(20) },
+        { destination: "report", amount: moneyFromEuros(10) },
+      ],
+      contributions: [],
+    });
+
+    const allocations = await findLeftoverAllocationsByUserAndMonth(prisma, user.id, month);
+    expect(allocations).toHaveLength(2);
+    const envelopeAllocation = allocations.find((a) => a.destination === "envelope");
+    expect(envelopeAllocation).toMatchObject({ envelopeId: envelope.id });
+    expect(moneyToEuros(envelopeAllocation?.amount ?? moneyFromEuros(0))).toBe(20);
+    const reportAllocation = allocations.find((a) => a.destination === "report");
+    expect(moneyToEuros(reportAllocation?.amount ?? moneyFromEuros(0))).toBe(10);
   });
 });

@@ -29,7 +29,7 @@ Chaque règle a un identifiant stable, référencé dans la spec, le code et les
 
 ## Reste à vivre et enveloppes variables
 
-**R9.** `reste à vivre = revenu du mois − Σ postes fixes`, charges et épargne programmée comprises. Les provisions ne sont pas déduites : leurs cibles sont des objectifs, financés par ce que l'utilisatrice parvient à mettre de côté.
+**R9.** `reste à vivre = revenu du mois + report − Σ postes fixes`, charges et épargne programmée comprises. Les provisions ne sont pas déduites : leurs cibles sont des objectifs, financés par ce que l'utilisatrice parvient à mettre de côté. Le report (R32) est 0 si rien n'a été reporté le mois précédent.
 
 **R10.** Une enveloppe en mode montant reçoit sa valeur telle quelle.
 
@@ -88,7 +88,11 @@ Une réserve vidée ne déclenche aucune question : elle se réalimente selon R2
 
 **R24.** `reliquat = Σ restants des enveloppes variables`, restants négatifs compris.
 
-**R25.** Le reliquat peut être réparti vers l'épargne ou vers des provisions. Une répartition vers une provision crée un versement daté du jour de la clôture. Si le total réparti dépasse le reliquat, un avertissement s'affiche sans bloquer.
+**R25.** Le reliquat peut être réparti vers l'épargne, vers des provisions, vers des enveloppes variables, ou laissé sans destination (report). Une répartition vers une provision crée un versement daté du jour de la clôture ; une répartition vers une enveloppe variable ou un report ne prend effet qu'à l'ouverture du mois suivant (R31, R32). Si le total réparti dépasse le reliquat, un avertissement s'affiche sans bloquer.
+
+**R31.** Une répartition du reliquat vers une enveloppe variable ajoute son montant au budget de cette enveloppe pour le mois suivant uniquement (bonus d'enveloppe), affiché séparément du budget normal ; elle ne modifie pas le paramétrage de l'enveloppe. L'enveloppe cible doit être active au mois suivant (non archivée à cette date), indépendamment de sa présence dans l'instantané du mois clôturé.
+
+**R32.** Une répartition du reliquat sans destination (report) s'ajoute au revenu disponible du mois suivant : elle entre dans le calcul du reste à vivre (R9), de la base de répartition (R11) et de la marge prévisionnelle (R14), sans modifier `BudgetMonth.income`.
 
 **R26.** Une fois la répartition validée, le mois est clôturé (R6).
 
@@ -106,6 +110,8 @@ Une réserve vidée ne déclenche aucune question : elle se réalimente selon R2
 - Sont modifiables : le revenu, les dépenses, les versements et le pointage. L'instantané du mois n'est pas modifié par R7.
 - La répartition du reliquat est conservée, puis revalidée à la nouvelle clôture, le reliquat ayant pu changer (R24, R25).
 - Les instantanés des mois suivants ne sont pas modifiés : une correction qui change le solde d'une provision se répercute sur sa cible à la prochaine ouverture (R18).
+
+**R33.** Si le mois suivant est déjà ouvert, les lignes de répartition du reliquat vers une enveloppe variable ou un report ne sont plus modifiables lors d'une reclôture : leur effet est déjà figé dans l'instantané du mois suivant (R5/R6, R31, R32). Les répartitions vers l'épargne ou une provision restent modifiables normalement.
 
 ## Exemples
 

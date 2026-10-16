@@ -59,6 +59,8 @@ export type OpenMonthInput = {
   income: Money;
   /** R4: status of the previous calendar month, resolved by the caller. */
   previousMonthStatus: "closed" | "open" | "none";
+  /** R32: previous month's leftover left without a destination, 0 if none or no previous month. */
+  carriedOver: Money;
   fixedEntries: FixedEntry[];
   envelopes: VariableEnvelope[];
   /**
@@ -127,8 +129,12 @@ function isProvisionActiveAt(provision: Provision, month: Month): boolean {
 /**
  * R4: validates the previous month's status, then freezes the snapshot (R5)
  * — fixed entries (R27: status starts at "planned"), envelope budgets
- * (R10-R13), and provision targets (R18, R21) — and computes the month's
- * derived values (R9, R14) from that same snapshot.
+ * (R10-R13, R32's carried-over report flows into disposableIncome and so into
+ * percentage-mode budgets via the allocation base), and provision targets
+ * (R18, R21) — and computes the month's derived values (R9, R14) from that
+ * same snapshot. The envelope bonus (R31) isn't part of this: it never
+ * changes the snapshot's budget, only what's displayed alongside it (see
+ * `computeEnvelopeBonus`).
  */
 export function openMonth(input: OpenMonthInput): OpenMonthResult {
   if (input.previousMonthStatus === "open") {
@@ -151,6 +157,7 @@ export function openMonth(input: OpenMonthInput): OpenMonthResult {
 
   const disposableIncome = computeDisposableIncome(
     input.income,
+    input.carriedOver,
     fixedEntries.map((entry) => entry.amount),
   );
 

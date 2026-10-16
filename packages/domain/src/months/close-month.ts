@@ -15,7 +15,9 @@ export function computeSavingsFundedAmount(leftover: Money): Money {
 
 export type LeftoverAllocationInput =
   | { destination: "savings"; amount: Money }
-  | { destination: "provision"; provisionId: string; amount: Money };
+  | { destination: "provision"; provisionId: string; amount: Money }
+  | { destination: "envelope"; envelopeId: string; amount: Money }
+  | { destination: "report"; amount: Money };
 
 export type LeftoverAllocation = LeftoverAllocationInput & { id: string };
 
@@ -24,22 +26,31 @@ export type CloseMonthInput = {
   allocations: LeftoverAllocationInput[];
   /** The month's frozen instantané (docs/domain/model.md), not the live provision list. */
   snapshotProvisionIds: string[];
+  /** R31: envelopes active next month, not this month's snapshot — the bonus targets next month. */
+  nextMonthActiveEnvelopeIds: string[];
+  /** R33: next month already froze its instantané, so envelope/report lines can no longer change it. */
+  nextMonthIsOpen: boolean;
 };
 
 export type CloseMonthFailure =
   | { type: "invalidAllocationAmount" }
-  | { type: "provisionNotInSnapshot" };
+  | { type: "provisionNotInSnapshot" }
+  | { type: "envelopeNotActiveNextMonth" }
+  | { type: "nextMonthAlreadyOpen" };
 
 export type CloseMonthResult =
   | { ok: true; allocations: LeftoverAllocationInput[]; contributions: Omit<Contribution, "id">[] }
   | { ok: false; error: CloseMonthFailure };
 
 /**
- * R25: the leftover (R24) can be split toward savings or provisions — a
- * provision split also creates a same-day contribution (origin "closing").
- * Splitting more than the leftover is only a UI-level warning, never a
- * rejection here. R26 (locking the month) and R30 (the savings-funded
- * amount) are the caller's/UI's concern: both are derived, never stored
+ * R25: the leftover (R24) can be split toward savings, provisions, envelopes
+ * (bonus, R31) or left without a destination (report, R32) — a provision
+ * split also creates a same-day contribution (origin "closing"); an envelope
+ * or report split has no immediate effect here, since it only reaches next
+ * month's reading of this month's allocations (R31, R32). Splitting more than
+ * the leftover is only a UI-level warning, never a rejection here. R26
+ * (locking the month) and R30 (the savings-funded amount) are the
+ * caller's/UI's concern: both are derived, never stored
  * (docs/domain/model.md), so there's nothing left for this function to do
  * once the allocations are validated.
  */
@@ -53,6 +64,17 @@ export function closeMonth(input: CloseMonthInput): CloseMonthResult {
       !input.snapshotProvisionIds.includes(allocation.provisionId)
     ) {
       return { ok: false, error: { type: "provisionNotInSnapshot" } };
+    }
+    if (allocation.destination === "envelope" || allocation.destination === "report") {
+      if (input.nextMonthIsOpen) {
+        return { ok: false, error: { type: "nextMonthAlreadyOpen" } };
+      }
+      if (
+        allocation.destination === "envelope" &&
+        !input.nextMonthActiveEnvelopeIds.includes(allocation.envelopeId)
+      ) {
+        return { ok: false, error: { type: "envelopeNotActiveNextMonth" } };
+      }
     }
   }
 
@@ -69,6 +91,30 @@ export function closeMonth(input: CloseMonthInput): CloseMonthResult {
     }));
 
   return { ok: true, allocations: input.allocations, contributions };
+}
+
+/** R32: the previous month's leftover left without a destination, 0 if none. */
+export function computeCarriedOver(previousMonthAllocations: LeftoverAllocation[]): Money {
+  return sumMoney(
+    previousMonthAllocations
+      .filter((allocation) => allocation.destination === "report")
+      .map((allocation) => allocation.amount),
+  );
+}
+
+/** R31: the bonus added to one envelope's budget from the previous month's closing. */
+export function computeEnvelopeBonus(
+  previousMonthAllocations: LeftoverAllocation[],
+  envelopeId: string,
+): Money {
+  return sumMoney(
+    previousMonthAllocations
+      .filter(
+        (allocation) =>
+          allocation.destination === "envelope" && allocation.envelopeId === envelopeId,
+      )
+      .map((allocation) => allocation.amount),
+  );
 }
 
 export type ReopenMonthFailure = { type: "notClosed" };

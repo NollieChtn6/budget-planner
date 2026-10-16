@@ -7,6 +7,7 @@ import {
   findContributionsByUserAndProvision,
   findExpensesByUserAndProvision,
   findFixedEntriesByUser,
+  findLeftoverAllocationsByUserAndMonth,
   findProvisionsByUser,
   findVariableEnvelopesByUser,
   markProvisionLate,
@@ -15,9 +16,11 @@ import {
   updateSnapshotFixedEntryStatus,
 } from "@budget/db";
 import {
+  activeVersionAt,
   becomesLateAtMonthClose,
   type CloseMonthFailure,
   closeMonth,
+  computeCarriedOver,
   computeProvisionBalance,
   dueMonth,
   formatMonth,
@@ -25,6 +28,7 @@ import {
   type LeftoverAllocationInput,
   type Month,
   moneyFromEuros,
+  nextMonth,
   openMonth,
   type PointFixedEntryFailure,
   parseCalendarDate,
@@ -68,12 +72,14 @@ export async function openMonthForUser(
     return { status: "error", message: "Ce mois est déjà ouvert." };
   }
 
-  const [previousMonthRow, fixedEntries, envelopes, provisions] = await Promise.all([
-    findBudgetMonthByMonth(prismaClient, userId, previousMonth(currentMonth)),
-    findFixedEntriesByUser(prismaClient, userId),
-    findVariableEnvelopesByUser(prismaClient, userId),
-    findProvisionsByUser(prismaClient, userId),
-  ]);
+  const [previousMonthRow, previousMonthAllocations, fixedEntries, envelopes, provisions] =
+    await Promise.all([
+      findBudgetMonthByMonth(prismaClient, userId, previousMonth(currentMonth)),
+      findLeftoverAllocationsByUserAndMonth(prismaClient, userId, previousMonth(currentMonth)),
+      findFixedEntriesByUser(prismaClient, userId),
+      findVariableEnvelopesByUser(prismaClient, userId),
+      findProvisionsByUser(prismaClient, userId),
+    ]);
 
   // R18/R21's starting point: each provision's real balance from every
   // contribution and provision-expense ever recorded against it, not just
@@ -98,6 +104,7 @@ export async function openMonthForUser(
     month: currentMonth,
     income,
     previousMonthStatus: previousMonthRow ? previousMonthRow.status : "none",
+    carriedOver: computeCarriedOver(previousMonthAllocations),
     fixedEntries,
     envelopes,
     provisions: provisionsWithBalance,
@@ -217,12 +224,17 @@ function describeCloseMonthFailure(error: CloseMonthFailure): string {
       return "Saisis un montant supérieur à 0 pour chaque répartition.";
     case "provisionNotInSnapshot":
       return "Cette provision ne fait pas partie du budget de ce mois.";
+    case "envelopeNotActiveNextMonth":
+      return "Cette enveloppe ne sera pas active le mois prochain.";
+    case "nextMonthAlreadyOpen":
+      return "Le mois prochain est déjà ouvert : le report et les bonus d'enveloppe ne peuvent plus être modifiés.";
   }
 }
 
 export type CloseMonthAllocationInput = {
-  destination: "savings" | "provision";
+  destination: "savings" | "provision" | "envelope" | "report";
   provisionId: string;
+  envelopeId: string;
   amountEuros: number;
 };
 
@@ -246,6 +258,14 @@ export async function closeMonthForUser(
     return { status: "error", message: "Le mois n'est pas ouvert." };
   }
 
+  const [nextMonthRow, envelopes] = await Promise.all([
+    findBudgetMonthByMonth(prismaClient, userId, nextMonth(currentMonth)),
+    findVariableEnvelopesByUser(prismaClient, userId),
+  ]);
+  const nextMonthActiveEnvelopeIds = envelopes
+    .filter((envelope) => activeVersionAt(envelope, nextMonth(currentMonth)))
+    .map((envelope) => envelope.id);
+
   // A blank or 0 row means "nothing allocated here", not an error (R25
   // never requires every destination to be filled).
   const allocations: LeftoverAllocationInput[] = input.allocations.flatMap(
@@ -257,9 +277,18 @@ export async function closeMonthForUser(
       } catch {
         return [];
       }
-      return allocation.destination === "savings"
-        ? [{ destination: "savings", amount }]
-        : [{ destination: "provision", provisionId: allocation.provisionId, amount }];
+      switch (allocation.destination) {
+        case "savings":
+          return [{ destination: "savings", amount }];
+        case "provision":
+          return [{ destination: "provision", provisionId: allocation.provisionId, amount }];
+        case "envelope":
+          return [{ destination: "envelope", envelopeId: allocation.envelopeId, amount }];
+        case "report":
+          return [{ destination: "report", amount }];
+        default:
+          return [];
+      }
     },
   );
 
@@ -267,6 +296,8 @@ export async function closeMonthForUser(
     date,
     allocations,
     snapshotProvisionIds: budgetMonth.provisionTargets.map((entry) => entry.provisionId),
+    nextMonthActiveEnvelopeIds,
+    nextMonthIsOpen: nextMonthRow?.status === "open",
   });
 
   if (!result.ok) {
@@ -291,6 +322,7 @@ export async function closeMonthAction(
     allocations: formData.getAll("allocationDestination").map((destination, index) => ({
       destination,
       provisionId: formData.getAll("allocationProvisionId")[index],
+      envelopeId: formData.getAll("allocationEnvelopeId")[index],
       amountEuros: formData.getAll("allocationAmountEuros")[index],
     })),
   });

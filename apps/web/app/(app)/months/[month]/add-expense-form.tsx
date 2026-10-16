@@ -27,6 +27,7 @@ export function AddExpenseForm({
   defaultDate,
   knownPlaces,
   lastUsedCategoryId,
+  defaultTarget: presetTarget,
 }: {
   envelopes: { id: string; label: string }[];
   provisions: { id: string; label: string }[];
@@ -36,6 +37,8 @@ export function AddExpenseForm({
   defaultDate: string;
   knownPlaces: string[];
   lastUsedCategoryId: string | null;
+  /** Presets "Imputer à", e.g. from a provision card's "Dépenser" action. */
+  defaultTarget?: string;
 }) {
   const [state, formAction, pending] = useActionState(
     createExpenseAction,
@@ -48,7 +51,8 @@ export function AddExpenseForm({
     }
   }, [state.provisionExhausted]);
   const defaultTarget =
-    envelopes.length > 0 ? `envelope:${envelopes[0]?.id}` : `provision:${provisions[0]?.id}`;
+    presetTarget ??
+    (envelopes.length > 0 ? `envelope:${envelopes[0]?.id}` : `provision:${provisions[0]?.id}`);
   // Derived data (docs/domain/model.md): defaults to the last category actually
   // used, falling back to the first one if it's since been archived.
   const defaultCategoryId =

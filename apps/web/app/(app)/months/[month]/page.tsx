@@ -54,7 +54,9 @@ import {
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { CONSUMPTION_LEVEL_LABELS, CONSUMPTION_LEVEL_TEXT_CLASSES } from "@/lib/alert-level";
 import { resolveCurrentMonth } from "@/lib/current-month";
+import { formatEuros as euros } from "@/lib/format-money";
 import { requireSession } from "@/lib/session";
 import { AddContributionForm } from "./add-contribution-form";
 import { AddExpenseForm } from "./add-expense-form";
@@ -65,31 +67,9 @@ import { OpenMonthForm } from "./open-month-form";
 import { PointageCheckbox } from "./pointage-checkbox";
 import { ReopenMonthForm } from "./reopen-month-form";
 
-function euros(amount: number): string {
-  return `${amount.toFixed(2)} €`;
-}
-
-const CONSUMPTION_LEVEL_LABELS: Record<ConsumptionLevel, string> = {
-  ok: "Tranquille",
-  watch: "À surveiller",
-  caution: "Attention",
-  warning: "Alerte",
-  critical: "Presque vide",
-  exceeded: "Dépassement",
-};
-
 const FIXED_ENTRY_TYPE_LABELS: Record<FixedEntryType, string> = {
   charge: "Charges",
   scheduledSaving: "Épargne programmée",
-};
-
-const CONSUMPTION_LEVEL_CLASSES: Record<ConsumptionLevel, string> = {
-  ok: "text-green-600 dark:text-green-400",
-  watch: "text-lime-600 dark:text-lime-400",
-  caution: "text-yellow-600 dark:text-yellow-400",
-  warning: "text-orange-600 dark:text-orange-400",
-  critical: "text-red-600 dark:text-red-400",
-  exceeded: "text-purple-600 dark:text-purple-400",
 };
 
 export default async function MonthPage({ params }: { params: Promise<{ month: string }> }) {
@@ -433,7 +413,7 @@ export default async function MonthPage({ params }: { params: Promise<{ month: s
                   ) : null}
                   {consumption ? (
                     <div className="flex justify-between text-xs text-muted-foreground">
-                      <span className={CONSUMPTION_LEVEL_CLASSES[consumption.level]}>
+                      <span className={CONSUMPTION_LEVEL_TEXT_CLASSES[consumption.level]}>
                         {CONSUMPTION_LEVEL_LABELS[consumption.level]}
                       </span>
                       <span>

@@ -2,12 +2,8 @@ import { findClosedBudgetMonthsByUser, prisma } from "@budget/db";
 import { formatMonth, moneyToEuros } from "@budget/domain";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { resolveCurrentMonth } from "@/lib/current-month";
+import { formatEuros } from "@/lib/format-money";
 import { requireSession } from "@/lib/session";
-
-function euros(amount: number): string {
-  return `${amount.toFixed(2)} €`;
-}
 
 export default async function MonthHistoryPage() {
   const session = await requireSession();
@@ -16,8 +12,8 @@ export default async function MonthHistoryPage() {
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-6 p-6">
       <h1 className="text-2xl font-semibold">Historique des mois</h1>
-      <Link href={`/months/${formatMonth(resolveCurrentMonth())}`} className="text-sm underline">
-        Mois en cours
+      <Link href="/" className="text-sm underline">
+        Ce mois-ci
       </Link>
 
       <Card>
@@ -34,7 +30,7 @@ export default async function MonthHistoryPage() {
                     className="flex justify-between underline"
                   >
                     <span>{formatMonth(month.month)}</span>
-                    <span>Revenu {euros(moneyToEuros(month.income))}</span>
+                    <span>Revenu {formatEuros(moneyToEuros(month.income))}</span>
                   </Link>
                 </li>
               ))}

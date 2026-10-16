@@ -23,11 +23,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { formatEuros } from "@/lib/format-money";
 import { ProvisionExhaustionPrompt } from "./provision-exhaustion-prompt";
-
-function euros(amount: number): string {
-  return `${amount.toFixed(2)} €`;
-}
 
 function formatDay(date: CalendarDate): string {
   return `${date.day.toString().padStart(2, "0")}/${date.month.toString().padStart(2, "0")}`;
@@ -104,11 +101,11 @@ export function ExpenseRow({
             {expense.savingsDraw ? (
               <span className="text-destructive">
                 {" "}
-                · {euros(moneyToEuros(expense.savingsDraw))} financés par l'épargne
+                · {formatEuros(moneyToEuros(expense.savingsDraw))} financés par l'épargne
               </span>
             ) : null}
           </span>
-          <span>{euros(moneyToEuros(expense.amount))}</span>
+          <span>{formatEuros(moneyToEuros(expense.amount))}</span>
         </div>
         {editable ? (
           <div className="flex gap-2">

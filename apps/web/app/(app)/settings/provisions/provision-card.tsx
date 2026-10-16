@@ -29,6 +29,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { formatEuros } from "@/lib/format-money";
 
 const TYPE_LABELS: Record<Provision["type"], string> = {
   deadline: "À échéance",
@@ -98,14 +99,14 @@ export function ProvisionCard({ provision }: { provision: Provision }) {
         <ul className="flex flex-col gap-1 text-sm">
           <li>
             {provision.type === "deadline" ? "Objectif" : "Plafond"} :{" "}
-            {moneyToEuros(provision.target).toFixed(2)} €
+            {formatEuros(moneyToEuros(provision.target))}
           </li>
           {provision.type === "reserve" ? (
-            <li>Mensualité : {moneyToEuros(provision.monthlyAmount).toFixed(2)} €</li>
+            <li>Mensualité : {formatEuros(moneyToEuros(provision.monthlyAmount))}</li>
           ) : null}
           <li className="text-muted-foreground">
             Cible ce mois-ci (solde supposé 0 €) :{" "}
-            {target ? `${moneyToEuros(target).toFixed(2)} €` : "indisponible (échéance dépassée)"}
+            {target ? formatEuros(moneyToEuros(target)) : "indisponible (échéance dépassée)"}
           </li>
         </ul>
 

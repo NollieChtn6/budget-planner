@@ -10,7 +10,7 @@ export default async function ProvisionsSettingsPage() {
 
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-6 p-6">
-      <h1 className="text-2xl font-semibold">Provisions</h1>
+      <h2 className="font-heading text-xl">Provisions</h2>
       <CreateProvisionForm />
       <Separator />
       <div className="flex flex-col gap-4">

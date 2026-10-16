@@ -16,7 +16,7 @@ export default async function CategoriesSettingsPage() {
 
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-6 p-6">
-      <h1 className="text-2xl font-semibold">Catégories</h1>
+      <h2 className="font-heading text-xl">Catégories</h2>
       <CreateCategoryForm envelopes={activeEnvelopes} />
       <Separator />
       <div className="flex flex-col gap-4">

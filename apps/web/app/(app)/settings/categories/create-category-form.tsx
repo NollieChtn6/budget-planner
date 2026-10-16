@@ -36,6 +36,10 @@ export function CreateCategoryForm({ envelopes }: { envelopes: VariableEnvelope[
               <Input id="label" name="label" required />
             </Field>
             <Field>
+              <FieldLabel htmlFor="color">Couleur</FieldLabel>
+              <Input id="color" name="color" type="color" defaultValue="#4F46E5" required />
+            </Field>
+            <Field>
               <FieldLabel htmlFor="defaultEnvelopeId">Enveloppe par défaut</FieldLabel>
               <Select name="defaultEnvelopeId" defaultValue={NO_DEFAULT_ENVELOPE}>
                 <SelectTrigger id="defaultEnvelopeId">

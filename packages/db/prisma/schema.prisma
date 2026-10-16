@@ -231,6 +231,7 @@ model Category {
   id                String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   userId            String  @map("user_id") @db.Uuid
   label             String
+  color             String
   defaultEnvelopeId String? @map("default_envelope_id") @db.Uuid
   archived          Boolean @default(false)
 

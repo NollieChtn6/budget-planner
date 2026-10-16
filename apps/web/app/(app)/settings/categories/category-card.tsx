@@ -30,7 +30,14 @@ export function CategoryCard({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{category.label}</CardTitle>
+        <CardTitle className="flex items-center gap-2">
+          <span
+            aria-hidden
+            className="size-3 shrink-0 rounded-full"
+            style={{ backgroundColor: category.color }}
+          />
+          {category.label}
+        </CardTitle>
         <CardDescription>
           {defaultEnvelopeLabel
             ? `Enveloppe par défaut : ${defaultEnvelopeLabel}`

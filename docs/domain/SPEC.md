@@ -14,7 +14,7 @@ Ce document décrit **ce que fait l'app et pour qui**. Le reste est ailleurs :
 | `domain/rules.md` | Règles métier, formules et exemples chiffrés (base des tests) |
 | `domain/model.md` | Entités, relations et cycles de vie |
 | `domain/architecture.md` | Vue d'ensemble technique : paquets, parcours types, responsabilités |
-| `adr/` | Décisions techniques, une par fichier |
+| `docs/adr/` | Décisions techniques, une par fichier |
 
 Les renvois `R…` pointent vers `rules.md`.
 
@@ -25,6 +25,7 @@ L'app a une seule utilisatrice, qui doit s'authentifier pour accéder à ses don
 ### Paramétrage initial
 
 Au premier lancement, le dashboard est vide. L'utilisatrice paramètre :
+
 - ses **postes fixes**, typés charge ou épargne programmée ;
 - ses **enveloppes variables**, chacune en montant fixe ou en pourcentage (R10, R12) ;
 - ses **provisions**, à échéance ou en réserve (R17 à R21) ;

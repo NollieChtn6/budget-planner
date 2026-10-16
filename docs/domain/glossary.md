@@ -19,6 +19,7 @@ Langage commun du projet. L'interface parle français, le code utilise les noms 
 | Terme | Code | Nature | Définition |
 |---|---|---|---|
 | Mois budgétaire | `BudgetMonth` | Entité | Mois calendaire servant d'unité de budget, identifié par `AAAA-MM`. |
+| Mois actif | `activeMonth` | Valeur dérivée | Plus ancien mois non clôturé : le mois ouvert, ou à défaut celui qui suit le dernier mois clôturé. C'est le mois affiché par « Ce mois-ci ». Il ne dépend pas de la date du jour, qui sert seulement à rappeler qu'une clôture est due. |
 | Instantané | `MonthSnapshot` | Objet valeur | Copie, pour un mois, des montants de paramétrage en vigueur. Créé à l'ouverture, mis à jour tant que le mois est ouvert par les modifications qui prennent effet au mois en cours (R7), figé à la clôture. Assemblé à partir des trois types de lignes ci-dessous. |
 | Ligne de poste fixe | `SnapshotFixedEntry` | Entité | Montant d'un poste fixe pour un mois, avec son pointage (voir Instantané pour sa mise à jour). |
 | Budget d'enveloppe | `SnapshotEnvelopeBudget` | Entité | Budget d'une enveloppe variable pour un mois (voir Instantané pour sa mise à jour). |

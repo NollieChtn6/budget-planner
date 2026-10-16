@@ -1,0 +1,604 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Budget par enveloppes : maquette</title>
+<style>
+:root{
+  --bg:#f6f7f8; --surface:#ffffff; --ink:#1d2327; --muted:#5f6b73; --line:#d9dee2; --soft:#eef1f3;
+  --accent:#2f5d8a; --good:#2e7d32; --bad:#b3261e;
+  --a-ok:#2e7d32; --a-watch:#8fb339; --a-caution:#d4a500; --a-warning:#d2621b; --a-critical:#c62828; --a-exceeded:#7b3fa0;
+  box-sizing:border-box; padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){ :root:not([data-theme="light"]){
+  --bg:#15191c; --surface:#1e2327; --ink:#e7ebee; --muted:#9aa6ae; --line:#343b41; --soft:#262c31;
+  --accent:#7fb0de; --good:#6cc070; --bad:#f07a72; color-scheme:dark;
+}}
+:root[data-theme="dark"]{
+  --bg:#15191c; --surface:#1e2327; --ink:#e7ebee; --muted:#9aa6ae; --line:#343b41; --soft:#262c31;
+  --accent:#7fb0de; --good:#6cc070; --bad:#f07a72; color-scheme:dark;
+}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*,*::before,*::after{box-sizing:inherit}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+button,input,select{font:inherit;color:inherit}
+header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--surface);border-bottom:1px solid var(--line)}
+.bar{max-width:980px;margin:0 auto;display:flex;align-items:center;gap:16px;padding:10px 16px;flex-wrap:wrap}
+.bar h1{font-size:16px;margin:0;font-weight:650}
+nav{display:flex;gap:4px;margin-left:auto}
+nav button{background:none;border:1px solid transparent;border-radius:8px;padding:6px 12px;cursor:pointer;color:var(--muted)}
+nav button[aria-current="page"]{border-color:var(--line);background:var(--soft);color:var(--ink);font-weight:600}
+main{max-width:980px;margin:0 auto;padding:20px 16px 110px}
+h2{font-size:22px;margin:0 0 4px}
+h3{font-size:16px;margin:28px 0 10px}
+p.lead{color:var(--muted);margin:0 0 18px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px}
+.grid4{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}
+.stat .k{color:var(--muted);font-size:13px}
+.stat .v{font-size:20px;font-weight:650;font-variant-numeric:tabular-nums}
+.neg{color:var(--bad)} .pos{color:var(--good)}
+.row{display:grid;grid-template-columns:minmax(120px,1.2fr) 2fr auto;gap:12px;align-items:center;padding:12px 0;border-top:1px solid var(--line)}
+.row:first-child{border-top:0}
+.name{font-weight:600}
+.sub{color:var(--muted);font-size:13px}
+.track{height:10px;background:var(--soft);border-radius:6px;overflow:hidden}
+.fill{height:100%;border-radius:6px}
+.num{font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}
+.level{display:inline-flex;align-items:center;gap:6px;font-size:13px}
+.dot{width:10px;height:10px;border-radius:50%;display:inline-block}
+.chip{display:inline-block;font-size:12px;padding:2px 8px;border-radius:99px;border:1px solid var(--line);color:var(--muted)}
+.chip.good{color:var(--good);border-color:currentColor}
+.chip.bad{color:var(--bad);border-color:currentColor}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:8px 14px;cursor:pointer}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+:root[data-theme="dark"] .btn.primary{color:#10202e}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .btn.primary{color:#10202e}}
+.btn.link{border:0;background:none;color:var(--accent);padding:4px 6px}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn:focus-visible,nav button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}
+.fab{position:fixed;right:16px;bottom:calc(16px + env(safe-area-inset-bottom,0px));display:flex;gap:8px;z-index:6}
+.fab .btn{box-shadow:0 2px 8px rgba(0,0,0,.18)}
+.checks label{display:flex;gap:10px;align-items:center;padding:6px 0}
+.checks .num{margin-left:auto}
+.done{color:var(--muted);text-decoration:line-through}
+.scroll{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{text-align:left;padding:8px 6px;border-bottom:1px solid var(--line);vertical-align:middle}
+th{color:var(--muted);font-weight:500}
+td input,td select{width:100%;min-width:70px;padding:5px 6px;border:1px solid var(--line);border-radius:6px;background:var(--surface)}
+label.f{display:block;margin-bottom:12px}
+label.f span{display:block;font-size:13px;color:var(--muted);margin-bottom:4px}
+label.f input,label.f select{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--surface)}
+dialog{border:1px solid var(--line);border-radius:12px;background:var(--surface);color:var(--ink);padding:20px;width:min(440px,calc(100% - 32px))}
+dialog::backdrop{background:rgba(0,0,0,.35)}
+dialog h3{margin-top:0}
+.note{font-size:13px;color:var(--muted);margin-top:8px}
+.warn{border-left:3px solid var(--a-warning);padding:8px 12px;background:var(--soft);border-radius:6px;margin:10px 0;font-size:14px}
+.legend{display:flex;flex-wrap:wrap;gap:12px;font-size:13px;color:var(--muted);margin-top:10px}
+.center{max-width:460px}
+.remain .big{font-size:34px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.2}
+.stack{display:flex;margin-top:12px;gap:2px}
+.stack div{height:100%}
+.split{display:grid;gap:6px;margin-top:12px}
+.split div{display:flex;align-items:center;gap:8px}
+.split .num{margin-left:auto}
+.stats3{display:flex;flex-wrap:wrap;gap:6px 18px;margin-top:12px;font-size:13px;color:var(--muted)}
+.stats3 strong{color:var(--ink);font-variant-numeric:tabular-nums}
+@media (max-width:640px){
+  .row{grid-template-columns:1fr auto}
+  .row .track-wrap{grid-column:1 / -1;order:3}
+  nav{margin-left:0;width:100%}
+  nav button{flex:1}
+}
+</style>
+</head>
+<body>
+<header class="top"><div class="bar">
+  <h1>Budget</h1>
+  <nav id="nav"></nav>
+</div></header>
+<main id="app"></main>
+<div class="fab" id="fab"></div>
+
+<dialog id="dlg"></dialog>
+
+<script>
+// ---------- utilitaires ----------
+const MONTHS=["janvier","février","mars","avril","mai","juin","juillet","août","septembre","octobre","novembre","décembre"];
+const mLabel=i=>MONTHS[i%12]+" "+Math.floor(i/12);
+const mShort=i=>MONTHS[i%12];
+const eur=c=>(c/100).toLocaleString("fr-FR",{style:"currency",currency:"EUR"});
+const toCents=v=>{const n=parseFloat(String(v).replace(/\s/g,"").replace(",","."));return isNaN(n)?0:Math.round(n*100)};
+const toInput=c=>(c/100).toFixed(2).replace(".",",");
+const esc=s=>String(s??"").replace(/[&<>"']/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch]));
+let seq=100; const uid=p=>p+(++seq);
+const pad=n=>String(n).padStart(2,"0");
+const dayIn=(m,d)=>`${Math.floor(m/12)}-${pad(m%12+1)}-${pad(d)}`;
+const monthStart=m=>dayIn(m,1);
+const monthEnd=m=>dayIn(m,new Date(Math.floor(m/12),m%12+1,0).getDate());
+const fmtDate=iso=>{const [,mo,d]=iso.split("-");return `${d}/${mo}`;};
+function defaultDate(){const t=new Date(),m=t.getFullYear()*12+t.getMonth();return m===S.cur?dayIn(S.cur,t.getDate()):monthStart(S.cur);}
+
+const LEVELS=[
+  {max:.5,key:"ok",label:"Tranquille",v:"--a-ok"},
+  {max:.6,key:"watch",label:"À surveiller",v:"--a-watch"},
+  {max:.75,key:"caution",label:"Attention",v:"--a-caution"},
+  {max:.85,key:"warning",label:"Alerte",v:"--a-warning"},
+  {max:1.0000001,key:"critical",label:"Presque vide",v:"--a-critical"},
+  {max:Infinity,key:"exceeded",label:"Dépassement",v:"--a-exceeded"}];
+function level(spent,budget){
+  if(budget<=0) return spent>0?LEVELS[5]:LEVELS[0];
+  const r=spent/budget; return LEVELS.find(l=>r<l.max);
+}
+
+// ---------- état ----------
+const START=2027*12+9; // octobre 2027
+const S={
+  tab:"month", cur:START, edit:null, status:"none", income:0, closing:false, alloc:{},
+  fixed:[
+    {id:"f1",label:"Loyer",type:"charge",amount:100000},
+    {id:"f2",label:"Internet",type:"charge",amount:5000},
+    {id:"f3",label:"Téléphone",type:"charge",amount:2000},
+    {id:"f4",label:"Salle de sport",type:"charge",amount:3000},
+    {id:"f5",label:"Coaching",type:"charge",amount:20000},
+    {id:"f6",label:"Netflix",type:"charge",amount:2000},
+    {id:"f7",label:"Mutuelle",type:"charge",amount:3500},
+    {id:"f8",label:"Transports",type:"charge",amount:4500},
+    {id:"f9",label:"Assurance vie",type:"scheduledSaving",amount:10000},
+    {id:"f10",label:"Livret A",type:"scheduledSaving",amount:30000}],
+  envelopes:[
+    {id:"e1",label:"Vie quotidienne",mode:"amount",value:15000},
+    {id:"e2",label:"Sorties et loisirs",mode:"percentage",value:15},
+    {id:"e3",label:"Achats plaisir",mode:"percentage",value:15}],
+  provisions:[
+    {id:"p1",label:"Orthodontie semestre 3",type:"deadline",target:40000,start:START,duration:6,status:"active"},
+    {id:"p2",label:"Vacances 2028",type:"deadline",target:70000,start:START,duration:10,status:"active"},
+    {id:"p3",label:"Imprévus",type:"reserve",target:25000,monthly:5000,status:"active"}],
+  categories:[
+    {id:"c1",label:"Courses",def:"e1"},{id:"c2",label:"Maison",def:"e1"},{id:"c3",label:"Santé",def:"e1"},
+    {id:"c4",label:"Restaurant",def:"e2"},{id:"c5",label:"Loisirs",def:"e2"},
+    {id:"c6",label:"Vêtements",def:"e3"},{id:"c7",label:"Beauté",def:"e3"},{id:"c8",label:"Soins et imprévus",def:""}],
+  ops:[], snap:null, history:[]
+};
+
+// ---------- domaine (simplifié) ----------
+const activeAt=(x,m)=>(x.from===undefined||x.from<=m)&&(x.archivedFrom===undefined||x.archivedFrom>m);
+function provBalance(pid,beforeMonth){
+  return S.ops.filter(o=>o.src==="prov:"+pid&&(beforeMonth===undefined||o.month<beforeMonth))
+    .reduce((s,o)=>s+(o.kind==="contribution"?o.amount:-(o.amount-(o.draw||0))),0);
+}
+const dueMonth=p=>p.start+p.duration-1;
+function provTarget(p,m){
+  const bal=provBalance(p.id,m), left=Math.max(0,p.target-bal);
+  if(p.type==="reserve") return Math.min(p.monthly,left);
+  if(left===0) return 0;
+  const rem=dueMonth(p)-m+1;
+  return rem<=0?left:Math.ceil(left/rem);
+}
+const provActiveAt=(p,m)=>p.status!=="closed"&&(p.type==="reserve"||p.start<=m);
+function buildSnap(prev){
+  const m=S.cur, done=new Set(prev?prev.fixed.filter(f=>f.done).map(f=>f.id):[]);
+  const fixed=S.fixed.filter(f=>activeAt(f,m)).map(f=>({id:f.id,label:f.label,type:f.type,amount:f.amount,done:done.has(f.id)}));
+  const totalFixed=fixed.reduce((s,f)=>s+f.amount,0);
+  const reste=S.income-totalFixed;
+  const envs=S.envelopes.filter(e=>activeAt(e,m));
+  const base=reste-envs.filter(e=>e.mode==="amount").reduce((s,e)=>s+e.value,0);
+  const env=envs.map(e=>({id:e.id,label:e.label,mode:e.mode,value:e.value,
+    budget:e.mode==="amount"?e.value:(base>0?Math.floor(base*e.value/100):0)}));
+  const prov=prev?prev.prov:S.provisions.filter(p=>provActiveAt(p,m)).map(p=>({id:p.id,label:p.label,target:provTarget(p,m)}));
+  return {fixed,env,prov,totalFixed,reste,base};
+}
+const monthOps=()=>S.ops.filter(o=>o.month===S.cur);
+const spentOn=eid=>monthOps().filter(o=>o.kind==="expense"&&o.src==="env:"+eid).reduce((s,o)=>s+o.amount,0);
+const contributedThisMonth=pid=>monthOps().filter(o=>o.kind==="contribution"&&o.src==="prov:"+pid).reduce((s,o)=>s+o.amount,0);
+function margin(){const s=S.snap;return s.reste-s.env.reduce((a,e)=>a+e.budget,0)-s.prov.reduce((a,p)=>a+p.target,0)}
+function leftovers(){return S.snap.env.map(e=>({...e,left:e.budget-spentOn(e.id)}))}
+
+// ---------- actions ----------
+function openMonth(income){
+  S.income=income;
+  for(const x of [...S.fixed,...S.envelopes]) if(x.next){ Object.assign(x,x.next); delete x.next; }
+  S.snap=buildSnap(null); S.status="open"; S.closing=false; S.alloc={};
+  for(const x of [...S.fixed,...S.envelopes,...S.provisions]) if(S.snap.fixed.some(f=>f.id===x.id)||S.snap.env.some(e=>e.id===x.id)||S.snap.prov.some(q=>q.id===x.id)) x.used=true;
+  render();
+}
+function addOp(op){
+  op.id=uid("o"); op.month=S.cur;
+  if(op.kind==="expense"&&op.src.startsWith("prov:")){
+    const pid=op.src.slice(5), bal=provBalance(pid);
+    op.draw=Math.max(0,op.amount-Math.max(0,bal));
+    S.ops.push(op);
+    const p=S.provisions.find(x=>x.id===pid);
+    if(p.type==="deadline"&&provBalance(pid)<=0) askProvisionEnd(p,op.draw);
+    else if(op.draw>0) info("Dépassement de la provision",`${eur(op.draw)} de cette dépense sont financés par l'épargne. Le solde de « ${esc(p.label)} » est à 0 €.`);
+  } else S.ops.push(op);
+  render();
+}
+function closeMonth(){
+  for(const [pid,amt] of Object.entries(S.alloc)) if(pid!=="savings"&&amt>0)
+    S.ops.push({id:uid("o"),kind:"contribution",month:S.cur,date:monthEnd(S.cur),place:"",desc:"Répartition du reliquat",amount:amt,src:"prov:"+pid,origin:"closing"});
+  const total=leftovers().reduce((s,e)=>s+e.left,0);
+  S.history.push({month:S.cur,reliquat:total,draw:total<0?-total:0});
+  S.status="closed"; S.closing=false; render();
+}
+function reopenMonth(){
+  S.ops=S.ops.filter(o=>!(o.month===S.cur&&o.origin==="closing"));
+  S.history=S.history.filter(h=>h.month!==S.cur);
+  S.status="open"; render();
+}
+function goNextMonth(){ S.cur++; S.status="none"; S.snap=null; S.ops=S.ops; render(); }
+
+// ---------- dialogues ----------
+const dlg=document.getElementById("dlg");
+function info(title,html){
+  dlg.innerHTML=`<h3>${esc(title)}</h3><p>${html}</p><div class="actions"><button class="btn primary" data-close>OK</button></div>`;
+  dlg.showModal();
+}
+function askProvisionEnd(p,draw){
+  dlg.innerHTML=`<h3>« ${esc(p.label)} » est vide</h3>
+   <p>La dépense a consommé toute la provision.${draw>0?` ${eur(draw)} sont financés par l'épargne.`:""} Que veux-tu faire ?</p>
+   <div class="actions">
+     <button class="btn primary" data-pe="close">Clôturer</button>
+     <button class="btn" data-pe="renew">Renouveler</button>
+     <button class="btn" data-pe="keep">Conserver</button></div>
+   <p class="note">Renouveler démarre un nouveau cycle identique le mois suivant. Conserver garde la provision active à 0 € : le provisionnement reprend à la prochaine ouverture.</p>`;
+  dlg.dataset.pid=p.id; dlg.showModal();
+}
+function askEffect(apply){
+  dlg.innerHTML=`<h3>À partir de quand ?</h3><p>Cette modification peut s'appliquer au mois en cours (le budget de ${mLabel(S.cur)} est recalculé) ou seulement au mois suivant.</p>
+   <div class="actions"><button class="btn primary" data-eff="now">${mLabel(S.cur)}</button><button class="btn" data-eff="next">${mLabel(S.cur+1)}</button><button class="btn link" data-close>Annuler</button></div>`;
+  dlg._apply=apply; dlg.showModal();
+}
+function opForm(kind,op){
+  const editing=!!op;
+  const envOpts=S.snap.env.map(e=>`<option value="env:${e.id}">${esc(e.label)}</option>`).join("");
+  const provOpts=S.provisions.filter(p=>p.status!=="closed"||(op&&op.src==="prov:"+p.id))
+    .map(p=>`<option value="prov:${p.id}">${kind==="expense"?"Provision : ":""}${esc(p.label)}</option>`).join("");
+  const places=[...new Set(S.ops.map(o=>o.place).filter(Boolean))].map(p=>`<option value="${esc(p)}">`).join("");
+  const v=k=>op?esc(op[k]??""):"";
+  const dateField=`<label class="f"><span>Date</span><input name="date" type="date" required min="${monthStart(S.cur)}" max="${monthEnd(S.cur)}" value="${op?op.date:defaultDate()}"></label>`;
+  const verb=kind==="expense"?"la dépense":"le versement";
+  const btns=`<p class="note neg" id="operr" hidden></p><div class="actions"><button class="btn primary" data-opf-ok>${editing?"Enregistrer":"Ajouter"} ${verb}</button><button class="btn link" data-close>Annuler</button></div>`;
+  const amount=`<label class="f"><span>Montant</span><input name="amount" inputmode="decimal" required placeholder="0,00" value="${op?toInput(op.amount):""}" autofocus></label>`;
+  dlg.innerHTML = kind==="expense" ? `<h3>${editing?"Modifier la dépense":"Nouvelle dépense"}</h3>
+   <div id="opf">${amount}
+    <label class="f"><span>Lieu</span><input name="place" list="places" placeholder="Monoprix" value="${v("place")}"><datalist id="places">${places}</datalist></label>
+    <label class="f"><span>Description</span><input name="desc" placeholder="Produits d'entretien" value="${v("desc")}"></label>
+    <label class="f"><span>Catégorie</span><select name="cat">${S.categories.filter(c=>!c.archived||(op&&op.cat===c.id)).map(c=>`<option value="${c.id}">${esc(c.label)}</option>`).join("")}</select></label>
+    <label class="f"><span>Imputer à</span><select name="src">${envOpts}${provOpts}</select></label>
+    ${dateField}${btns}</div>`
+   : `<h3>${editing?"Modifier le versement":"Nouveau versement"}</h3>
+   <div id="opf">${amount}
+    <label class="f"><span>Provision</span><select name="src">${provOpts}</select></label>
+    ${dateField}${btns}</div>`;
+  dlg.showModal();
+  const f=dlg.querySelector("#opf"), el=n=>f.querySelector(`[name="${n}"]`), cat=el("cat"), place=el("place");
+  if(cat){
+    const sync=()=>{const d=S.categories.find(c=>c.id===cat.value)?.def; if(d) el("src").value="env:"+d;};
+    cat.addEventListener("change",sync);
+    place.addEventListener("change",()=>{const last=[...S.ops].reverse().find(o=>o.place===place.value); if(last?.cat){cat.value=last.cat;sync();}});
+    if(op) cat.value=op.cat||cat.value; else sync();
+  }
+  if(op) el("src").value=op.src;
+  el("amount").focus();
+  dlg._opSubmit=()=>{
+    const amount=toCents(el("amount").value), date=el("date").value, err=f.querySelector("#operr");
+    const fail=(msg,n)=>{err.textContent=msg;err.hidden=false;el(n).focus();};
+    if(amount<=0) return fail("Saisis un montant supérieur à 0.","amount");
+    if(!date||date<monthStart(S.cur)||date>monthEnd(S.cur)) return fail(`Choisis une date en ${mLabel(S.cur)}.`,"date");
+    dlg.close();
+    if(op) S.ops=S.ops.filter(o=>o.id!==op.id);
+    addOp({kind,amount,src:el("src").value,place:place?.value.trim()||"",desc:el("desc")?.value.trim()||"",cat:cat?.value||"",date});
+  };
+}
+dlg.addEventListener("click",e=>{
+  const t=e.target.closest("button"); if(!t) return;
+  if(t.hasAttribute("data-close")) dlg.close();
+  if(t.hasAttribute("data-del-confirm")){ dlg._del(); dlg.close(); render(); }
+  if(t.hasAttribute("data-opf-ok")) dlg._opSubmit();
+  if(t.dataset.pe){
+    const p=S.provisions.find(x=>x.id===dlg.dataset.pid);
+    if(t.dataset.pe==="close") p.status="closed";
+    if(t.dataset.pe==="renew"){ p.status="closed";
+      const lbl=/semestre \d+/.test(p.label)?p.label.replace(/semestre (\d+)/,(m,n)=>"semestre "+(+n+1)):p.label+" (cycle suivant)";
+      S.provisions.push({id:uid("p"),label:lbl,
+        type:"deadline",target:p.target,start:S.cur+1,duration:p.duration,status:"active"}); }
+    dlg.close(); render();
+  }
+  if(t.dataset.eff){ dlg._apply(t.dataset.eff); dlg.close(); render(); }
+});
+
+// ---------- rendu ----------
+const app=document.getElementById("app");
+function renderFab(){
+  document.getElementById("fab").innerHTML= S.status==="open"&&!S.closing
+    ? `<button class="btn" data-add="contribution">Versement</button><button class="btn primary" data-add="expense">Ajouter une dépense</button>`:"";
+}
+const COLS={fixed:()=>S.fixed,env:()=>S.envelopes,prov:()=>S.provisions,cat:()=>S.categories};
+const R7KEYS={fixed:["amount","type"],env:["mode","value"]};
+function startEdit(col,id){ S.edit={col,id,isNew:false,data:structuredClone(COLS[col]().find(x=>x.id===id))}; render(); }
+function startNew(kind){
+  const T={fixed:{col:"fixed",data:{label:"",type:"charge",amount:0}},
+    env:{col:"env",data:{label:"",mode:"amount",value:0}},
+    deadline:{col:"prov",data:{label:"",type:"deadline",target:0,start:S.status==="none"?S.cur:S.cur+1,duration:6,status:"active"}},
+    reserve:{col:"prov",data:{label:"",type:"reserve",target:0,monthly:0,status:"active"}},
+    cat:{col:"cat",data:{label:"",def:""}}}[kind];
+  const id=uid(kind[0]); S.edit={col:T.col,id,isNew:true,data:{id,...T.data}}; render();
+  document.querySelector('[data-f="label"]')?.focus();
+}
+function validateEdit(){
+  const {col,id,data,isNew}=S.edit, list=COLS[col](), orig=list.find(x=>x.id===id), keys=R7KEYS[col];
+  if(!data.label.trim()){ document.querySelector('[data-f="label"]')?.focus(); return; }
+  const changed=keys&&(isNew||keys.some(k=>orig[k]!==data[k]));
+  const commit=w=>{
+    const later=w==="next"&&S.status==="open";
+    if(isNew){ if(later&&keys) data.from=S.cur+1; list.push(data); }
+    else if(later&&changed){ const nx={}; keys.forEach(k=>{nx[k]=data[k]; data[k]=orig[k];}); Object.assign(orig,data,{next:nx}); }
+    else { Object.assign(orig,data); if(changed) delete orig.next; }
+    S.edit=null;
+    if(S.status==="open"&&keys&&!later) S.snap=buildSnap(S.snap);
+    if(S.status==="open") for(const l of [...S.snap.fixed,...S.snap.env,...S.snap.prov]) if(l.id===id) l.label=data.label;
+    render();
+  };
+  if(S.status==="open"&&changed) askEffect(commit); else commit("now");
+}
+function isUsed(col,id){
+  if(col==="cat") return S.ops.some(o=>o.cat===id);
+  if(col==="env"&&S.ops.some(o=>o.src==="env:"+id)) return true;
+  if(col==="prov"&&S.ops.some(o=>o.src==="prov:"+id)) return true;
+  return !!COLS[col]().find(x=>x.id===id).used;
+}
+function askDelete(col,id){
+  const x=COLS[col]().find(y=>y.id===id), used=isUsed(col,id), when=S.status==="none"?S.cur:S.cur+1;
+  const archText={fixed:`Ce poste apparaît déjà dans un mois budgétaire. Pour préserver l'historique, il sera archivé : il ne comptera plus à partir de ${mLabel(when)}.`,
+    env:`Cette enveloppe apparaît déjà dans un mois budgétaire. Pour préserver l'historique, elle sera archivée : elle ne comptera plus à partir de ${mLabel(when)}.`,
+    prov:"Cette provision a déjà un historique. Elle sera clôturée au lieu d'être supprimée.",
+    cat:"Cette catégorie est utilisée par des dépenses. Elle sera archivée : elle ne sera plus proposée à la saisie, mais les dépenses la conservent."}[col];
+  dlg.innerHTML=`<h3>${used?(col==="prov"?"Clôturer":"Archiver"):"Supprimer"} « ${esc(x.label)} » ?</h3>
+    <p>${used?archText:"Cet élément n'a encore jamais servi : il sera supprimé définitivement."}</p>
+    <div class="actions"><button class="btn primary" data-del-confirm>${used?(col==="prov"?"Clôturer":"Archiver"):"Supprimer"}</button><button class="btn link" data-close>Annuler</button></div>`;
+  dlg._del=()=>{
+    if(!used){ const l=COLS[col](); l.splice(l.indexOf(x),1); if(col==="env") S.categories.forEach(c=>{if(c.def===id)c.def="";}); }
+    else if(col==="prov") x.status="closed";
+    else if(col==="cat") x.archived=true;
+    else x.archivedFrom=when;
+  };
+  dlg.showModal();
+}
+function render(){
+  document.getElementById("nav").innerHTML=[["month","Mois"],["ops","Opérations"],["settings","Paramètres"]]
+    .map(([k,l])=>`<button data-tab="${k}" ${S.tab===k?'aria-current="page"':""}>${l}</button>`).join("");
+  renderFab();
+  app.innerHTML = S.tab==="month"?viewMonth():S.tab==="ops"?viewOps():viewSettings();
+}
+
+function viewMonth(){
+  if(S.status==="none"){
+    const closedPrev=S.history.find(h=>h.month===S.cur-1);
+    const fx=S.fixed.filter(f=>activeAt(f,S.cur)).reduce((s,f)=>s+(f.next?.amount??f.amount),0);
+    return `<div class="center"><h2>${mLabel(S.cur)}</h2>
+      <p class="lead">${closedPrev?`${mLabel(S.cur-1)} est clôturé. `:""}Ce mois n'est pas encore ouvert. Saisis le salaire qui le finance pour calculer ton budget.</p>
+      <div class="panel" id="openf">
+        <label class="f"><span>Revenu du mois</span><input name="income" inputmode="decimal" required placeholder="2 800,00" value="${S.income?toInput(S.income):""}"></label>
+        <p class="sub">Postes fixes paramétrés : ${eur(fx)}. Reste à vivre estimé : <strong id="rav">—</strong></p>
+        <p class="note neg" id="openerr" hidden>Saisis un revenu supérieur à 0.</p>
+        <div class="actions"><button class="btn primary" data-act="open">Ouvrir ${mLabel(S.cur)}</button></div>
+      </div></div>`;
+  }
+  if(S.status==="closed"){
+    const h=S.history.find(x=>x.month===S.cur);
+    return `<div class="center"><h2>${mLabel(S.cur)} <span class="chip">Clôturé</span></h2>
+      <p class="lead">Reliquat de clôture : <strong class="${h.reliquat<0?"neg":""}">${eur(h.reliquat)}</strong>${h.draw?` dont ${eur(h.draw)} financés par l'épargne`:""}.</p>
+      <div class="actions"><button class="btn primary" data-act="next">Ouvrir ${mLabel(S.cur+1)}</button>
+      <button class="btn" data-act="reopen">Rouvrir ${mShort(S.cur)} pour corriger</button></div></div>`;
+  }
+  if(S.closing) return viewClosing();
+  const s=S.snap, mg=margin();
+  const envRows=s.env.map(e=>{
+    const sp=spentOn(e.id), lv=level(sp,e.budget), pct=e.budget>0?Math.min(100,sp/e.budget*100):(sp>0?100:0);
+    return `<div class="row"><div><div class="name">${esc(e.label)}</div><div class="sub">${e.mode==="amount"?"Montant fixe":e.value+" % de la base"}</div></div>
+      <div class="track-wrap"><div class="track"><div class="fill" style="width:${pct}%;background:var(${lv.v})"></div></div>
+      <div class="sub" style="margin-top:4px"><span class="level"><span class="dot" style="background:var(${lv.v})"></span>${lv.label}</span> · ${eur(sp)} dépensés sur ${eur(e.budget)}</div></div>
+      <div class="num"><div class="${e.budget-sp<0?"neg":""}" style="font-weight:650">${eur(e.budget-sp)}</div><div class="sub">restant</div></div></div>`}).join("");
+  const provRows=s.prov.map(t=>{
+    const p=S.provisions.find(x=>x.id===t.id), bal=provBalance(p.id), paid=contributedThisMonth(p.id);
+    const pct=p.target>0?Math.min(100,bal/p.target*100):0, adv=paid-t.target;
+    const late=p.type==="deadline"&&dueMonth(p)<S.cur&&bal<p.target&&p.status!=="closed";
+    const state = p.status==="closed"?`<span class="chip">Clôturée</span>`
+      : late?`<span class="chip bad">En retard</span>`
+      : t.target===0?`<span class="chip good">Objectif atteint</span>`
+      : adv>0?`<span class="chip good">Avance +${eur(adv)}</span>`
+      : adv===0?`<span class="chip good">Cible du mois atteinte</span>`:`<span class="chip">Reste ${eur(-adv)} ce mois</span>`;
+    return `<div class="row"><div><div class="name">${esc(p.label)}</div><div class="sub">${p.type==="deadline"?"Échéance "+mLabel(dueMonth(p)):"Réserve"}</div></div>
+      <div class="track-wrap"><div class="track"><div class="fill" style="width:${pct}%;background:var(--accent)"></div></div>
+      <div class="sub" style="margin-top:4px">${eur(bal)} sur ${eur(p.target)} · cible du mois ${eur(t.target)} · versé ${eur(paid)}</div></div>
+      <div class="num">${state}</div></div>`}).join("");
+  const grp=(type,title)=>{const l=s.fixed.filter(f=>f.type===type);return `<div class="panel checks"><div class="name" style="margin-bottom:4px">${title}</div>${l.map(f=>
+    `<label><input type="checkbox" data-done="${f.id}" ${f.done?"checked":""}><span class="${f.done?"done":""}">${esc(f.label)}</span><span class="num sub">${eur(f.amount)}</span></label>`).join("")}</div>`};
+  const doneCount=s.fixed.filter(f=>f.done).length;
+  const spentAll=monthOps().filter(o=>o.kind==="expense"&&o.src.startsWith("env:")).reduce((a,o)=>a+o.amount,0);
+  const paidAll=monthOps().filter(o=>o.kind==="contribution").reduce((a,o)=>a+o.amount,0);
+  const left=s.reste-spentAll-paidAll;
+  const toSpend=s.env.reduce((a,e)=>a+Math.max(0,e.budget-spentOn(e.id)),0);
+  const toPay=s.prov.reduce((a,t)=>a+Math.max(0,t.target-contributedThisMonth(t.id)),0);
+  const free=left-toSpend-toPay, parts=[[toSpend,"--a-ok"],[toPay,"--accent"],[Math.max(0,free),"--muted"]];
+  const tot=parts.reduce((a,[x])=>a+x,0)||1;
+  return `<h2>${mLabel(S.cur)} <span class="chip">Ouvert</span></h2>
+    <p class="lead">${monthOps().length?"":"Rien de saisi pour l'instant. "}Ajoute tes dépenses et versements au fil du mois.
+      ${monthOps().length||S.cur!==START?"":`<button class="btn link" data-act="demo">Charger l'exemple d'octobre</button>`}</p>
+    <div class="panel remain">
+      <div class="sub">Il te reste ce mois-ci</div>
+      <div class="big ${left<0?"neg":""}">${eur(left)}</div>
+      <div class="track stack">${parts.map(([x,c])=>x>0?`<div style="width:${x/tot*100}%;background:var(${c})"></div>`:"").join("")}</div>
+      <div class="split">
+        <div><span class="dot" style="background:var(--a-ok)"></span>À dépenser dans les enveloppes<span class="num">${eur(toSpend)}</span></div>
+        <div><span class="dot" style="background:var(--accent)"></span>À verser sur les provisions ce mois-ci<span class="num">${eur(toPay)}</span></div>
+        <div><span class="dot" style="background:var(--muted)"></span>Libre, non engagé<span class="num ${free<0?"neg":""}">${eur(free)}</span></div>
+      </div>
+      <div class="stats3"><span>Revenu <strong>${eur(S.income)}</strong></span><span>Postes fixes <strong>${eur(s.totalFixed)}</strong></span>
+        <span>Reste à vivre <strong>${eur(s.reste)}</strong></span><span>Libre prévu à l'ouverture <strong>${eur(mg)}</strong></span></div>
+    </div>
+    ${free<0?`<div class="warn">Tes budgets, dépassements et versements dépassent de ${eur(-free)} ce que le mois permet. Ce n'est qu'un indicateur : rien n'est bloqué.</div>`:""}
+    ${s.base<0?`<div class="warn">La base de répartition est négative : les enveloppes en pourcentage valent 0 €.</div>`:""}
+    <h3>Enveloppes</h3><div class="panel">${envRows}
+      <div class="legend">${LEVELS.map(l=>`<span class="level"><span class="dot" style="background:var(${l.v})"></span>${l.label}</span>`).join("")}</div></div>
+    <h3>Provisions</h3><div class="panel">${provRows||'<p class="sub">Aucune provision active ce mois-ci.</p>'}</div>
+    <h3>Pointage <span class="sub" style="font-weight:400">${doneCount} sur ${s.fixed.length} effectués</span></h3>
+    <div class="grid4" style="grid-template-columns:repeat(auto-fit,minmax(260px,1fr))">${grp("charge","Charges")}${grp("scheduledSaving","Épargne programmée")}</div>
+    <div class="actions" style="margin-top:28px"><button class="btn" data-act="closing">Clôturer ${mShort(S.cur)}</button></div>`;
+}
+
+function viewClosing(){
+  const lo=leftovers(), total=lo.reduce((s,e)=>s+e.left,0);
+  const allocated=Object.values(S.alloc).reduce((s,v)=>s+v,0);
+  const provs=S.provisions.filter(p=>p.status!=="closed");
+  return `<h2>Clôturer ${mLabel(S.cur)}</h2>
+   <p class="lead">Répartis ce qu'il reste dans tes enveloppes. Une fois clôturé, le mois ne sera plus modifiable, sauf réouverture.</p>
+   <div class="panel"><table><thead><tr><th>Enveloppe</th><th class="num">Budget</th><th class="num">Dépensé</th><th class="num">Reliquat</th></tr></thead><tbody>
+   ${lo.map(e=>`<tr><td>${esc(e.label)}</td><td class="num">${eur(e.budget)}</td><td class="num">${eur(e.budget-e.left)}</td><td class="num ${e.left<0?"neg":""}">${eur(e.left)}</td></tr>`).join("")}
+   <tr><td><strong>Total</strong></td><td></td><td></td><td class="num"><strong class="${total<0?"neg":""}">${eur(total)}</strong></td></tr></tbody></table></div>
+   ${total<0?`<div class="warn">Le reliquat est négatif : ${eur(-total)} seront enregistrés comme financés par l'épargne.</div>`:""}
+   <h3>Répartition du reliquat</h3>
+   <div class="panel"><table><tbody>
+     <tr><td>Épargne</td><td style="width:140px"><input data-alloc="savings" inputmode="decimal" value="${S.alloc.savings?toInput(S.alloc.savings):""}" placeholder="0,00"></td></tr>
+     ${provs.map(p=>`<tr><td>${esc(p.label)} <span class="sub">(${eur(provBalance(p.id))} sur ${eur(p.target)})</span></td><td><input data-alloc="${p.id}" inputmode="decimal" value="${S.alloc[p.id]?toInput(S.alloc[p.id]):""}" placeholder="0,00"></td></tr>`).join("")}
+   </tbody></table>
+   <p class="sub" id="allocsum">Réparti : ${eur(allocated)} sur ${eur(Math.max(0,total))}</p>
+   ${allocated>Math.max(0,total)?`<div class="warn">Tu répartis ${eur(allocated-Math.max(0,total))} de plus que le reliquat. C'est possible, mais cet argent viendra d'ailleurs.</div>`:""}
+   </div>
+   <div class="actions"><button class="btn primary" data-act="close">Clôturer ${mLabel(S.cur)}</button><button class="btn" data-act="cancelclose">Revenir au mois</button></div>`;
+}
+
+function viewOps(){
+  if(S.status==="none") return `<h2>Opérations</h2><p class="lead">Ouvre ${mLabel(S.cur)} pour saisir des opérations.</p>`;
+  const envName=id=>S.envelopes.find(e=>e.id===id)?.label, provName=id=>S.provisions.find(p=>p.id===id)?.label;
+  const src=s=>s.startsWith("env:")?esc(envName(s.slice(4))):"Provision : "+esc(provName(s.slice(5)));
+  const list=monthOps().sort((a,b)=>a.date.localeCompare(b.date));
+  return `<h2>Opérations de ${mLabel(S.cur)}</h2>
+   <p class="lead">${list.length?list.length+" opération(s).":"Aucune opération pour l'instant. Utilise les boutons en bas à droite pour en ajouter."}</p>
+   ${list.length?`<div class="panel scroll"><table><thead><tr><th>Date</th><th>Type</th><th>Lieu</th><th>Description</th><th>Catégorie</th><th>Imputé à</th><th class="num">Montant</th><th></th></tr></thead><tbody>
+   ${list.map(o=>`<tr><td>${fmtDate(o.date)}</td><td>${o.kind==="expense"?"Dépense":"Versement"}</td><td>${esc(o.place)}</td><td>${esc(o.desc)}${o.draw?` <span class="chip bad">${eur(o.draw)} via l'épargne</span>`:""}</td>
+     <td>${esc(S.categories.find(c=>c.id===o.cat)?.label||"")}</td><td>${src(o.src)}</td>
+     <td class="num ${o.kind==="contribution"?"pos":""}">${o.kind==="contribution"?"+":"−"}${eur(o.amount)}</td>
+     <td style="white-space:nowrap">${S.status==="open"&&o.origin!=="closing"?`<button class="btn link" data-edit="${o.id}">Modifier</button><button class="btn link" data-del="${o.id}">Supprimer</button>`:""}</td></tr>`).join("")}
+   </tbody></table></div>`:""}`;
+}
+
+function viewSettings(){
+  const E=S.edit, busy=!!E, open=S.status==="open";
+  const editing=(col,id)=>E&&E.col===col&&E.id===id;
+  const acts=(col,x)=>`<td style="white-space:nowrap"><button class="btn link" data-edit-item="${col}:${x.id}" ${busy?"disabled":""}>Modifier</button>${x.archivedFrom!==undefined?"":`<button class="btn link" data-del-item="${col}:${x.id}" ${busy?"disabled":""}>Supprimer</button>`}</td>`;
+  const ok=`<td style="white-space:nowrap"><button class="btn primary" data-act="validate">Valider</button><button class="btn link" data-act="cancel-edit">Annuler</button></td>`;
+  const inp=(f,v,extra="")=>`<input data-f="${f}" value="${esc(v)}" ${extra}>`;
+  const sel=(f,v,opts)=>`<select data-f="${f}">${opts.map(([k,l])=>`<option value="${k}" ${k===v?"selected":""}>${esc(l)}</option>`).join("")}</select>`;
+  const status=x=>x.archivedFrom!==undefined?`<div class="sub">Archivé à partir de ${mLabel(x.archivedFrom)}${x.archivedFrom>S.cur||(!open&&x.archivedFrom===S.cur)?` · <button class="btn link" data-unarch="${x.id}">Annuler l'archivage</button>`:""}</div>`
+    :x.from!==undefined&&x.from>S.cur?`<div class="sub">Actif à partir de ${mLabel(x.from)}</div>`:"";
+  const withNew=(col,list)=>E&&E.isNew&&E.col===col?[...list,E.data]:list;
+  const FT=[["charge","Charge"],["scheduledSaving","Épargne programmée"]], EM=[["amount","Montant fixe"],["percentage","Pourcentage de la base"]];
+  const envLabel=id=>S.envelopes.find(e=>e.id===id)?.label||"Aucune";
+  const pctSum=S.envelopes.filter(e=>activeAt(e,S.cur)&&(e.next?.mode??e.mode)==="percentage").reduce((a,e)=>a+(e.next?.value??e.value),0);
+
+  const fixedRows=withNew("fixed",S.fixed).map(f=>editing("fixed",f.id)
+    ?`<tr><td>${inp("label",E.data.label,'placeholder="Loyer"')}</td><td>${sel("type",E.data.type,FT)}</td><td>${inp("amount",toInput(E.data.amount),'inputmode="decimal"')}</td>${ok}</tr>`
+    :`<tr><td>${esc(f.label)}${status(f)}</td><td>${f.type==="charge"?"Charge":"Épargne programmée"}</td>
+      <td class="num">${eur(f.amount)}${f.next?`<div class="sub">${eur(f.next.amount)} en ${mShort(S.cur+1)}</div>`:""}</td>${acts("fixed",f)}</tr>`).join("");
+  const envRows=withNew("env",S.envelopes).map(e=>editing("env",e.id)
+    ?`<tr><td>${inp("label",E.data.label,'placeholder="Sorties et loisirs"')}</td><td>${sel("mode",E.data.mode,EM)}</td>
+      <td>${inp("value",E.data.mode==="amount"?toInput(E.data.value):E.data.value,'inputmode="decimal"')}${E.data.mode==="percentage"?'<div class="sub">en %</div>':""}</td>${ok}</tr>`
+    :`<tr><td>${esc(e.label)}${status(e)}</td><td>${e.mode==="amount"?"Montant fixe":"Pourcentage"}</td>
+      <td class="num">${e.mode==="amount"?eur(e.value):e.value+" %"}${e.next?`<div class="sub">${e.next.mode==="amount"?eur(e.next.value):e.next.value+" %"} en ${mShort(S.cur+1)}</div>`:""}</td>${acts("env",e)}</tr>`).join("");
+  const provRows=withNew("prov",S.provisions).map(q=>editing("prov",q.id)
+    ?`<tr><td>${inp("label",E.data.label,'placeholder="Vacances"')}</td><td>${q.type==="deadline"?"À échéance":"Réserve"}</td>
+      <td>${inp("target",toInput(E.data.target),'inputmode="decimal"')}</td>
+      <td>${q.type==="deadline"?inp("duration",E.data.duration,'type="number" min="1"')+'<div class="sub">mois</div>':inp("monthly",toInput(E.data.monthly),'inputmode="decimal"')+'<div class="sub">par mois</div>'}</td><td></td>${ok}</tr>`
+    :`<tr><td>${esc(q.label)}</td><td>${q.type==="deadline"?"À échéance":"Réserve"}</td><td class="num">${eur(q.target)}</td>
+      <td>${q.type==="deadline"?`${q.duration} mois<div class="sub">${mShort(q.start)} → ${mLabel(dueMonth(q))}</div>`:`${eur(q.monthly)} par mois`}</td>
+      <td>${q.status==="closed"?"Clôturée":"Active"}</td>${q.status==="closed"?"<td></td>":acts("prov",q)}</tr>`).join("");
+  const catRows=withNew("cat",S.categories).map(c=>editing("cat",c.id)
+    ?`<tr><td>${inp("label",E.data.label,'placeholder="Courses"')}</td><td>${sel("def",E.data.def,[["","Aucune"],...S.envelopes.filter(e=>activeAt(e,S.cur)).map(e=>[e.id,e.label])])}</td>${ok}</tr>`
+    :`<tr><td>${esc(c.label)}${c.archived?` <span class="chip">Archivée</span> <button class="btn link" data-reactivate="${c.id}">Réactiver</button>`:""}</td><td>${esc(envLabel(c.def))}</td>${c.archived?"<td></td>":acts("cat",c)}</tr>`).join("");
+  const add=(k,l)=>`<button class="btn" data-new="${k}" ${busy?"disabled":""}>${l}</button>`;
+
+  return `<h2>Paramètres</h2>
+   <p class="lead">${open?`Si tu modifies un montant, l'app te demandera s'il s'applique à ${mLabel(S.cur)} ou au mois suivant.`:"Aucun mois ouvert : les modifications s'appliqueront à la prochaine ouverture."}</p>
+   <h3>Postes fixes</h3><div class="panel scroll"><table><thead><tr><th>Libellé</th><th>Type</th><th class="num">Montant</th><th></th></tr></thead><tbody>${fixedRows}</tbody></table>
+     <div class="actions">${add("fixed","Ajouter un poste fixe")}</div></div>
+   <h3>Enveloppes variables</h3><div class="panel scroll"><table><thead><tr><th>Libellé</th><th>Mode</th><th class="num">Valeur</th><th></th></tr></thead><tbody>${envRows}</tbody></table>
+     <p class="sub">Pourcentages attribués : ${pctSum} % ; non attribué : ${100-pctSum} %.</p>
+     ${pctSum>100?`<div class="warn">La somme des pourcentages dépasse 100 %.</div>`:""}
+     <div class="actions">${add("env","Ajouter une enveloppe")}</div></div>
+   <h3>Provisions</h3><div class="panel scroll"><table><thead><tr><th>Libellé</th><th>Type</th><th class="num">Objectif</th><th>Durée ou mensualité</th><th>Statut</th><th></th></tr></thead><tbody>${provRows}</tbody></table>
+     <p class="note">Les modifications de provisions s'appliquent à la prochaine ouverture : la règle pour le mois en cours (R7) n'est pas encore tranchée.</p>
+     <div class="actions">${add("deadline","Ajouter une provision à échéance")}${add("reserve","Ajouter une réserve")}</div></div>
+   <h3>Catégories</h3><div class="panel scroll"><table><thead><tr><th>Libellé</th><th>Enveloppe par défaut</th><th></th></tr></thead><tbody>${catRows}</tbody></table>
+     <div class="actions">${add("cat","Ajouter une catégorie")}</div></div>
+   <p class="note">Maquette : données en mémoire, réinitialisées au rechargement de la page.</p>`;
+}
+
+// ---------- évènements ----------
+document.addEventListener("click",e=>{
+  const t=e.target.closest("button"); if(!t||dlg.contains(t)) return;
+  if(t.dataset.tab){S.tab=t.dataset.tab;render();window.scrollTo(0,0);}
+  if(t.dataset.add) opForm(t.dataset.add);
+  if(t.dataset.del){S.ops=S.ops.filter(o=>o.id!==t.dataset.del);render();}
+  if(t.dataset.edit){const o=S.ops.find(x=>x.id===t.dataset.edit);opForm(o.kind,o);}
+  const a=t.dataset.act;
+  if(a==="closing"){S.closing=true;render();window.scrollTo(0,0);}
+  if(a==="cancelclose"){S.closing=false;render();}
+  if(a==="close") closeMonth();
+  if(a==="open") submitOpen();
+  if(a==="validate") validateEdit();
+  if(a==="cancel-edit"){S.edit=null;render();}
+  if(t.dataset.editItem){const [c,id]=t.dataset.editItem.split(":");startEdit(c,id);}
+  if(t.dataset.delItem){const [c,id]=t.dataset.delItem.split(":");askDelete(c,id);}
+  if(t.dataset.reactivate){S.categories.find(c=>c.id===t.dataset.reactivate).archived=false;render();}
+  if(a==="reopen") reopenMonth();
+  if(a==="next") goNextMonth();
+  if(a==="demo"){
+    [{kind:"contribution",amount:10000,src:"prov:p1",date:dayIn(S.cur,3),place:"",desc:"Virement",cat:""},
+     {kind:"expense",amount:1500,src:"env:e1",date:dayIn(S.cur,5),place:"Monoprix",desc:"Produits d'entretien",cat:"c2"},
+     {kind:"expense",amount:2500,src:"env:e2",date:dayIn(S.cur,13),place:"Le Bistrot",desc:"Dîner avec une amie",cat:"c5"},
+     {kind:"expense",amount:10000,src:"env:e3",date:dayIn(S.cur,23),place:"Boutique Nuances",desc:"Vêtements",cat:"c7"}]
+     .forEach(o=>{o.id=uid("o");o.month=S.cur;S.ops.push(o)}); render();
+  }
+  if(t.dataset.unarch){const x=[...S.fixed,...S.envelopes].find(y=>y.id===t.dataset.unarch);delete x.archivedFrom;render();}
+  if(t.dataset.new) startNew(t.dataset.new);
+});
+document.addEventListener("change",e=>{
+  const t=e.target, d=t.dataset;
+  if(d.done){const f=S.snap.fixed.find(x=>x.id===d.done);f.done=t.checked;render();return;}
+  if(d.alloc){const v=toCents(t.value);if(v>0)S.alloc[d.alloc]=v;else delete S.alloc[d.alloc];render();return;}
+  if(d.f&&S.edit){
+    const D=S.edit.data, f=d.f;
+    if(f==="label") D.label=t.value.trim();
+    if(f==="type") D.type=t.value;
+    if(f==="def") D.def=t.value;
+    if(["amount","target","monthly"].includes(f)) D[f]=toCents(t.value);
+    if(f==="duration") D.duration=Math.max(1,+t.value||1);
+    if(f==="value") D.value=D.mode==="amount"?toCents(t.value):Math.max(0,parseFloat(String(t.value).replace(",","."))||0);
+    if(f==="mode"){ D.mode=t.value; D.value=t.value==="amount"?0:0; render(); }
+  }
+});
+document.addEventListener("keydown",e=>{
+  if(e.key==="Enter"&&e.target.name==="income"&&e.target.closest("#openf")){e.preventDefault();submitOpen();}
+  if(e.key==="Enter"&&e.target.closest?.("#opf")&&e.target.tagName==="INPUT"){e.preventDefault();dlg._opSubmit();}
+  if(e.target.dataset?.f&&S.edit){ if(e.key==="Enter"){e.preventDefault();e.target.blur();validateEdit();} if(e.key==="Escape"){S.edit=null;render();} }
+});
+document.addEventListener("input",e=>{
+  if(e.target.closest?.("#openf")&&e.target.name==="income"){
+    const fx=S.fixed.filter(x=>activeAt(x,S.cur)).reduce((s,x)=>s+(x.next?.amount??x.amount),0);
+    document.getElementById("rav").textContent=eur(toCents(e.target.value)-fx);
+  }
+});
+function submitOpen(){
+  const inp=document.querySelector('#openf [name="income"]'), v=toCents(inp.value);
+  if(v>0) openMonth(v); else { document.getElementById("openerr").hidden=false; inp.focus(); }
+}
+dlg.addEventListener("close",()=>{ if(dlg.querySelector("[data-eff]")) render(); });
+render();
+</script>
+</body>
+</html>

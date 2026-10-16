@@ -46,7 +46,7 @@ async function seedOpenMonth(userId: string) {
     target: moneyFromEuros(250),
     monthlyAmount: moneyFromEuros(50),
   });
-  const category = await createCategory(prisma, userId, { label: "Courses" });
+  const category = await createCategory(prisma, userId, { label: "Courses", color: "#4F46E5" });
   await openMonthForUser(prisma, userId, 2800);
   return { envelope, provision, category };
 }
@@ -88,7 +88,7 @@ describe("createExpenseForUser — envelope target", () => {
         value: moneyFromEuros(150),
       },
     });
-    const category = await createCategory(prisma, user.id, { label: "Courses" });
+    const category = await createCategory(prisma, user.id, { label: "Courses", color: "#4F46E5" });
 
     const result = await createExpenseForUser(prisma, user.id, {
       amountEuros: 15,
@@ -380,7 +380,7 @@ describe("createExpenseForUser / updateExpenseForUser — provision exhaustion (
       startMonth: currentMonth,
       durationMonths: 6,
     });
-    const category = await createCategory(prisma, userId, { label: "Santé" });
+    const category = await createCategory(prisma, userId, { label: "Santé", color: "#4F46E5" });
     await openMonthForUser(prisma, userId, 2800);
     return { provision, category };
   }

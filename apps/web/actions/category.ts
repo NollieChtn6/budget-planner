@@ -46,7 +46,11 @@ export async function createCategoryAction(
     }
   }
 
-  await createCategory(prisma, session.user.id, { label: parsed.data.label, defaultEnvelopeId });
+  await createCategory(prisma, session.user.id, {
+    label: parsed.data.label,
+    color: parsed.data.color,
+    defaultEnvelopeId,
+  });
   revalidatePath(CATEGORIES_PATH);
   return { status: "success", message: "Catégorie créée." };
 }

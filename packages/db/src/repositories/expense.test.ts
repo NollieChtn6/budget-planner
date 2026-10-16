@@ -36,7 +36,7 @@ async function seedEnvelopeAndCategory(userId: string) {
       value: moneyFromEuros(150),
     },
   });
-  const category = await createCategory(prisma, userId, { label: "Courses" });
+  const category = await createCategory(prisma, userId, { label: "Courses", color: "#4F46E5" });
   return { envelope, category };
 }
 
@@ -69,7 +69,10 @@ describe("createExpense", () => {
     const owner = await createTestUser(primaryEmail);
     const attacker = await createTestUser(otherEmail);
     const { envelope } = await seedEnvelopeAndCategory(owner.id);
-    const attackerCategory = await createCategory(prisma, attacker.id, { label: "Courses" });
+    const attackerCategory = await createCategory(prisma, attacker.id, {
+      label: "Courses",
+      color: "#4F46E5",
+    });
 
     await expect(
       createExpense(prisma, attacker.id, {
@@ -152,7 +155,10 @@ describe("createExpense — provision target", () => {
       target: moneyFromEuros(250),
       monthlyAmount: moneyFromEuros(50),
     });
-    const attackerCategory = await createCategory(prisma, attacker.id, { label: "Courses" });
+    const attackerCategory = await createCategory(prisma, attacker.id, {
+      label: "Courses",
+      color: "#4F46E5",
+    });
 
     await expect(
       createExpense(prisma, attacker.id, {

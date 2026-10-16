@@ -79,6 +79,7 @@ Langage commun du projet. L'interface parle français, le code utilise les noms 
 | Dépense | `Expense` | Entité | Sortie d'argent imputée à une enveloppe variable ou à une provision. |
 | Lieu | `Expense.place` | Attribut | Commerce ou endroit de la dépense, utilisé pour l'autocomplétion. |
 | Catégorie | `Category` | Entité | Axe d'analyse d'une dépense (maison, restaurant, vêtements…), indépendant de l'enveloppe. |
+| Couleur | `Category.color` | Attribut | Code hexadécimal (`#RRGGBB`) qui identifie visuellement une catégorie ; toujours affiché avec son libellé. |
 | Enveloppe par défaut | `Category.defaultEnvelopeId` | Attribut | Enveloppe proposée automatiquement pour une catégorie. |
 | Catégorie archivée | `Category.archived` | Attribut | Catégorie retirée de la saisie de nouvelles dépenses ; sans date d'effet, contrairement à `archivedFrom` (R7/R8 ne s'appliquent pas à `Category`). |
 | Versement | `Contribution` | Entité | Somme mise de côté dans une provision. |

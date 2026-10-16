@@ -8,6 +8,7 @@
 export type Category = {
   id: string;
   label: string;
+  color: string;
   defaultEnvelopeId?: string;
   archived: boolean;
 };

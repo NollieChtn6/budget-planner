@@ -43,10 +43,12 @@ describe("createCategory / findCategoryById", () => {
 
     const created = await createCategory(prisma, user.id, {
       label: "Courses",
+      color: "#4F46E5",
       defaultEnvelopeId: envelope.id,
     });
 
     expect(created.label).toBe("Courses");
+    expect(created.color).toBe("#4F46E5");
     expect(created.defaultEnvelopeId).toBe(envelope.id);
     expect(created.archived).toBe(false);
 
@@ -56,7 +58,10 @@ describe("createCategory / findCategoryById", () => {
 
   it("allows no default envelope", async () => {
     const user = await createTestUser(primaryEmail);
-    const created = await createCategory(prisma, user.id, { label: "Soins et imprévus" });
+    const created = await createCategory(prisma, user.id, {
+      label: "Soins et imprévus",
+      color: "#4F46E5",
+    });
     expect(created.defaultEnvelopeId).toBeUndefined();
   });
 });
@@ -66,8 +71,8 @@ describe("findCategoriesByUser", () => {
     const user = await createTestUser(primaryEmail);
     const otherUser = await createTestUser(otherEmail);
 
-    await createCategory(prisma, user.id, { label: "Courses" });
-    await createCategory(prisma, otherUser.id, { label: "Autre utilisatrice" });
+    await createCategory(prisma, user.id, { label: "Courses", color: "#4F46E5" });
+    await createCategory(prisma, otherUser.id, { label: "Autre utilisatrice", color: "#4F46E5" });
 
     const categories = await findCategoriesByUser(prisma, user.id);
     expect(categories).toHaveLength(1);
@@ -78,7 +83,7 @@ describe("findCategoriesByUser", () => {
 describe("setCategoryArchived", () => {
   it("sets then clears the archived flag", async () => {
     const user = await createTestUser(primaryEmail);
-    const created = await createCategory(prisma, user.id, { label: "Courses" });
+    const created = await createCategory(prisma, user.id, { label: "Courses", color: "#4F46E5" });
 
     const archived = await setCategoryArchived(prisma, user.id, created.id, true);
     expect(archived.archived).toBe(true);
@@ -90,7 +95,7 @@ describe("setCategoryArchived", () => {
   it("rejects archiving another user's category", async () => {
     const owner = await createTestUser(primaryEmail);
     const attacker = await createTestUser(otherEmail);
-    const created = await createCategory(prisma, owner.id, { label: "Courses" });
+    const created = await createCategory(prisma, owner.id, { label: "Courses", color: "#4F46E5" });
 
     await expect(setCategoryArchived(prisma, attacker.id, created.id, true)).rejects.toThrow();
 

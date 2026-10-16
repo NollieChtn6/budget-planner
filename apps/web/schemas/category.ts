@@ -5,6 +5,7 @@ export const NO_DEFAULT_ENVELOPE = "none";
 
 export const createCategorySchema = z.object({
   label: z.string().trim().min(1),
+  color: z.string().regex(/^#[0-9A-Fa-f]{6}$/, "Couleur invalide."),
   defaultEnvelopeId: z.string().min(1),
 });
 

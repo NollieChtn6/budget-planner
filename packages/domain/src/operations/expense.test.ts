@@ -8,8 +8,8 @@ import { type RecordExpenseContext, type RecordExpenseInput, recordExpense } fro
 const currentMonth = parseMonth("2026-10");
 
 const categories: Category[] = [
-  { id: "c1", label: "Courses", defaultEnvelopeId: "e1", archived: false },
-  { id: "c2", label: "Ancienne", archived: true },
+  { id: "c1", label: "Courses", color: "#4F46E5", defaultEnvelopeId: "e1", archived: false },
+  { id: "c2", label: "Ancienne", color: "#4F46E5", archived: true },
 ];
 
 const context: RecordExpenseContext = {

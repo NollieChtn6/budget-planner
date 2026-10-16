@@ -22,10 +22,15 @@ export async function findCategoryById(
 export async function createCategory(
   prisma: PrismaClient,
   userId: string,
-  input: { label: string; defaultEnvelopeId?: string },
+  input: { label: string; color: string; defaultEnvelopeId?: string },
 ): Promise<Category> {
   const row = await prisma.category.create({
-    data: { userId, label: input.label, defaultEnvelopeId: input.defaultEnvelopeId ?? null },
+    data: {
+      userId,
+      label: input.label,
+      color: input.color,
+      defaultEnvelopeId: input.defaultEnvelopeId ?? null,
+    },
   });
   return toDomainCategory(row);
 }

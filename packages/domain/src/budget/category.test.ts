@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { archiveCategory, type Category, unarchiveCategory } from "./category";
 
-const category: Category = { id: "c1", label: "Courses", defaultEnvelopeId: "e1", archived: false };
+const category: Category = {
+  id: "c1",
+  label: "Courses",
+  color: "#4F46E5",
+  defaultEnvelopeId: "e1",
+  archived: false,
+};
 
 describe("archiveCategory", () => {
   it("marks the category as archived", () => {
@@ -9,7 +15,11 @@ describe("archiveCategory", () => {
   });
 
   it("keeps the other fields untouched", () => {
-    expect(archiveCategory(category)).toMatchObject({ label: "Courses", defaultEnvelopeId: "e1" });
+    expect(archiveCategory(category)).toMatchObject({
+      label: "Courses",
+      color: "#4F46E5",
+      defaultEnvelopeId: "e1",
+    });
   });
 });
 

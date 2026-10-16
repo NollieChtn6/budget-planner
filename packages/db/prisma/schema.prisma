@@ -125,6 +125,7 @@ model VariableEnvelope {
   snapshotBudgets      SnapshotEnvelopeBudget[]
   expenses             Expense[]
   defaultForCategories Category[]
+  leftoverAllocations  LeftoverAllocation[]
 
   @@index([userId])
   @@map("variable_envelopes")
@@ -328,12 +329,17 @@ model SnapshotProvisionTarget {
   @@map("snapshot_provision_targets")
 }
 
-// Clôture du mois (R24-R26, R30 ; docs/domain/model.md). Une répartition
-// vers une provision crée en plus un Contribution d'origine "closing" (R25).
+// Clôture du mois (R24-R26, R30-R33 ; docs/domain/model.md). Une répartition
+// vers une provision crée en plus un Contribution d'origine "closing" (R25) ;
+// une répartition vers une enveloppe (bonus, R31) ou sans destination
+// (report, R32) ne prend effet qu'à la lecture du mois suivant — jamais
+// stockée ailleurs (ADR-0005), toujours recalculée depuis ces lignes.
 
 enum LeftoverAllocationDestination {
   savings
   provision
+  envelope
+  report
 
   @@map("leftover_allocation_destination")
 }
@@ -342,16 +348,18 @@ model LeftoverAllocation {
   id            String                        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   budgetMonthId String                        @map("budget_month_id") @db.Uuid
   provisionId   String?                       @map("provision_id") @db.Uuid
+  envelopeId    String?                       @map("envelope_id") @db.Uuid
   destination   LeftoverAllocationDestination
   amountCents   Int                           @map("amount_cents")
 
-  budgetMonth BudgetMonth @relation(fields: [budgetMonthId], references: [id], onDelete: Cascade)
+  budgetMonth BudgetMonth       @relation(fields: [budgetMonthId], references: [id], onDelete: Cascade)
   // Cascade, unlike Expense/Contribution's Restrict on the same relation:
   // this row is a record of a closing-time decision, not an active ledger
   // entry (the balance-affecting side is the Contribution it creates), so
   // nothing reads it back yet — and Restrict here deadlocks User cascade
   // deletes, since it sits two hops away (User -> Provision is one hop).
-  provision   Provision?  @relation(fields: [provisionId], references: [id], onDelete: Cascade)
+  provision   Provision?        @relation(fields: [provisionId], references: [id], onDelete: Cascade)
+  envelope    VariableEnvelope? @relation(fields: [envelopeId], references: [id], onDelete: Cascade)
 
   @@index([budgetMonthId])
   @@map("leftover_allocations")

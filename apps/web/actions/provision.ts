@@ -3,6 +3,7 @@
 import {
   closeProvision as closeProvisionRow,
   createProvision,
+  extendProvisionDeadline,
   findProvisionById,
   prisma,
   renewProvision as renewProvisionRow,
@@ -13,6 +14,8 @@ import {
   type ArchiveProvisionFailure,
   archiveProvision,
   closeProvision,
+  type ExtendProvisionFailure,
+  extendProvision,
   formatMonth,
   type Money,
   type Month,
@@ -30,6 +33,7 @@ import {
   archiveProvisionSchema,
   closeProvisionSchema,
   createProvisionSchema,
+  extendProvisionSchema,
   renewProvisionSchema,
   unarchiveProvisionSchema,
   updateProvisionGoalSchema,
@@ -59,6 +63,17 @@ function describeArchiveFailure(_error: ArchiveProvisionFailure): string {
 
 function describeUnarchiveFailure(): string {
   return "Cette provision ne peut plus être désarchivée (la date d'effet est déjà passée).";
+}
+
+function describeExtendFailure(error: ExtendProvisionFailure): string {
+  switch (error.type) {
+    case "notDeadlineProvision":
+      return "Seule une provision à échéance peut être prolongée.";
+    case "notLate":
+      return "Cette provision n'est pas en retard.";
+    case "newDueMonthNotAfterCurrent":
+      return "La nouvelle échéance doit être postérieure à l'échéance actuelle.";
+  }
 }
 
 export async function createProvisionAction(
@@ -252,4 +267,35 @@ export async function renewProvisionAction(
   revalidatePath(monthPath());
   revalidatePath(PROVISIONS_PATH);
   return { status: "success", message: "Provision renouvelée pour le mois prochain." };
+}
+
+export async function extendProvisionAction(
+  _prevState: VariableEnvelopeActionState,
+  formData: FormData,
+): Promise<VariableEnvelopeActionState> {
+  const session = await requireSession();
+  const parsed = extendProvisionSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) {
+    return { status: "error", message: parsed.error.issues[0]?.message ?? "Entrée invalide." };
+  }
+
+  const provision = await findProvisionById(prisma, session.user.id, parsed.data.provisionId);
+  if (!provision) {
+    return { status: "error", message: "Provision introuvable." };
+  }
+
+  const result = extendProvision(provision, parseMonth(parsed.data.newDueMonth));
+  if (!result.ok) {
+    return { status: "error", message: describeExtendFailure(result.error) };
+  }
+
+  await extendProvisionDeadline(
+    prisma,
+    session.user.id,
+    parsed.data.provisionId,
+    result.provision.durationMonths,
+  );
+  revalidatePath(monthPath());
+  revalidatePath(PROVISIONS_PATH);
+  return { status: "success", message: "Échéance prolongée." };
 }

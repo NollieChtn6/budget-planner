@@ -13,6 +13,7 @@ import {
 import { useActionState } from "react";
 import {
   archiveProvisionAction,
+  extendProvisionAction,
   unarchiveProvisionAction,
   updateProvisionGoalAction,
 } from "@/actions/provision";
@@ -67,8 +68,13 @@ export function ProvisionCard({ provision }: { provision: Provision }) {
     unarchiveProvisionAction,
     initialVariableEnvelopeActionState,
   );
+  const [extendState, extendAction, extendPending] = useActionState(
+    extendProvisionAction,
+    initialVariableEnvelopeActionState,
+  );
 
   const target = previewTarget(provision);
+  const isLate = provision.type === "deadline" && provision.status === "late";
 
   return (
     <Card>
@@ -81,6 +87,7 @@ export function ProvisionCard({ provision }: { provision: Provision }) {
             {formatMonth(provision.startMonth)})
           </CardDescription>
         ) : null}
+        {isLate ? <CardDescription className="text-destructive">En retard</CardDescription> : null}
         {provision.archivedFrom ? (
           <CardDescription>
             Archivée à partir de {formatMonth(provision.archivedFrom)}
@@ -157,6 +164,31 @@ export function ProvisionCard({ provision }: { provision: Provision }) {
             </Button>
           </FieldGroup>
         </form>
+
+        {isLate ? (
+          <form action={extendAction} className="flex flex-col gap-3 border-t pt-3">
+            <Input type="hidden" name="provisionId" value={provision.id} />
+            <FieldGroup>
+              <Field>
+                <FieldLabel htmlFor={`extend-newDueMonth-${provision.id}`}>
+                  Prolonger jusqu'à
+                </FieldLabel>
+                <Input
+                  id={`extend-newDueMonth-${provision.id}`}
+                  name="newDueMonth"
+                  type="month"
+                  required
+                />
+              </Field>
+              {extendState.status === "error" ? (
+                <FieldError>{extendState.message}</FieldError>
+              ) : null}
+              <Button type="submit" variant="outline" disabled={extendPending}>
+                {extendPending ? "Prolongation..." : "Prolonger"}
+              </Button>
+            </FieldGroup>
+          </form>
+        ) : null}
 
         {provision.archivedFrom ? (
           <form action={unarchiveAction} className="border-t pt-3">

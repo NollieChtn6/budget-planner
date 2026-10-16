@@ -4,8 +4,10 @@ import { createTestPrismaClient } from "../testing";
 import {
   closeProvision,
   createProvision,
+  extendProvisionDeadline,
   findProvisionById,
   findProvisionsByUser,
+  markProvisionLate,
   renewProvision,
   setProvisionArchivedFrom,
   updateProvisionGoal,
@@ -281,6 +283,72 @@ describe("renewProvision — R23", () => {
 
     const untouched = await findProvisionById(prisma, owner.id, created.id);
     expect(untouched?.status).toBe("active");
+  });
+});
+
+describe("markProvisionLate — R20", () => {
+  it("sets the status to late", async () => {
+    const user = await createTestUser(primaryEmail);
+    const created = await createProvision(prisma, user.id, {
+      type: "deadline",
+      label: "Orthodontie",
+      target: moneyFromEuros(400),
+      startMonth: parseMonth("2026-01"),
+      durationMonths: 6,
+    });
+
+    await markProvisionLate(prisma, user.id, created.id);
+
+    const found = await findProvisionById(prisma, user.id, created.id);
+    expect(found?.status).toBe("late");
+  });
+
+  it("rejects marking another user's provision late", async () => {
+    const owner = await createTestUser(primaryEmail);
+    const attacker = await createTestUser(otherEmail);
+    const created = await createProvision(prisma, owner.id, {
+      type: "deadline",
+      label: "Orthodontie",
+      target: moneyFromEuros(400),
+      startMonth: parseMonth("2026-01"),
+      durationMonths: 6,
+    });
+
+    await expect(markProvisionLate(prisma, attacker.id, created.id)).rejects.toThrow();
+  });
+});
+
+describe("extendProvisionDeadline — R20 Prolonger", () => {
+  it("pushes the duration back and returns the provision to active", async () => {
+    const user = await createTestUser(primaryEmail);
+    const created = await createProvision(prisma, user.id, {
+      type: "deadline",
+      label: "Orthodontie",
+      target: moneyFromEuros(400),
+      startMonth: parseMonth("2026-01"),
+      durationMonths: 6,
+    });
+    await markProvisionLate(prisma, user.id, created.id);
+
+    const extended = await extendProvisionDeadline(prisma, user.id, created.id, 8);
+
+    expect(extended.status).toBe("active");
+    expect(extended.type === "deadline" && extended.durationMonths).toBe(8);
+  });
+
+  it("rejects extending another user's provision", async () => {
+    const owner = await createTestUser(primaryEmail);
+    const attacker = await createTestUser(otherEmail);
+    const created = await createProvision(prisma, owner.id, {
+      type: "deadline",
+      label: "Orthodontie",
+      target: moneyFromEuros(400),
+      startMonth: parseMonth("2026-01"),
+      durationMonths: 6,
+    });
+    await markProvisionLate(prisma, owner.id, created.id);
+
+    await expect(extendProvisionDeadline(prisma, attacker.id, created.id, 8)).rejects.toThrow();
   });
 });
 

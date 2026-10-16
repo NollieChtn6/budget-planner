@@ -31,13 +31,10 @@ export function dueMonth(provision: Provision & { type: "deadline" }): Month {
 }
 
 /**
- * R18 (deadline) / R21 (reserve): the amount to set aside this month.
- * `balance` isn't computed here — Contribution and Expense don't exist yet,
- * so it's supplied by the caller, exactly like `hasOperationsInCurrentMonth`
- * is supplied to archiveProvision below. Assumes currentMonth is at or
- * before dueMonth for a deadline provision — the "late" case (R20) is out
- * of scope, and currentMonth after dueMonth is not a case this function
- * guards against.
+ * R18 (deadline) / R21 (reserve) / R20 (late): the amount to set aside this
+ * month. `balance` isn't computed here — Contribution and Expense don't exist
+ * yet, so it's supplied by the caller, exactly like `hasOperationsInCurrentMonth`
+ * is supplied to archiveProvision below.
  */
 export function computeMonthlyTarget(
   provision: Provision,
@@ -51,6 +48,11 @@ export function computeMonthlyTarget(
   const remaining = subtractMoney(provision.target, balance);
 
   if (provision.type === "deadline") {
+    // R20: a late provision's due month has already passed, so there's no
+    // "months remaining" to divide by — the whole remainder is due now.
+    if (provision.status === "late") {
+      return remaining;
+    }
     const monthsRemaining = inclusiveMonthCount(currentMonth, dueMonth(provision));
     return ceilDivideMoney(remaining, monthsRemaining);
   }
@@ -58,6 +60,58 @@ export function computeMonthlyTarget(
   return moneyToCents(provision.monthlyAmount) < moneyToCents(remaining)
     ? provision.monthlyAmount
     : remaining;
+}
+
+/**
+ * R20: a deadline provision becomes late when its due month is closed while
+ * it's still active and incomplete. Called by the month-closing flow with the
+ * month being closed and the provision's current balance.
+ */
+export function becomesLateAtMonthClose(
+  provision: Provision,
+  closingMonth: Month,
+  balance: Money,
+): boolean {
+  return (
+    provision.type === "deadline" &&
+    provision.status === "active" &&
+    isSameMonth(dueMonth(provision), closingMonth) &&
+    moneyToCents(balance) < moneyToCents(provision.target)
+  );
+}
+
+export type ExtendProvisionFailure =
+  | { type: "notDeadlineProvision" }
+  | { type: "notLate" }
+  | { type: "newDueMonthNotAfterCurrent" };
+export type ExtendProvisionResult =
+  | { ok: true; provision: Provision & { type: "deadline" } }
+  | { ok: false; error: ExtendProvisionFailure };
+
+/**
+ * R20 "Prolonger": pushes a late provision's due month back and returns it
+ * to active. Implemented as a new `durationMonths` from the unchanged
+ * `startMonth` (R17), so the new due month must be strictly after the
+ * current one.
+ */
+export function extendProvision(provision: Provision, newDueMonth: Month): ExtendProvisionResult {
+  if (provision.type !== "deadline") {
+    return { ok: false, error: { type: "notDeadlineProvision" } };
+  }
+  if (provision.status !== "late") {
+    return { ok: false, error: { type: "notLate" } };
+  }
+  if (!isMonthAfter(newDueMonth, dueMonth(provision))) {
+    return { ok: false, error: { type: "newDueMonthNotAfterCurrent" } };
+  }
+  return {
+    ok: true,
+    provision: {
+      ...provision,
+      status: "active",
+      durationMonths: inclusiveMonthCount(provision.startMonth, newDueMonth),
+    },
+  };
 }
 
 export type ArchiveProvisionInput = { effectiveFrom: Month; hasOperationsInCurrentMonth: boolean };

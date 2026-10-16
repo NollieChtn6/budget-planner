@@ -19,6 +19,8 @@ export {
   findExpenseById,
   findExpensesByUserAndMonth,
   findExpensesByUserAndProvision,
+  findKnownPlacesByUser,
+  findLastUsedCategoryIdByUser,
   updateExpense,
 } from "./repositories/expense";
 export {
@@ -41,8 +43,10 @@ export {
   type CreateProvisionInput,
   closeProvision,
   createProvision,
+  extendProvisionDeadline,
   findProvisionById,
   findProvisionsByUser,
+  markProvisionLate,
   type RenewProvisionInput,
   renewProvision,
   setProvisionArchivedFrom,

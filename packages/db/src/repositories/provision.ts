@@ -148,6 +148,43 @@ export async function renewProvision(
   return toDomainProvision(created);
 }
 
+/** R20: the due month closed without the provision being complete. */
+export async function markProvisionLate(
+  prisma: PrismaClient,
+  userId: string,
+  provisionId: string,
+): Promise<void> {
+  const updated = await prisma.provision.updateMany({
+    where: { id: provisionId, userId },
+    data: { status: "late" },
+  });
+  if (updated.count === 0) {
+    throw new Error(`Provision ${provisionId} not found for this user`);
+  }
+}
+
+/** R20 "Prolonger": pushes the due month back and returns the provision to active. */
+export async function extendProvisionDeadline(
+  prisma: PrismaClient,
+  userId: string,
+  provisionId: string,
+  durationMonths: number,
+): Promise<Provision> {
+  const updated = await prisma.provision.updateMany({
+    where: { id: provisionId, userId },
+    data: { durationMonths, status: "active" },
+  });
+  if (updated.count === 0) {
+    throw new Error(`Provision ${provisionId} not found for this user`);
+  }
+
+  const result = await findProvisionById(prisma, userId, provisionId);
+  if (!result) {
+    throw new Error(`Provision ${provisionId} not found for this user`);
+  }
+  return result;
+}
+
 export async function setProvisionArchivedFrom(
   prisma: PrismaClient,
   userId: string,

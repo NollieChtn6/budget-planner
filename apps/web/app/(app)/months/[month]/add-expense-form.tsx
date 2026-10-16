@@ -25,6 +25,8 @@ export function AddExpenseForm({
   minDate,
   maxDate,
   defaultDate,
+  knownPlaces,
+  lastUsedCategoryId,
 }: {
   envelopes: { id: string; label: string }[];
   provisions: { id: string; label: string }[];
@@ -32,6 +34,8 @@ export function AddExpenseForm({
   minDate: string;
   maxDate: string;
   defaultDate: string;
+  knownPlaces: string[];
+  lastUsedCategoryId: string | null;
 }) {
   const [state, formAction, pending] = useActionState(
     createExpenseAction,
@@ -45,6 +49,12 @@ export function AddExpenseForm({
   }, [state.provisionExhausted]);
   const defaultTarget =
     envelopes.length > 0 ? `envelope:${envelopes[0]?.id}` : `provision:${provisions[0]?.id}`;
+  // Derived data (docs/domain/model.md): defaults to the last category actually
+  // used, falling back to the first one if it's since been archived.
+  const defaultCategoryId =
+    (lastUsedCategoryId && categories.some((c) => c.id === lastUsedCategoryId)
+      ? lastUsedCategoryId
+      : categories[0]?.id) ?? undefined;
 
   if (state.provisionExhausted && !exhaustionResolved) {
     return (
@@ -78,7 +88,12 @@ export function AddExpenseForm({
             </Field>
             <Field>
               <FieldLabel htmlFor="place">Lieu</FieldLabel>
-              <Input id="place" name="place" placeholder="Monoprix" />
+              <Input id="place" name="place" placeholder="Monoprix" list="known-places" />
+              <datalist id="known-places">
+                {knownPlaces.map((place) => (
+                  <option key={place} value={place} />
+                ))}
+              </datalist>
             </Field>
             <Field>
               <FieldLabel htmlFor="description">Description</FieldLabel>
@@ -86,7 +101,7 @@ export function AddExpenseForm({
             </Field>
             <Field>
               <FieldLabel htmlFor="categoryId">Catégorie</FieldLabel>
-              <Select name="categoryId" defaultValue={categories[0]?.id}>
+              <Select name="categoryId" defaultValue={defaultCategoryId}>
                 <SelectTrigger id="categoryId">
                   <SelectValue placeholder="Catégorie" />
                 </SelectTrigger>

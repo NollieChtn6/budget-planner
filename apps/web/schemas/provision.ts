@@ -36,3 +36,8 @@ export const unarchiveProvisionSchema = z.object({ provisionId: z.string().min(1
 export const closeProvisionSchema = z.object({ provisionId: z.string().min(1) });
 
 export const renewProvisionSchema = z.object({ provisionId: z.string().min(1) });
+
+export const extendProvisionSchema = z.object({
+  provisionId: z.string().min(1),
+  newDueMonth: monthValueSchema,
+});

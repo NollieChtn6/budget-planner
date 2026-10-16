@@ -4,6 +4,8 @@ import {
   findContributionsByUserAndProvision,
   findExpensesByUserAndMonth,
   findExpensesByUserAndProvision,
+  findKnownPlacesByUser,
+  findLastUsedCategoryIdByUser,
   findLeftoverAllocationsByUserAndMonth,
   findProvisionsByUser,
   prisma,
@@ -150,10 +152,12 @@ export default async function MonthPage({ params }: { params: Promise<{ month: s
     budgetMonth.provisionTargets.map((entry) => entry.target),
   );
 
-  const [expenses, categories, provisions] = await Promise.all([
+  const [expenses, categories, provisions, knownPlaces, lastUsedCategoryId] = await Promise.all([
     findExpensesByUserAndMonth(prisma, session.user.id, viewedMonth),
     findCategoriesByUser(prisma, session.user.id),
     findProvisionsByUser(prisma, session.user.id),
+    findKnownPlacesByUser(prisma, session.user.id),
+    findLastUsedCategoryIdByUser(prisma, session.user.id),
   ]);
   const activeCategories = categories.filter((category) => !category.archived);
   const categoryLabels = new Map(categories.map((category) => [category.id, category.label]));
@@ -458,6 +462,8 @@ export default async function MonthPage({ params }: { params: Promise<{ month: s
             minDate={formatCalendarDate(firstDayOfMonth(viewedMonth))}
             maxDate={formatCalendarDate(lastDayOfMonth(viewedMonth))}
             defaultDate={new Date().toISOString().slice(0, 10)}
+            knownPlaces={knownPlaces}
+            lastUsedCategoryId={lastUsedCategoryId}
           />
         ) : (
           <p className="text-sm text-muted-foreground">

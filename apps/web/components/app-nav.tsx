@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 const NAV_ITEMS = [
   { href: "/", label: "Ce mois-ci" },
   { href: "/operations", label: "Opérations" },
+  { href: "/provisions", label: "Provisions" },
   { href: "/months", label: "Historique" },
   { href: "/settings/fixed-entries", label: "Paramètres" },
 ] as const;

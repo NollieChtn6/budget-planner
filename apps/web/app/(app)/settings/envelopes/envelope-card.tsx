@@ -19,6 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { formatEuros } from "@/lib/format-money";
 
 export function EnvelopeCard({ envelope }: { envelope: VariableEnvelope }) {
   const [mode, setMode] = useState<"amount" | "percentage">("amount");
@@ -55,7 +56,7 @@ export function EnvelopeCard({ envelope }: { envelope: VariableEnvelope }) {
             <li key={formatMonth(version.effectiveFrom)}>
               {formatMonth(version.effectiveFrom)} —{" "}
               {version.mode === "amount"
-                ? `${moneyToEuros(version.value).toFixed(2)} €`
+                ? formatEuros(moneyToEuros(version.value))
                 : `${version.value} %`}
             </li>
           ))}

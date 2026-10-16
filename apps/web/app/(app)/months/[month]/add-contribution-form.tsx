@@ -81,7 +81,7 @@ export function AddContributionForm({
             {state.status === "success" ? (
               <p className="text-sm text-muted-foreground">{state.message}</p>
             ) : null}
-            <Button type="submit" disabled={pending}>
+            <Button type="submit" variant="accent" disabled={pending}>
               {pending ? "Ajout..." : "Ajouter le versement"}
             </Button>
           </FieldGroup>

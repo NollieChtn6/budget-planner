@@ -7,10 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-
-function euros(amount: number): string {
-  return `${amount.toFixed(2)} €`;
-}
+import { formatEuros as euros } from "@/lib/format-money";
 
 export function CloseMonthForm({
   envelopeRemainders,

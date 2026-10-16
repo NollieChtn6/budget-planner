@@ -10,7 +10,6 @@ import {
 } from "@budget/db";
 import {
   canModifyContribution,
-  formatMonth,
   isSameMonth,
   moneyFromEuros,
   monthOfCalendarDate,
@@ -21,7 +20,7 @@ import {
 import type { PrismaClient } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import type { VariableEnvelopeActionState } from "@/actions/variable-envelope-state";
-import { resolveCurrentMonth } from "@/lib/current-month";
+import { resolveActiveMonth } from "@/lib/current-month";
 import { requireSession } from "@/lib/session";
 import {
   createContributionSchema,
@@ -70,8 +69,8 @@ export async function createContributionForUser(
     return { status: "error", message: "Date invalide." };
   }
 
-  const currentMonth = resolveCurrentMonth();
-  const budgetMonth = await findBudgetMonthByMonth(prismaClient, userId, currentMonth);
+  const activeMonth = await resolveActiveMonth(prismaClient, userId);
+  const budgetMonth = await findBudgetMonthByMonth(prismaClient, userId, activeMonth);
   if (budgetMonth?.status !== "open") {
     return { status: "error", message: "Le mois n'est pas ouvert." };
   }
@@ -79,7 +78,7 @@ export async function createContributionForUser(
   const result = recordContribution(
     { date, amount, provisionId: input.provisionId },
     {
-      currentMonth,
+      currentMonth: activeMonth,
       snapshotProvisionIds: budgetMonth.provisionTargets.map((entry) => entry.provisionId),
     },
   );
@@ -105,7 +104,7 @@ export async function createContributionAction(
   const result = await createContributionForUser(prisma, session.user.id, parsed.data);
 
   if (result.status === "success") {
-    revalidatePath(`/months/${formatMonth(resolveCurrentMonth())}`);
+    revalidatePath("/");
   }
   return result;
 }
@@ -132,14 +131,14 @@ export async function updateContributionForUser(
     return { status: "error", message: "Date invalide." };
   }
 
-  const currentMonth = resolveCurrentMonth();
-  const budgetMonth = await findBudgetMonthByMonth(prismaClient, userId, currentMonth);
+  const activeMonth = await resolveActiveMonth(prismaClient, userId);
+  const budgetMonth = await findBudgetMonthByMonth(prismaClient, userId, activeMonth);
   if (budgetMonth?.status !== "open") {
     return { status: "error", message: "Le mois n'est pas ouvert." };
   }
 
   const existing = await findContributionById(prismaClient, userId, input.id);
-  if (!existing || !isSameMonth(monthOfCalendarDate(existing.date), currentMonth)) {
+  if (!existing || !isSameMonth(monthOfCalendarDate(existing.date), activeMonth)) {
     return { status: "error", message: "Versement introuvable." };
   }
   if (!canModifyContribution(existing)) {
@@ -152,7 +151,7 @@ export async function updateContributionForUser(
   const result = recordContribution(
     { date, amount, provisionId: input.provisionId },
     {
-      currentMonth,
+      currentMonth: activeMonth,
       snapshotProvisionIds: budgetMonth.provisionTargets.map((entry) => entry.provisionId),
     },
   );
@@ -178,7 +177,7 @@ export async function updateContributionAction(
   const result = await updateContributionForUser(prisma, session.user.id, parsed.data);
 
   if (result.status === "success") {
-    revalidatePath(`/months/${formatMonth(resolveCurrentMonth())}`);
+    revalidatePath("/");
   }
   return result;
 }
@@ -189,14 +188,14 @@ export async function deleteContributionForUser(
   userId: string,
   contributionId: string,
 ): Promise<VariableEnvelopeActionState> {
-  const currentMonth = resolveCurrentMonth();
-  const budgetMonth = await findBudgetMonthByMonth(prismaClient, userId, currentMonth);
+  const activeMonth = await resolveActiveMonth(prismaClient, userId);
+  const budgetMonth = await findBudgetMonthByMonth(prismaClient, userId, activeMonth);
   if (budgetMonth?.status !== "open") {
     return { status: "error", message: "Le mois n'est pas ouvert." };
   }
 
   const existing = await findContributionById(prismaClient, userId, contributionId);
-  if (!existing || !isSameMonth(monthOfCalendarDate(existing.date), currentMonth)) {
+  if (!existing || !isSameMonth(monthOfCalendarDate(existing.date), activeMonth)) {
     return { status: "error", message: "Versement introuvable." };
   }
   if (!canModifyContribution(existing)) {
@@ -223,7 +222,7 @@ export async function deleteContributionAction(
   const result = await deleteContributionForUser(prisma, session.user.id, parsed.data.id);
 
   if (result.status === "success") {
-    revalidatePath(`/months/${formatMonth(resolveCurrentMonth())}`);
+    revalidatePath("/");
   }
   return result;
 }

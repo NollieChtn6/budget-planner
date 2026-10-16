@@ -19,10 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-
-function euros(amount: number): string {
-  return `${amount.toFixed(2)} €`;
-}
+import { formatEuros } from "@/lib/format-money";
 
 function formatDay(date: CalendarDate): string {
   return `${date.day.toString().padStart(2, "0")}/${date.month.toString().padStart(2, "0")}`;
@@ -67,7 +64,7 @@ export function ContributionRow({
         <div className="flex justify-between gap-2 text-sm">
           <span className="text-muted-foreground">{formatDay(contribution.date)}</span>
           <span className="flex-1">{provisionLabel}</span>
-          <span>{euros(moneyToEuros(contribution.amount))}</span>
+          <span>{formatEuros(moneyToEuros(contribution.amount))}</span>
         </div>
         {canModify ? (
           <div className="flex gap-2">

@@ -19,6 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { formatEuros } from "@/lib/format-money";
 
 const TYPE_LABELS: Record<FixedEntry["type"], string> = {
   charge: "Charge",
@@ -58,7 +59,7 @@ export function FixedEntryCard({ fixedEntry }: { fixedEntry: FixedEntry }) {
         <ul className="flex flex-col gap-1 text-sm">
           {sortedVersions.map((version) => (
             <li key={formatMonth(version.effectiveFrom)}>
-              {formatMonth(version.effectiveFrom)} — {moneyToEuros(version.amount).toFixed(2)} €
+              {formatMonth(version.effectiveFrom)} — {formatEuros(moneyToEuros(version.amount))}
             </li>
           ))}
         </ul>

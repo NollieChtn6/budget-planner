@@ -504,4 +504,19 @@ describe("reopenMonthForUser", () => {
 
     expect(result.status).toBe("error");
   });
+
+  it("rejects reopening a closed month once the next one is already open", async () => {
+    const user = await createTestUser();
+    await seedParameterization(user.id);
+    await openMonthForUser(prisma, user.id, 2800);
+    await closeMonthForUser(prisma, user.id, { allocations: [] });
+    // The active month is now next month — open it on top of the closed one.
+    await openMonthForUser(prisma, user.id, 2800);
+
+    const result = await reopenMonthForUser(prisma, user.id);
+
+    expect(result.status).toBe("error");
+    const stillClosed = await findBudgetMonthByMonth(prisma, user.id, currentMonth);
+    expect(stillClosed?.status).toBe("closed");
+  });
 });

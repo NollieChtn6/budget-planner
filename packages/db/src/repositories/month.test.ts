@@ -14,6 +14,7 @@ import {
   createBudgetMonth,
   findBudgetMonthByMonth,
   findClosedBudgetMonthsByUser,
+  findOpenBudgetMonthByUser,
   reopenBudgetMonth,
   updateSnapshotFixedEntryStatus,
 } from "./month";
@@ -189,6 +190,41 @@ describe("findClosedBudgetMonthsByUser", () => {
 
     const closedMonths = await findClosedBudgetMonthsByUser(prisma, otherUser.id);
     expect(closedMonths).toHaveLength(0);
+  });
+});
+
+describe("findOpenBudgetMonthByUser", () => {
+  it("returns the open month", async () => {
+    const user = await createTestUser(primaryEmail);
+    const seed = await seedParameterization(user.id);
+    await createBudgetMonth(prisma, user.id, buildBudgetMonth(seed));
+
+    const open = await findOpenBudgetMonthByUser(prisma, user.id);
+    expect(open?.month).toEqual(month);
+  });
+
+  it("returns null once the month is closed", async () => {
+    const user = await createTestUser(primaryEmail);
+    const seed = await seedParameterization(user.id);
+    await createBudgetMonth(prisma, user.id, buildBudgetMonth(seed));
+    await closeBudgetMonth(prisma, user.id, month, {
+      closedAt: new Date("2026-01-31T12:00:00.000Z"),
+      allocations: [],
+      contributions: [],
+    });
+
+    const open = await findOpenBudgetMonthByUser(prisma, user.id);
+    expect(open).toBeNull();
+  });
+
+  it("only returns the requesting user's open month", async () => {
+    const user = await createTestUser(primaryEmail);
+    const otherUser = await createTestUser(otherEmail);
+    const seed = await seedParameterization(user.id);
+    await createBudgetMonth(prisma, user.id, buildBudgetMonth(seed));
+
+    const open = await findOpenBudgetMonthByUser(prisma, otherUser.id);
+    expect(open).toBeNull();
   });
 });
 

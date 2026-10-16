@@ -204,6 +204,7 @@ export async function createExpenseAction(
 
   if (result.status === "success") {
     revalidatePath("/");
+    revalidatePath("/operations");
   }
   return result;
 }
@@ -323,6 +324,7 @@ export async function updateExpenseAction(
 
   if (result.status === "success") {
     revalidatePath("/");
+    revalidatePath("/operations");
   }
   return result;
 }
@@ -362,6 +364,7 @@ export async function deleteExpenseAction(
 
   if (result.status === "success") {
     revalidatePath("/");
+    revalidatePath("/operations");
   }
   return result;
 }

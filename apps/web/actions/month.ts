@@ -134,6 +134,7 @@ export async function openMonthAction(
     // revalidatePath needs a Next.js request context, unlike openMonthForUser
     // above — kept here so the core stays testable (see its doc comment).
     revalidatePath("/");
+    revalidatePath("/operations");
   }
   return result;
 }
@@ -182,6 +183,7 @@ export async function pointFixedEntryAction(
   const result = await pointFixedEntryForUser(prisma, session.user.id, parsed.data);
   if (result.status === "success") {
     revalidatePath("/");
+    revalidatePath("/operations");
   }
   return result;
 }
@@ -334,6 +336,7 @@ export async function closeMonthAction(
   const result = await closeMonthForUser(prisma, session.user.id, parsed.data);
   if (result.status === "success") {
     revalidatePath("/");
+    revalidatePath("/operations");
   }
   return result;
 }
@@ -371,6 +374,7 @@ export async function reopenMonthAction(
   const result = await reopenMonthForUser(prisma, session.user.id);
   if (result.status === "success") {
     revalidatePath("/");
+    revalidatePath("/operations");
   }
   return result;
 }

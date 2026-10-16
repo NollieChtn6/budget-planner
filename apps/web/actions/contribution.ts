@@ -105,6 +105,7 @@ export async function createContributionAction(
 
   if (result.status === "success") {
     revalidatePath("/");
+    revalidatePath("/operations");
   }
   return result;
 }
@@ -178,6 +179,7 @@ export async function updateContributionAction(
 
   if (result.status === "success") {
     revalidatePath("/");
+    revalidatePath("/operations");
   }
   return result;
 }
@@ -223,6 +225,7 @@ export async function deleteContributionAction(
 
   if (result.status === "success") {
     revalidatePath("/");
+    revalidatePath("/operations");
   }
   return result;
 }

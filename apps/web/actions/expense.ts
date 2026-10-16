@@ -17,7 +17,6 @@ import {
   computeProvisionBalance,
   type Expense,
   type ExpenseSource,
-  formatMonth,
   isProvisionExhaustedBy,
   isSameMonth,
   type Money,
@@ -31,7 +30,7 @@ import type { PrismaClient } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import type { ExpenseActionState } from "@/actions/expense-state";
 import type { VariableEnvelopeActionState } from "@/actions/variable-envelope-state";
-import { resolveCurrentMonth } from "@/lib/current-month";
+import { resolveActiveMonth } from "@/lib/current-month";
 import { requireSession } from "@/lib/session";
 import { createExpenseSchema, deleteExpenseSchema, updateExpenseSchema } from "@/schemas/expense";
 
@@ -125,8 +124,8 @@ export async function createExpenseForUser(
     return { status: "error", message: "Choisis une enveloppe ou une provision." };
   }
 
-  const currentMonth = resolveCurrentMonth();
-  const budgetMonth = await findBudgetMonthByMonth(prismaClient, userId, currentMonth);
+  const activeMonth = await resolveActiveMonth(prismaClient, userId);
+  const budgetMonth = await findBudgetMonthByMonth(prismaClient, userId, activeMonth);
   if (budgetMonth?.status !== "open") {
     return { status: "error", message: "Le mois n'est pas ouvert." };
   }
@@ -157,7 +156,7 @@ export async function createExpenseForUser(
       target,
     },
     {
-      currentMonth,
+      currentMonth: activeMonth,
       categories,
       snapshotEnvelopeIds: budgetMonth.envelopeBudgets.map((entry) => entry.envelopeId),
       snapshotProvisionIds: budgetMonth.provisionTargets.map((entry) => entry.provisionId),
@@ -204,7 +203,7 @@ export async function createExpenseAction(
   });
 
   if (result.status === "success") {
-    revalidatePath(`/months/${formatMonth(resolveCurrentMonth())}`);
+    revalidatePath("/");
   }
   return result;
 }
@@ -236,14 +235,14 @@ export async function updateExpenseForUser(
     return { status: "error", message: "Choisis une enveloppe ou une provision." };
   }
 
-  const currentMonth = resolveCurrentMonth();
-  const budgetMonth = await findBudgetMonthByMonth(prismaClient, userId, currentMonth);
+  const activeMonth = await resolveActiveMonth(prismaClient, userId);
+  const budgetMonth = await findBudgetMonthByMonth(prismaClient, userId, activeMonth);
   if (budgetMonth?.status !== "open") {
     return { status: "error", message: "Le mois n'est pas ouvert." };
   }
 
   const existing = await findExpenseById(prismaClient, userId, input.id);
-  if (!existing || !isSameMonth(monthOfCalendarDate(existing.date), currentMonth)) {
+  if (!existing || !isSameMonth(monthOfCalendarDate(existing.date), activeMonth)) {
     return { status: "error", message: "Dépense introuvable." };
   }
 
@@ -275,7 +274,7 @@ export async function updateExpenseForUser(
       target,
     },
     {
-      currentMonth,
+      currentMonth: activeMonth,
       categories,
       snapshotEnvelopeIds: budgetMonth.envelopeBudgets.map((entry) => entry.envelopeId),
       snapshotProvisionIds: budgetMonth.provisionTargets.map((entry) => entry.provisionId),
@@ -323,7 +322,7 @@ export async function updateExpenseAction(
   });
 
   if (result.status === "success") {
-    revalidatePath(`/months/${formatMonth(resolveCurrentMonth())}`);
+    revalidatePath("/");
   }
   return result;
 }
@@ -334,14 +333,14 @@ export async function deleteExpenseForUser(
   userId: string,
   expenseId: string,
 ): Promise<VariableEnvelopeActionState> {
-  const currentMonth = resolveCurrentMonth();
-  const budgetMonth = await findBudgetMonthByMonth(prismaClient, userId, currentMonth);
+  const activeMonth = await resolveActiveMonth(prismaClient, userId);
+  const budgetMonth = await findBudgetMonthByMonth(prismaClient, userId, activeMonth);
   if (budgetMonth?.status !== "open") {
     return { status: "error", message: "Le mois n'est pas ouvert." };
   }
 
   const existing = await findExpenseById(prismaClient, userId, expenseId);
-  if (!existing || !isSameMonth(monthOfCalendarDate(existing.date), currentMonth)) {
+  if (!existing || !isSameMonth(monthOfCalendarDate(existing.date), activeMonth)) {
     return { status: "error", message: "Dépense introuvable." };
   }
 
@@ -362,7 +361,7 @@ export async function deleteExpenseAction(
   const result = await deleteExpenseForUser(prisma, session.user.id, parsed.data.id);
 
   if (result.status === "success") {
-    revalidatePath(`/months/${formatMonth(resolveCurrentMonth())}`);
+    revalidatePath("/");
   }
   return result;
 }

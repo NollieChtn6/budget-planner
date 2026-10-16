@@ -4,10 +4,12 @@ import {
   closeBudgetMonth,
   createBudgetMonth,
   findBudgetMonthByMonth,
+  findClosedBudgetMonthsByUser,
   findContributionsByUserAndProvision,
   findExpensesByUserAndProvision,
   findFixedEntriesByUser,
   findLeftoverAllocationsByUserAndMonth,
+  findOpenBudgetMonthByUser,
   findProvisionsByUser,
   findVariableEnvelopesByUser,
   markProvisionLate,
@@ -23,7 +25,6 @@ import {
   computeCarriedOver,
   computeProvisionBalance,
   dueMonth,
-  formatMonth,
   isSameMonth,
   type LeftoverAllocationInput,
   type Month,
@@ -40,7 +41,7 @@ import {
 import type { PrismaClient } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import type { VariableEnvelopeActionState } from "@/actions/variable-envelope-state";
-import { resolveCurrentMonth } from "@/lib/current-month";
+import { resolveActiveMonth } from "@/lib/current-month";
 import { requireSession } from "@/lib/session";
 import { closeMonthSchema, openMonthSchema, pointFixedEntrySchema } from "@/schemas/month";
 
@@ -62,20 +63,20 @@ export async function openMonthForUser(
     return { status: "error", message: "Montant invalide (centimes uniquement)." };
   }
 
-  // The month is never taken from client input (route segment or form
-  // field): only the server-resolved real current month can ever be opened
-  // (V1 has no multi-month navigation — see issue #11).
-  const currentMonth = resolveCurrentMonth();
+  // The active month (glossary.md's `activeMonth`), never a route segment or
+  // other client-supplied value: the oldest unclosed month is the only one
+  // that can ever be opened next (R4).
+  const activeMonth = await resolveActiveMonth(prismaClient, userId);
 
-  const existing = await findBudgetMonthByMonth(prismaClient, userId, currentMonth);
+  const existing = await findBudgetMonthByMonth(prismaClient, userId, activeMonth);
   if (existing) {
     return { status: "error", message: "Ce mois est déjà ouvert." };
   }
 
   const [previousMonthRow, previousMonthAllocations, fixedEntries, envelopes, provisions] =
     await Promise.all([
-      findBudgetMonthByMonth(prismaClient, userId, previousMonth(currentMonth)),
-      findLeftoverAllocationsByUserAndMonth(prismaClient, userId, previousMonth(currentMonth)),
+      findBudgetMonthByMonth(prismaClient, userId, previousMonth(activeMonth)),
+      findLeftoverAllocationsByUserAndMonth(prismaClient, userId, previousMonth(activeMonth)),
       findFixedEntriesByUser(prismaClient, userId),
       findVariableEnvelopesByUser(prismaClient, userId),
       findProvisionsByUser(prismaClient, userId),
@@ -101,7 +102,7 @@ export async function openMonthForUser(
   );
 
   const result = openMonth({
-    month: currentMonth,
+    month: activeMonth,
     income,
     previousMonthStatus: previousMonthRow ? previousMonthRow.status : "none",
     carriedOver: computeCarriedOver(previousMonthAllocations),
@@ -132,7 +133,7 @@ export async function openMonthAction(
   if (result.status === "success") {
     // revalidatePath needs a Next.js request context, unlike openMonthForUser
     // above — kept here so the core stays testable (see its doc comment).
-    revalidatePath(`/months/${formatMonth(resolveCurrentMonth())}`);
+    revalidatePath("/");
   }
   return result;
 }
@@ -147,8 +148,8 @@ export async function pointFixedEntryForUser(
   userId: string,
   input: { fixedEntryId: string; done: boolean },
 ): Promise<VariableEnvelopeActionState> {
-  const currentMonth = resolveCurrentMonth();
-  const budgetMonth = await findBudgetMonthByMonth(prismaClient, userId, currentMonth);
+  const activeMonth = await resolveActiveMonth(prismaClient, userId);
+  const budgetMonth = await findBudgetMonthByMonth(prismaClient, userId, activeMonth);
   if (budgetMonth?.status !== "open") {
     return { status: "error", message: "Le mois n'est pas ouvert." };
   }
@@ -161,7 +162,7 @@ export async function pointFixedEntryForUser(
   await updateSnapshotFixedEntryStatus(
     prismaClient,
     userId,
-    currentMonth,
+    activeMonth,
     input.fixedEntryId,
     input.done ? "done" : "planned",
   );
@@ -180,7 +181,7 @@ export async function pointFixedEntryAction(
 
   const result = await pointFixedEntryForUser(prisma, session.user.id, parsed.data);
   if (result.status === "success") {
-    revalidatePath(`/months/${formatMonth(resolveCurrentMonth())}`);
+    revalidatePath("/");
   }
   return result;
 }
@@ -242,7 +243,7 @@ export type CloseMonthAllocationInput = {
  * Session-free core, same split as `openMonthForUser` above. R25: a
  * provision split is dated the day of the closing itself — never a date the
  * client supplies, like `date` is never taken from client input for the
- * month being closed (see `resolveCurrentMonth`'s own comment).
+ * month being closed (see `resolveActiveMonth`'s own comment).
  */
 export async function closeMonthForUser(
   prismaClient: PrismaClient,
@@ -252,18 +253,18 @@ export async function closeMonthForUser(
   const closedAt = new Date();
   const date = parseCalendarDate(closedAt.toISOString().slice(0, 10));
 
-  const currentMonth = resolveCurrentMonth();
-  const budgetMonth = await findBudgetMonthByMonth(prismaClient, userId, currentMonth);
+  const activeMonth = await resolveActiveMonth(prismaClient, userId);
+  const budgetMonth = await findBudgetMonthByMonth(prismaClient, userId, activeMonth);
   if (budgetMonth?.status !== "open") {
     return { status: "error", message: "Le mois n'est pas ouvert." };
   }
 
   const [nextMonthRow, envelopes] = await Promise.all([
-    findBudgetMonthByMonth(prismaClient, userId, nextMonth(currentMonth)),
+    findBudgetMonthByMonth(prismaClient, userId, nextMonth(activeMonth)),
     findVariableEnvelopesByUser(prismaClient, userId),
   ]);
   const nextMonthActiveEnvelopeIds = envelopes
-    .filter((envelope) => activeVersionAt(envelope, nextMonth(currentMonth)))
+    .filter((envelope) => activeVersionAt(envelope, nextMonth(activeMonth)))
     .map((envelope) => envelope.id);
 
   // A blank or 0 row means "nothing allocated here", not an error (R25
@@ -304,12 +305,12 @@ export async function closeMonthForUser(
     return { status: "error", message: describeCloseMonthFailure(result.error) };
   }
 
-  await closeBudgetMonth(prismaClient, userId, currentMonth, {
+  await closeBudgetMonth(prismaClient, userId, activeMonth, {
     closedAt,
     allocations: result.allocations,
     contributions: result.contributions,
   });
-  await applyLateProvisionTransitions(prismaClient, userId, currentMonth);
+  await applyLateProvisionTransitions(prismaClient, userId, activeMonth);
   return { status: "success", message: "Mois clôturé." };
 }
 
@@ -332,7 +333,7 @@ export async function closeMonthAction(
 
   const result = await closeMonthForUser(prisma, session.user.id, parsed.data);
   if (result.status === "success") {
-    revalidatePath(`/months/${formatMonth(resolveCurrentMonth())}`);
+    revalidatePath("/");
   }
   return result;
 }
@@ -341,20 +342,24 @@ function describeReopenMonthFailure(_error: ReopenMonthFailure): string {
   return "Ce mois n'est pas clôturé.";
 }
 
-/** Session-free core, same split as `openMonthForUser` above. */
+/**
+ * Session-free core, same split as `openMonthForUser` above. R29: only the
+ * last closed month can be reopened, and only while no other month is
+ * already open on top of it.
+ */
 export async function reopenMonthForUser(
   prismaClient: PrismaClient,
   userId: string,
 ): Promise<VariableEnvelopeActionState> {
-  const currentMonth = resolveCurrentMonth();
-  const budgetMonth = await findBudgetMonthByMonth(prismaClient, userId, currentMonth);
+  const openMonthRow = await findOpenBudgetMonthByUser(prismaClient, userId);
+  const [mostRecentlyClosed] = await findClosedBudgetMonthsByUser(prismaClient, userId);
 
-  const result = reopenMonth(budgetMonth?.status ?? "open");
-  if (!result.ok) {
-    return { status: "error", message: describeReopenMonthFailure(result.error) };
+  const result = reopenMonth(openMonthRow ? "open" : (mostRecentlyClosed?.status ?? "open"));
+  if (!result.ok || !mostRecentlyClosed) {
+    return { status: "error", message: describeReopenMonthFailure({ type: "notClosed" }) };
   }
 
-  await reopenBudgetMonth(prismaClient, userId, currentMonth);
+  await reopenBudgetMonth(prismaClient, userId, mostRecentlyClosed.month);
   return { status: "success", message: "Mois réouvert." };
 }
 
@@ -365,7 +370,7 @@ export async function reopenMonthAction(
   const session = await requireSession();
   const result = await reopenMonthForUser(prisma, session.user.id);
   if (result.status === "success") {
-    revalidatePath(`/months/${formatMonth(resolveCurrentMonth())}`);
+    revalidatePath("/");
   }
   return result;
 }

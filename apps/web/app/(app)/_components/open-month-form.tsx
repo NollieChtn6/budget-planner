@@ -15,7 +15,7 @@ export function OpenMonthForm() {
   );
 
   return (
-    <Card>
+    <Card className="lg:w-sm">
       <CardHeader>
         <CardTitle>Ouvrir le mois</CardTitle>
       </CardHeader>

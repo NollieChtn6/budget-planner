@@ -13,6 +13,7 @@
     "format": "biome format --write .",
     "typecheck": "pnpm -r run typecheck",
     "test": "pnpm -r run test",
+    "postinstall": "pnpm --filter @budget/db run db:generate",
     "prepare": "husky"
   },
   "devDependencies": {

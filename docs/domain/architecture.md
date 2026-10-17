@@ -29,6 +29,7 @@ apps/web/
     (auth)/sign-in/          connexion
     (auth)/verify-2fa/       vérification du second facteur à la reconnexion
     (auth)/enroll-2fa/       enrôlement TOTP forcé à la première connexion
+    setup/                   création du compte unique sans accès shell (voir ADR-0008), fonctionnelle uniquement tant qu'aucun compte n'existe
     (app)/                   pages protégées
       page.tsx               dashboard du mois
       months/[month]/        ouverture, clôture, opérations d'un mois
@@ -97,7 +98,7 @@ Deux niveaux de validation coexistent : Zod vérifie que l'entrée est bien form
 
 ## Sécurité en couches
 
-- `proxy.ts` (équivalent, depuis Next.js 16, du middleware — nommé ainsi pour tourner sur le runtime Node.js plutôt qu'Edge, requis ici par le hachage Argon2id natif) redirige les visiteurs non connectés vers `/sign-in`, et les sessions connectées sans second facteur configuré vers `/enroll-2fa` (voir [ADR-0008](../adr/0008-single-user-authentication.md)). Les routes `/sign-in` et `/verify-2fa` sont volontairement accessibles sans session : une vérification de second facteur en cours n'a pas encore de session Better Auth (voir ADR-0008). Ce garde-fou **n'est jamais la seule protection** : chaque Server Action, Route Handler et page protégée revérifie la session.
+- `proxy.ts` (équivalent, depuis Next.js 16, du middleware — nommé ainsi pour tourner sur le runtime Node.js plutôt qu'Edge, requis ici par le hachage Argon2id natif) redirige les visiteurs non connectés vers `/sign-in`, et les sessions connectées sans second facteur configuré vers `/enroll-2fa` (voir [ADR-0008](../adr/0008-single-user-authentication.md)). Les routes `/sign-in`, `/verify-2fa` et `/setup` sont volontairement accessibles sans session : une vérification de second facteur en cours n'a pas encore de session Better Auth, et `/setup` sert justement à créer le premier compte (voir ADR-0008). Ce garde-fou **n'est jamais la seule protection** : chaque Server Action, Route Handler et page protégée revérifie la session, et `/setup` revérifie elle-même son jeton `SETUP_TOKEN` et l'absence de compte existant.
 - Les Server Actions sont des points d'entrée publics : elles valident systématiquement leurs arguments, même appelées depuis un formulaire de l'app.
 - Les secrets ne sont lus que côté serveur ; aucune variable sensible ne porte le préfixe `NEXT_PUBLIC_`.
 

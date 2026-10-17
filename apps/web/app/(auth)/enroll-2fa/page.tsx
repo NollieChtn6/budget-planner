@@ -138,9 +138,6 @@ function EnrollmentVerifyStep({
 
   function handleCodeChange(value: string) {
     setCode(value);
-    if (value.length === 6 && !pending) {
-      onVerify(value);
-    }
   }
 
   return (

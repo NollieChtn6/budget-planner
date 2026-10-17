@@ -10,7 +10,7 @@ export default async function FixedEntriesSettingsPage() {
 
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-6 p-6">
-      <h1 className="text-2xl font-semibold">Postes fixes</h1>
+      <h2 className="font-heading text-xl">Postes fixes</h2>
       <CreateFixedEntryForm />
       <Separator />
       <div className="flex flex-col gap-4">

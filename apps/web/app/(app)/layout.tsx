@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { AppNav } from "@/components/app-nav";
 import { SignOutButton } from "@/components/sign-out-button";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { requireSession } from "@/lib/session";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -18,8 +19,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           Pécule
         </Link>
         <AppNav />
-        <div className="mt-auto">
+        <div className="mt-auto flex items-center justify-between gap-2">
           <SignOutButton />
+          <ThemeToggle />
         </div>
       </aside>
       <main className="mx-auto w-full max-w-5xl px-10 py-9">{children}</main>

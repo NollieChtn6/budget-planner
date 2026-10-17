@@ -17,9 +17,15 @@ export const metadata: Metadata = {
   description: "Mettre de côté, mois après mois.",
 };
 
+const THEME_INIT_SCRIPT = `(function(){try{var s=localStorage.getItem("theme");var d=s==="dark"||(!s&&window.matchMedia("(prefers-color-scheme: dark)").matches);document.documentElement.classList.toggle("dark",d);if(s)document.documentElement.dataset.theme=s;}catch(e){}})();`;
+
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="fr" className={`${sans.variable} ${serif.variable} h-full antialiased`}>
+      <head>
+        {/* biome-ignore lint/security/noDangerouslySetInnerHtml: static inline script, no user input, needed before hydration to avoid a theme flash */}
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+      </head>
       <body className="min-h-full flex flex-col">{children}</body>
     </html>
   );

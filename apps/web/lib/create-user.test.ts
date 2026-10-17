@@ -1,15 +1,16 @@
 import { createTestPrismaClient } from "@budget/db";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
-import { createAuth } from "../lib/auth";
-import { createUser } from "./create-user";
+import { createAuth } from "./auth";
+import { AccountAlreadyExistsError, createUser, hasAnyUser } from "./create-user";
 
 const prisma = createTestPrismaClient();
 const auth = createAuth(prisma);
 
 const email = "create-user-test@example.com";
+const otherEmail = "create-user-test-2@example.com";
 
 async function cleanup() {
-  await prisma.user.deleteMany({ where: { email } });
+  await prisma.user.deleteMany({ where: { email: { in: [email, otherEmail] } } });
 }
 
 beforeAll(cleanup);
@@ -55,6 +56,24 @@ describe("createUser", () => {
 
     await expect(
       createUser(auth, { name: "Jane again", email, password: "another password" }),
-    ).rejects.toThrow();
+    ).rejects.toThrow(AccountAlreadyExistsError);
+  });
+
+  it("rejects creating a second user with a different email (ADR-0008: one account only)", async () => {
+    await createUser(auth, { name: "Jane", email, password: "correct horse battery staple" });
+
+    await expect(
+      createUser(auth, { name: "Someone else", email: otherEmail, password: "another password" }),
+    ).rejects.toThrow(AccountAlreadyExistsError);
+  });
+});
+
+describe("hasAnyUser", () => {
+  it("reflects whether any account exists, regardless of email", async () => {
+    await expect(hasAnyUser(auth)).resolves.toBe(false);
+
+    await createUser(auth, { name: "Jane", email, password: "correct horse battery staple" });
+
+    await expect(hasAnyUser(auth)).resolves.toBe(true);
   });
 });

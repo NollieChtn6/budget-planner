@@ -3,12 +3,14 @@ import { auth } from "@/lib/auth";
 import { resolveAuthRedirect } from "@/lib/auth-redirect";
 
 /**
- * Reachable with no session: /sign-in (nothing yet) and /verify-2fa (a
+ * Reachable with no session: /sign-in (nothing yet), /verify-2fa (a
  * pending 2FA challenge has no Better Auth session either - the two-factor
  * plugin deletes the credential sign-in's session and tracks the challenge
- * through its own short-lived cookie instead).
+ * through its own short-lived cookie instead), and /setup (provisions the
+ * single account on hosts without shell access - it re-checks its own
+ * token and account existence, see ADR-0008).
  */
-const PUBLIC_PATHS = new Set(["/sign-in", "/verify-2fa"]);
+const PUBLIC_PATHS = new Set(["/sign-in", "/verify-2fa", "/setup"]);
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;

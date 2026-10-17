@@ -1,7 +1,7 @@
 import { createTestPrismaClient } from "@budget/db";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { createAuth } from "../lib/auth";
-import { createUser } from "./create-user";
+import { createUser } from "../lib/create-user";
 import { resetTwoFactor } from "./reset-2fa";
 
 const prisma = createTestPrismaClient();

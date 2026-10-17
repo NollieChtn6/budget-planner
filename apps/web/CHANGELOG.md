@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.2.1](https://github.com/NollieChtn6/budget-planner/compare/budget-planner-v0.2.0...budget-planner-v0.2.1) (2026-10-17)
+
+
+### Bug Fixes
+
+* **ui:** make app sidebar responsive on mobile ([1ccf765](https://github.com/NollieChtn6/budget-planner/commit/1ccf765e0587d82a6229ea723a9b842e0e3b8ac9))
+* **ui:** mobile responsive design issues ([be79fb7](https://github.com/NollieChtn6/budget-planner/commit/be79fb7b3f79d4d2dc79e23fddfebc3c5594a313))
+* **ui:** show select item labels instead of raw values ([1ee57e0](https://github.com/NollieChtn6/budget-planner/commit/1ee57e09fda026cbf56b7c79623e32d0b3e776de))
+* **ui:** suppress expected hydration warning on &lt;html&gt; ([2c21ea1](https://github.com/NollieChtn6/budget-planner/commit/2c21ea19c6d535f37073f23b76334e678d400b8c))
+
 ## [0.2.0](https://github.com/NollieChtn6/budget-planner/compare/budget-planner-v0.1.0...budget-planner-v0.2.0) (2026-10-17)
 
 

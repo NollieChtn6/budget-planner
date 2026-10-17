@@ -14,7 +14,8 @@
       "!**/build",
       "!**/generated",
       "!**/pnpm-lock.yaml",
-      "!**/public"
+      "!**/public",
+      "!docs/ui"
     ]
   },
   "formatter": {

@@ -11,7 +11,7 @@ Une notation `A.b[]` désigne une collection d'éléments qui n'existent pas san
 **FixedEntry**
 - `id`, `label`, `type` : `charge` | `scheduledSaving`
 - `versions[]` : `FixedEntryVersion`
-- `archivedAt?`
+- `archivedFrom?` (`AAAA-MM`, R8)
 
 **FixedEntryVersion**
 - identité : (`fixedEntryId`, `effectiveFrom`)
@@ -20,7 +20,7 @@ Une notation `A.b[]` désigne une collection d'éléments qui n'existent pas san
 **VariableEnvelope**
 - `id`, `label`
 - `versions[]` : `VariableEnvelopeVersion`
-- `archivedAt?`
+- `archivedFrom?` (`AAAA-MM`, R8)
 
 **VariableEnvelopeVersion**
 - identité : (`envelopeId`, `effectiveFrom`)
@@ -31,10 +31,12 @@ Une notation `A.b[]` désigne une collection d'éléments qui n'existent pas san
 - si `deadline` : `startMonth`, `durationMonths`
 - si `reserve` : `monthlyAmount`
 - `status` : `active` | `late` | `closed`, `closedAt?`
+- `archivedFrom?` (`AAAA-MM`, R8) : indépendant de `status` — l'archivage retire la provision du paramétrage (suppression demandée par l'utilisatrice), la clôture (`status = closed`) marque la fin de son cycle de vie propre (R23 ou clôture manuelle d'une réserve)
 - `previousCycleId?` : provision dont elle est le renouvellement
 
 **Category**
-- `id`, `label`, `defaultEnvelopeId?`
+- `id`, `label`, `color` (code hexadécimal `#RRGGBB`), `defaultEnvelopeId?`, `archived`
+- Contrairement à `FixedEntry`/`VariableEnvelope`/`Provision`, jamais copiée dans un instantané de mois : son archivage n'a donc pas de date d'effet (R7/R8 ne s'appliquent pas) et prend effet immédiatement. Une catégorie déjà utilisée par une dépense est archivée plutôt que supprimée, pour préserver l'historique ; une catégorie jamais utilisée est supprimée.
 
 ### Mois
 
@@ -63,7 +65,8 @@ L'instantané (`MonthSnapshot`) est l'ensemble de ces trois collections. Il n'a 
 Les libellés sont copiés volontairement : renommer un élément ne modifie pas les mois passés.
 
 **LeftoverAllocation**
-- `month`, `destination` : `savings` | `provision`, `provisionId?`, `amount`
+- `month`, `destination` : `savings` | `provision` | `envelope` | `report`, `provisionId?`, `envelopeId?`, `amount`
+- Une répartition `provision` crée un versement immédiat (R25) ; une répartition `envelope` ou `report` ne prend effet qu'à l'ouverture du mois suivant (R31, R32), sans ligne d'instantané dédiée — c'est une donnée dérivée (voir « Données dérivées »).
 
 ### Opérations
 
@@ -104,6 +107,8 @@ Ces valeurs sont toujours calculées, jamais stockées, pour éviter toute déri
 - consommé, restant et niveau d'alerte d'une enveloppe sur un mois ;
 - reste à vivre, base de répartition, marge prévisionnelle (à partir de l'instantané) ;
 - montant financé par l'épargne d'un mois clôturé : l'opposé du reliquat s'il est négatif, 0 sinon ;
+- report d'un mois : somme des `LeftoverAllocation` du mois précédent dont `destination = report` (R32) ;
+- bonus d'une enveloppe sur un mois : somme des `LeftoverAllocation` du mois précédent dont `destination = envelope` pour cette enveloppe (R31) ;
 - places connues et dernière catégorie utilisée (à partir des dépenses).
 
 ## Cycles de vie

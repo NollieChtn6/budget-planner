@@ -19,6 +19,7 @@ Langage commun du projet. L'interface parle français, le code utilise les noms 
 | Terme | Code | Nature | Définition |
 |---|---|---|---|
 | Mois budgétaire | `BudgetMonth` | Entité | Mois calendaire servant d'unité de budget, identifié par `AAAA-MM`. |
+| Mois actif | `activeMonth` | Valeur dérivée | Plus ancien mois non clôturé : le mois ouvert, ou à défaut celui qui suit le dernier mois clôturé. C'est le mois affiché par « Ce mois-ci ». Il ne dépend pas de la date du jour, qui sert seulement à rappeler qu'une clôture est due. |
 | Instantané | `MonthSnapshot` | Objet valeur | Copie, pour un mois, des montants de paramétrage en vigueur. Créé à l'ouverture, mis à jour tant que le mois est ouvert par les modifications qui prennent effet au mois en cours (R7), figé à la clôture. Assemblé à partir des trois types de lignes ci-dessous. |
 | Ligne de poste fixe | `SnapshotFixedEntry` | Entité | Montant d'un poste fixe pour un mois, avec son pointage (voir Instantané pour sa mise à jour). |
 | Budget d'enveloppe | `SnapshotEnvelopeBudget` | Entité | Budget d'une enveloppe variable pour un mois (voir Instantané pour sa mise à jour). |
@@ -28,6 +29,7 @@ Langage commun du projet. L'interface parle français, le code utilise les noms 
 | Réouverture | `reopenMonth()` | Action | Déverrouille le dernier mois clôturé pour corriger ses opérations. |
 | Version | `FixedEntryVersion`, `VariableEnvelopeVersion` | Entité | Valeur d'un poste fixe ou d'une enveloppe variable à partir d'un mois donné. |
 | Date d'effet | `effectiveFrom` | Attribut | Premier mois auquel s'applique une version. |
+| Date d'archivage | `archivedFrom` | Attribut | Premier mois à partir duquel un poste fixe, une enveloppe variable ou une provision archivé n'est plus proposé pour de nouvelles opérations (R8). |
 
 ## Revenus et postes fixes
 
@@ -52,12 +54,14 @@ Langage commun du projet. L'interface parle français, le code utilise les noms 
 | Taux de consommation | `usageRate` | Valeur dérivée | Part du budget d'une enveloppe déjà dépensée. |
 | Niveau d'alerte | `AlertLevel` | Énumération | Palier coloré dérivé du taux de consommation : `ok`, `watch`, `caution`, `warning`, `critical`, `exceeded`. |
 | Reliquat | `leftover` | Valeur dérivée | Restant d'une enveloppe variable à la clôture. |
+| Report | `carriedOver` | Valeur dérivée | Part du reliquat du mois précédent, répartie sans destination à la clôture, qui s'ajoute au revenu disponible du mois (reste à vivre, base de répartition, marge), sans modifier `BudgetMonth.income`. |
+| Bonus d'enveloppe | `envelopeBonus` | Valeur dérivée | Part du reliquat du mois précédent, répartie à la clôture vers une enveloppe variable, qui s'ajoute au budget de cette enveloppe pour ce seul mois, affichée séparément du budget normal. |
 
 ## Provisions
 
 | Terme | Code | Nature | Définition |
 |---|---|---|---|
-| Provision | `Provision` | Entité | Enveloppe alimentée par des versements pour financer une dépense future. |
+| Provision | `Provision` | Entité | Cagnotte alimentée par des versements pour financer une dépense future. |
 | Provision à échéance | `Provision.type = deadline` | Valeur d'énumération | Provision à constituer sur une durée donnée, pour une dépense datée. Ex. : orthodontie, vacances. |
 | Réserve | `Provision.type = reserve` | Valeur d'énumération | Provision sans échéance, maintenue à un plafond et réalimentée après usage. Ex. : Imprévus, coussin vétérinaire. |
 | Objectif | `Provision.target` | Attribut | Montant à atteindre (échéance) ou plafond (réserve). |
@@ -78,8 +82,11 @@ Langage commun du projet. L'interface parle français, le code utilise les noms 
 | Dépense | `Expense` | Entité | Sortie d'argent imputée à une enveloppe variable ou à une provision. |
 | Lieu | `Expense.place` | Attribut | Commerce ou endroit de la dépense, utilisé pour l'autocomplétion. |
 | Catégorie | `Category` | Entité | Axe d'analyse d'une dépense (maison, restaurant, vêtements…), indépendant de l'enveloppe. |
+| Couleur | `Category.color` | Attribut | Code hexadécimal (`#RRGGBB`) qui identifie visuellement une catégorie ; toujours affiché avec son libellé. |
 | Enveloppe par défaut | `Category.defaultEnvelopeId` | Attribut | Enveloppe proposée automatiquement pour une catégorie. |
+| Catégorie archivée | `Category.archived` | Attribut | Catégorie retirée de la saisie de nouvelles dépenses ; sans date d'effet, contrairement à `archivedFrom` (R7/R8 ne s'appliquent pas à `Category`). |
 | Versement | `Contribution` | Entité | Somme mise de côté dans une provision. |
 | Financé par l'épargne | `Expense.savingsDraw` / `savingsDraw` | Attribut / Valeur dérivée | Part d'une dépense sur provision qui excède son solde (attribut de la dépense), ou reliquat négatif d'un mois à sa clôture (valeur dérivée du mois). |
-| Répartition du reliquat | `LeftoverAllocation` | Entité | Affectation du reliquat, à la clôture, vers l'épargne ou une provision. |
-| Archiver | `archive()` | Action | Retire un élément du paramétrage sans effacer son historique. |
+| Répartition du reliquat | `LeftoverAllocation` | Entité | Affectation du reliquat, à la clôture, vers l'épargne, une provision, une enveloppe variable (bonus, voir Bonus d'enveloppe) ou sans destination (report, voir Report). |
+| Archiver | `archive()` | Action | Fixe la date d'archivage (`archivedFrom`) d'un poste fixe, d'une enveloppe variable ou d'une provision, sans effacer son historique (R8). |
+| Désarchiver | `unarchive()` | Action | Annule l'archivage d'un élément tant que sa date d'archivage (`archivedFrom`) n'a pas encore pris effet (R8). |

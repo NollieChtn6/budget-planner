@@ -25,11 +25,11 @@ Chaque règle a un identifiant stable, référencé dans la spec, le code et les
 - Mois suivant : le mois ouvert n'est pas touché.
 - Les mois clôturés ne sont jamais affectés (R6).
 
-**R8.** Supprimer un élément qui apparaît dans un mois existant l'archive au lieu de l'effacer. Un élément sans historique est réellement supprimé.
+**R8.** Supprimer un poste fixe, une enveloppe variable ou une provision qui apparaît dans un mois existant l'archive au lieu de l'effacer ; un élément sans historique est réellement supprimé. L'archivage fixe une date d'effet `archivedFrom`, choisie comme pour une modification de paramétrage (R7) : le mois en cours, seulement si l'élément n'a encore aucune opération (dépense, versement ou pointage) ce mois-là, sinon le mois suivant. *Tant que `BudgetMonth` n'existe pas, cette vérification est toujours vraie : l'archivage au mois en cours reste donc toujours autorisé.* À partir d'`archivedFrom`, l'élément n'est plus proposé pour de nouvelles opérations, mais les mois antérieurs restent inchangés. Il peut être désarchivé (`unarchive()`) tant qu'`archivedFrom` est postérieur au mois en cours, ce qui annule simplement la date d'archivage.
 
 ## Reste à vivre et enveloppes variables
 
-**R9.** `reste à vivre = revenu du mois − Σ postes fixes`, charges et épargne programmée comprises. Les provisions ne sont pas déduites : leurs cibles sont des objectifs, financés par ce que l'utilisatrice parvient à mettre de côté.
+**R9.** `reste à vivre = revenu du mois + report − Σ postes fixes`, charges et épargne programmée comprises. Les provisions ne sont pas déduites : leurs cibles sont des objectifs, financés par ce que l'utilisatrice parvient à mettre de côté. Le report (R32) est 0 si rien n'a été reporté le mois précédent.
 
 **R10.** Une enveloppe en mode montant reçoit sa valeur telle quelle.
 
@@ -88,7 +88,11 @@ Une réserve vidée ne déclenche aucune question : elle se réalimente selon R2
 
 **R24.** `reliquat = Σ restants des enveloppes variables`, restants négatifs compris.
 
-**R25.** Le reliquat peut être réparti vers l'épargne ou vers des provisions. Une répartition vers une provision crée un versement daté du jour de la clôture. Si le total réparti dépasse le reliquat, un avertissement s'affiche sans bloquer.
+**R25.** Le reliquat peut être réparti vers l'épargne, vers des provisions, vers des enveloppes variables, ou laissé sans destination (report). Une répartition vers une provision crée un versement daté du jour de la clôture ; une répartition vers une enveloppe variable ou un report ne prend effet qu'à l'ouverture du mois suivant (R31, R32). Si le total réparti dépasse le reliquat, un avertissement s'affiche sans bloquer.
+
+**R31.** Une répartition du reliquat vers une enveloppe variable ajoute son montant au budget de cette enveloppe pour le mois suivant uniquement (bonus d'enveloppe), affiché séparément du budget normal ; elle ne modifie pas le paramétrage de l'enveloppe. L'enveloppe cible doit être active au mois suivant (non archivée à cette date), indépendamment de sa présence dans l'instantané du mois clôturé.
+
+**R32.** Une répartition du reliquat sans destination (report) s'ajoute au revenu disponible du mois suivant : elle entre dans le calcul du reste à vivre (R9), de la base de répartition (R11) et de la marge prévisionnelle (R14), sans modifier `BudgetMonth.income`.
 
 **R26.** Une fois la répartition validée, le mois est clôturé (R6).
 
@@ -107,6 +111,8 @@ Une réserve vidée ne déclenche aucune question : elle se réalimente selon R2
 - La répartition du reliquat est conservée, puis revalidée à la nouvelle clôture, le reliquat ayant pu changer (R24, R25).
 - Les instantanés des mois suivants ne sont pas modifiés : une correction qui change le solde d'une provision se répercute sur sa cible à la prochaine ouverture (R18).
 
+**R33.** Si le mois suivant est déjà ouvert, les lignes de répartition du reliquat vers une enveloppe variable ou un report ne sont plus modifiables lors d'une reclôture : leur effet est déjà figé dans l'instantané du mois suivant (R5/R6, R31, R32). Les répartitions vers l'épargne ou une provision restent modifiables normalement.
+
 ## Exemples
 
 Données de référence : revenu 2 800 € ; charges 1 400 € (loyer 1 000, internet 50, téléphone 20, salle 30, coaching 200, Netflix 20, mutuelle 35, transports 45) ; épargne programmée 400 € (assurance vie 100, livret A 300) ; Vie quotidienne 150 € ; Sorties et loisirs 15 % ; Achats plaisir 15 % ; Orthodontie à échéance, 400 € sur 6 mois ; Vacances à échéance, 700 € sur 10 mois ; Imprévus en réserve, plafond 250 €, mensualité 50 €.
@@ -116,7 +122,7 @@ Données de référence : revenu 2 800 € ; charges 1 400 € (loyer 1 000, int
 | E1 | R9 | Ouverture du mois | Reste à vivre 1 000 € |
 | E2 | R10, R11, R12 | Enveloppes | Base 850 € ; Sorties 127,50 € ; Plaisir 127,50 € ; non attribué 595 € |
 | E3 | R18 | Cibles au premier mois | Orthodontie 66,67 € ; Vacances 70 € |
-| E4 | R14 | Marge | 1 000 − 405 − 136,67 = 458,33 € |
+| E4 | R14 | Marge | 1 000 − 405 − 186,67 = 408,33 € |
 | E5 | R19 | Versement de 100 € sur Orthodontie | Avance 33,33 € ; cible du mois inchangée |
 | E6 | R18 | Mois suivant, solde 100 € | Cible Orthodontie = 300 / 5 = 60 € |
 | E7 | R2, R18 | Versements exacts de 66,67 € pendant 5 mois | Cible du 6e mois = 66,65 € |

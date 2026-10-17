@@ -13,14 +13,14 @@ Ce document décrit **ce que fait l'app et pour qui**. Le reste est ailleurs :
 | `domain/glossary.md` | Vocabulaire, et nom de chaque concept dans le code |
 | `domain/rules.md` | Règles métier, formules et exemples chiffrés (base des tests) |
 | `domain/model.md` | Entités, relations et cycles de vie |
-| `domain/architecture.md` | Vue d'ensemble technique : paquets, parcours types, responsabilités |
-| `adr/` | Décisions techniques, une par fichier |
+| `architecture.md` | Vue d'ensemble technique : paquets, parcours types, responsabilités |
+| `../adr/` | Décisions techniques, une par fichier |
 
 Les renvois `R…` pointent vers `rules.md`.
 
 ## Parcours utilisateur
 
-L'app a une seule utilisatrice, qui doit s'authentifier pour accéder à ses données (voir `adr/0008-single-user-authentication.md`).
+L'app a une seule utilisatrice, qui doit s'authentifier pour accéder à ses données (voir `../adr/0008-single-user-authentication.md`).
 
 ### Paramétrage initial
 
@@ -49,18 +49,22 @@ Quand la dépense prévue arrive (paiement de l'orthodontiste, imprévu), elle e
 
 ### Clôture du mois
 
-L'utilisatrice clôture le mois : l'app affiche le reliquat de chaque enveloppe variable et le total (R24). Elle le répartit vers l'épargne ou des provisions (R25). Un reliquat négatif est enregistré comme financé par l'épargne (R30). Le mois est ensuite verrouillé (R26).
+L'utilisatrice clôture le mois : l'app affiche le reliquat de chaque enveloppe variable et le total (R24). Elle le répartit vers l'épargne, des provisions, des enveloppes variables (bonus du mois suivant, R31), ou le laisse sans destination pour qu'il profite au mois suivant (report, R32) (R25). Un reliquat négatif est enregistré comme financé par l'épargne (R30). Le mois est ensuite verrouillé (R26).
 
 En cas d'erreur découverte après coup, elle peut rouvrir le dernier mois clôturé, corriger ses opérations, puis le clôturer à nouveau (R29).
 
 ## Écrans V1
 
 - **Connexion**, et gestion des moyens d'authentification.
-- **Dashboard du mois** : reste à vivre, marge prévisionnelle, enveloppes variables avec niveau d'alerte, provisions avec progression et statut, pointage.
+- **Navigation** : rubriques fixes, sans entrée par mois : Ce mois-ci, Opérations, Provisions, Historique, Paramètres.
+- **Ce mois-ci** : toujours le mois actif. Écran d'ouverture s'il n'est pas ouvert ; sinon le dashboard, avec un rappel de clôture quand le mois du calendrier a dépassé le mois actif.
+- **Dashboard du mois** : ce qu'il reste ce mois-ci, reste à vivre, marge prévisionnelle, enveloppes variables avec niveau d'alerte, provisions avec progression et statut, pointage.
+- **Historique** : mois clôturés groupés par année, avec totaux annuels ; chaque mois s'ouvre en lecture seule, et seul le dernier mois clôturé propose la réouverture (R29).
+- **Provisions** : une carte par provision, avec versement et dépense directs.
 - **Saisie rapide** : dépense ou versement, optimisée pour le mobile.
 - **Paramètres** : postes fixes, enveloppes, provisions, catégories.
 - **Ouverture** et **clôture** du mois.
-- **Liste des opérations** du mois, modifiables tant que le mois est ouvert.
+- **Liste des opérations** d'un mois au choix (mois actif par défaut), avec recherche et filtre par catégorie ; modifiables uniquement pour le mois actif ouvert.
 
 ## Périmètre
 

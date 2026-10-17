@@ -9,3 +9,412 @@ datasource db {
 
 // Modèles ajoutés au fil des fonctionnalités, un par entité de
 // docs/domain/model.md (voir docs/adr/0009-postgresql-and-prisma.md).
+
+// Modèles d'authentification (Better Auth), voir docs/adr/0008-single-user-authentication.md.
+// Noms de modèles et de champs alignés sur les clés internes de Better Auth
+// (apps/web/lib/auth.ts) : ne pas renommer sans mettre à jour la config Better Auth.
+
+model User {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name             String
+  email            String   @unique
+  emailVerified    Boolean  @default(false) @map("email_verified")
+  image            String?
+  twoFactorEnabled Boolean? @default(false) @map("two_factor_enabled")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  sessions          Session[]
+  accounts          Account[]
+  twoFactors        TwoFactor[]
+  variableEnvelopes VariableEnvelope[]
+  fixedEntries      FixedEntry[]
+  provisions        Provision[]
+  budgetMonths      BudgetMonth[]
+  categories        Category[]
+  expenses          Expense[]
+  contributions     Contribution[]
+
+  @@map("users")
+}
+
+model Session {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  expiresAt DateTime @map("expires_at")
+  token     String   @unique
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  ipAddress String?  @map("ip_address")
+  userAgent String?  @map("user_agent")
+  userId    String   @map("user_id") @db.Uuid
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+model Account {
+  id                    String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  accountId             String    @map("account_id")
+  providerId            String    @map("provider_id")
+  userId                String    @map("user_id") @db.Uuid
+  accessToken           String?   @map("access_token")
+  refreshToken          String?   @map("refresh_token")
+  idToken               String?   @map("id_token")
+  accessTokenExpiresAt  DateTime? @map("access_token_expires_at")
+  refreshTokenExpiresAt DateTime? @map("refresh_token_expires_at")
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("accounts")
+}
+
+model Verification {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  identifier String
+  value      String
+  expiresAt  DateTime @map("expires_at")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@index([identifier])
+  @@map("verifications")
+}
+
+// Ajouté par le plugin two-factor de Better Auth.
+model TwoFactor {
+  id                      String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  secret                  String
+  backupCodes             String    @map("backup_codes")
+  userId                  String    @map("user_id") @db.Uuid
+  verified                Boolean?  @default(true)
+  failedVerificationCount Int?      @default(0) @map("failed_verification_count")
+  lockedUntil             DateTime? @map("locked_until")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([secret])
+  @@index([userId])
+  @@map("two_factors")
+}
+
+// Paramétrage des enveloppes variables (docs/domain/model.md), voir
+// docs/adr/0011-user-scoped-repositories.md pour la convention userId.
+
+enum VariableEnvelopeVersionMode {
+  amount
+  percentage
+
+  @@map("variable_envelope_version_mode")
+}
+
+model VariableEnvelope {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId       String    @map("user_id") @db.Uuid
+  label        String
+  archivedFrom DateTime? @map("archived_from") @db.Date
+
+  user                 User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  versions             VariableEnvelopeVersion[]
+  snapshotBudgets      SnapshotEnvelopeBudget[]
+  expenses             Expense[]
+  defaultForCategories Category[]
+  leftoverAllocations  LeftoverAllocation[]
+
+  @@index([userId])
+  @@map("variable_envelopes")
+}
+
+model VariableEnvelopeVersion {
+  envelopeId    String                      @map("envelope_id") @db.Uuid
+  effectiveFrom DateTime                    @map("effective_from") @db.Date
+  mode          VariableEnvelopeVersionMode
+  amountCents   Int?                        @map("amount_cents")
+  percentage    Int?
+
+  envelope VariableEnvelope @relation(fields: [envelopeId], references: [id], onDelete: Cascade)
+
+  @@id([envelopeId, effectiveFrom])
+  @@map("variable_envelope_versions")
+}
+
+// Paramétrage des postes fixes (docs/domain/model.md).
+
+enum FixedEntryType {
+  charge
+  scheduledSaving
+
+  @@map("fixed_entry_type")
+}
+
+model FixedEntry {
+  id           String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId       String         @map("user_id") @db.Uuid
+  label        String
+  type         FixedEntryType
+  archivedFrom DateTime?      @map("archived_from") @db.Date
+
+  user            User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  versions        FixedEntryVersion[]
+  snapshotEntries SnapshotFixedEntry[]
+
+  @@index([userId])
+  @@map("fixed_entries")
+}
+
+model FixedEntryVersion {
+  fixedEntryId  String   @map("fixed_entry_id") @db.Uuid
+  effectiveFrom DateTime @map("effective_from") @db.Date
+  amountCents   Int      @map("amount_cents")
+
+  fixedEntry FixedEntry @relation(fields: [fixedEntryId], references: [id], onDelete: Cascade)
+
+  @@id([fixedEntryId, effectiveFrom])
+  @@map("fixed_entry_versions")
+}
+
+// Paramétrage des provisions (docs/domain/model.md). Contrairement à
+// FixedEntry/VariableEnvelope, non versionné : target/durationMonths/
+// monthlyAmount se modifient par remplacement direct (voir issue #9).
+
+enum ProvisionType {
+  deadline
+  reserve
+
+  @@map("provision_type")
+}
+
+enum ProvisionStatus {
+  active
+  late
+  closed
+
+  @@map("provision_status")
+}
+
+model Provision {
+  id                 String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId             String          @map("user_id") @db.Uuid
+  label              String
+  type               ProvisionType
+  targetCents        Int             @map("target_cents")
+  status             ProvisionStatus @default(active)
+  startMonth         DateTime?       @map("start_month") @db.Date
+  durationMonths     Int?            @map("duration_months")
+  monthlyAmountCents Int?            @map("monthly_amount_cents")
+  archivedFrom       DateTime?       @map("archived_from") @db.Date
+  previousCycleId    String?         @unique @map("previous_cycle_id") @db.Uuid
+  closedAt           DateTime?       @map("closed_at")
+
+  user                User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  previousCycle       Provision?                @relation("ProvisionRenewal", fields: [previousCycleId], references: [id], onDelete: SetNull)
+  nextCycle           Provision?                @relation("ProvisionRenewal")
+  snapshotTargets     SnapshotProvisionTarget[]
+  expenses            Expense[]
+  contributions       Contribution[]
+  leftoverAllocations LeftoverAllocation[]
+
+  @@index([userId])
+  @@map("provisions")
+}
+
+// Catégories (docs/domain/model.md). Non versionnées et non figées dans un
+// instantané de mois : contrairement à FixedEntry/VariableEnvelope/Provision,
+// leur archivage n'a pas de date d'effet (R7/R8 ne s'appliquent pas).
+
+model Category {
+  id                String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId            String  @map("user_id") @db.Uuid
+  label             String
+  color             String
+  defaultEnvelopeId String? @map("default_envelope_id") @db.Uuid
+  archived          Boolean @default(false)
+
+  user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  defaultEnvelope VariableEnvelope? @relation(fields: [defaultEnvelopeId], references: [id], onDelete: SetNull)
+  expenses        Expense[]
+
+  @@index([userId])
+  @@map("categories")
+}
+
+// Ouverture du mois (docs/domain/model.md) : BudgetMonth et les trois
+// collections de son instantané (ADR-0003). Les lignes d'instantané ne
+// portent pas leur propre userId : l'isolation passe par la relation vers
+// leur BudgetMonth parent, comme pour FixedEntryVersion/VariableEnvelopeVersion
+// (docs/adr/0011-user-scoped-repositories.md).
+
+enum BudgetMonthStatus {
+  open
+  closed
+
+  @@map("budget_month_status")
+}
+
+enum PointageStatus {
+  planned
+  done
+
+  @@map("pointage_status")
+}
+
+model BudgetMonth {
+  id          String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId      String            @map("user_id") @db.Uuid
+  month       DateTime          @db.Date
+  status      BudgetMonthStatus @default(open)
+  incomeCents Int               @map("income_cents")
+  openedAt    DateTime          @default(now()) @map("opened_at")
+  closedAt    DateTime?         @map("closed_at")
+  reopenedAt  DateTime?         @map("reopened_at")
+
+  user                User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fixedEntries        SnapshotFixedEntry[]
+  envelopeBudgets     SnapshotEnvelopeBudget[]
+  provisionTargets    SnapshotProvisionTarget[]
+  leftoverAllocations LeftoverAllocation[]
+
+  @@unique([userId, month])
+  @@index([userId])
+  @@map("budget_months")
+}
+
+model SnapshotFixedEntry {
+  budgetMonthId String         @map("budget_month_id") @db.Uuid
+  fixedEntryId  String         @map("fixed_entry_id") @db.Uuid
+  label         String
+  type          FixedEntryType
+  amountCents   Int            @map("amount_cents")
+  status        PointageStatus @default(planned)
+
+  budgetMonth BudgetMonth @relation(fields: [budgetMonthId], references: [id], onDelete: Cascade)
+  fixedEntry  FixedEntry  @relation(fields: [fixedEntryId], references: [id], onDelete: Cascade)
+
+  @@id([budgetMonthId, fixedEntryId])
+  @@map("snapshot_fixed_entries")
+}
+
+model SnapshotEnvelopeBudget {
+  budgetMonthId String                      @map("budget_month_id") @db.Uuid
+  envelopeId    String                      @map("envelope_id") @db.Uuid
+  label         String
+  mode          VariableEnvelopeVersionMode
+  amountCents   Int?                        @map("amount_cents")
+  percentage    Int?
+  budgetCents   Int                         @map("budget_cents")
+
+  budgetMonth BudgetMonth      @relation(fields: [budgetMonthId], references: [id], onDelete: Cascade)
+  envelope    VariableEnvelope @relation(fields: [envelopeId], references: [id], onDelete: Cascade)
+
+  @@id([budgetMonthId, envelopeId])
+  @@map("snapshot_envelope_budgets")
+}
+
+model SnapshotProvisionTarget {
+  budgetMonthId String @map("budget_month_id") @db.Uuid
+  provisionId   String @map("provision_id") @db.Uuid
+  label         String
+  targetCents   Int    @map("target_cents")
+
+  budgetMonth BudgetMonth @relation(fields: [budgetMonthId], references: [id], onDelete: Cascade)
+  provision   Provision   @relation(fields: [provisionId], references: [id], onDelete: Cascade)
+
+  @@id([budgetMonthId, provisionId])
+  @@map("snapshot_provision_targets")
+}
+
+// Clôture du mois (R24-R26, R30-R33 ; docs/domain/model.md). Une répartition
+// vers une provision crée en plus un Contribution d'origine "closing" (R25) ;
+// une répartition vers une enveloppe (bonus, R31) ou sans destination
+// (report, R32) ne prend effet qu'à la lecture du mois suivant — jamais
+// stockée ailleurs (ADR-0005), toujours recalculée depuis ces lignes.
+
+enum LeftoverAllocationDestination {
+  savings
+  provision
+  envelope
+  report
+
+  @@map("leftover_allocation_destination")
+}
+
+model LeftoverAllocation {
+  id            String                        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  budgetMonthId String                        @map("budget_month_id") @db.Uuid
+  provisionId   String?                       @map("provision_id") @db.Uuid
+  envelopeId    String?                       @map("envelope_id") @db.Uuid
+  destination   LeftoverAllocationDestination
+  amountCents   Int                           @map("amount_cents")
+
+  budgetMonth BudgetMonth       @relation(fields: [budgetMonthId], references: [id], onDelete: Cascade)
+  // Cascade, unlike Expense/Contribution's Restrict on the same relation:
+  // this row is a record of a closing-time decision, not an active ledger
+  // entry (the balance-affecting side is the Contribution it creates), so
+  // nothing reads it back yet — and Restrict here deadlocks User cascade
+  // deletes, since it sits two hops away (User -> Provision is one hop).
+  provision   Provision?        @relation(fields: [provisionId], references: [id], onDelete: Cascade)
+  envelope    VariableEnvelope? @relation(fields: [envelopeId], references: [id], onDelete: Cascade)
+
+  @@index([budgetMonthId])
+  @@map("leftover_allocations")
+}
+
+// Opérations (docs/domain/model.md). Une dépense est imputable à une
+// enveloppe variable ou à une provision.
+
+model Expense {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId           String   @map("user_id") @db.Uuid
+  envelopeId       String?  @map("envelope_id") @db.Uuid
+  provisionId      String?  @map("provision_id") @db.Uuid
+  categoryId       String   @map("category_id") @db.Uuid
+  date             DateTime @db.Date
+  amountCents      Int      @map("amount_cents")
+  savingsDrawCents Int      @default(0) @map("savings_draw_cents")
+  place            String?
+  description      String?
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  envelope  VariableEnvelope? @relation(fields: [envelopeId], references: [id], onDelete: Restrict)
+  provision Provision?        @relation(fields: [provisionId], references: [id], onDelete: Restrict)
+  category  Category          @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+
+  @@index([userId])
+  @@index([envelopeId])
+  @@index([provisionId])
+  @@index([categoryId])
+  @@map("expenses")
+}
+
+// R19/R22/R28 : versements vers une provision (docs/domain/model.md).
+
+enum ContributionOrigin {
+  manual
+  closing
+
+  @@map("contribution_origin")
+}
+
+model Contribution {
+  id          String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId      String             @map("user_id") @db.Uuid
+  provisionId String             @map("provision_id") @db.Uuid
+  date        DateTime           @db.Date
+  amountCents Int                @map("amount_cents")
+  origin      ContributionOrigin @default(manual)
+  createdAt   DateTime           @default(now()) @map("created_at")
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  provision Provision @relation(fields: [provisionId], references: [id], onDelete: Restrict)
+
+  @@index([userId])
+  @@index([provisionId])
+  @@map("contributions")
+}

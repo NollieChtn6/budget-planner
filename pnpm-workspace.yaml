@@ -11,3 +11,4 @@ onlyBuiltDependencies:
   - "@prisma/engines"
   - prisma
   - "@node-rs/argon2"
+  - esbuild

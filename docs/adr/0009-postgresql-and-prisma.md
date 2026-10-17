@@ -16,7 +16,7 @@ PostgreSQL avec Prisma ORM, schéma et migrations dans `packages/db`, selon ces 
 - mois stockés en `DateTime @db.Date` au premier jour du mois ([ADR-0007](0007-time-representation.md)) ;
 - énumérations en enums Prisma, qui génèrent les types TypeScript ;
 - source d'une dépense : deux relations optionnelles `envelopeId` et `provisionId` ;
-- contraintes non exprimables dans le schéma Prisma ajoutées en SQL dans les migrations (`prisma migrate dev --create-only`, puis édition) : montants positifs, premier jour du mois, exactement une source par dépense ;
+- contraintes non exprimables dans le schéma Prisma ajoutées en SQL dans les migrations (`prisma migrate dev --create-only`, puis édition) : montants positifs, premier jour du mois, exactement une source par dépense, format `#RRGGBB` des couleurs de catégorie ;
 - schéma modifié uniquement par migration Prisma ; jamais de `prisma db push` hors développement jetable.
 
 ## Conséquences

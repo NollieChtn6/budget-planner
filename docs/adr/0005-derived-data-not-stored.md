@@ -9,7 +9,7 @@ Stocker un solde à côté des opérations qui le produisent crée un risque d'i
 
 ## Décision
 
-Soldes, restants et indicateurs sont recalculés à partir des opérations et de l'instantané. Seule exception : la cible du mois, figée à l'ouverture ([ADR-0003](0003-monthly-snapshot.md)).
+Soldes, restants et indicateurs sont recalculés à partir des opérations et de l'instantané. Seules exceptions : le budget d'une enveloppe variable et la cible d'une provision, figés à l'ouverture dans l'instantané du mois ([ADR-0003](0003-monthly-snapshot.md)).
 
 ## Conséquences
 

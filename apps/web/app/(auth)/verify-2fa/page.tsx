@@ -41,9 +41,6 @@ export default function VerifyTwoFactorPage() {
 
   function handleOtpChange(value: string) {
     setCode(value);
-    if (value.length === 6 && !pending) {
-      verify(value);
-    }
   }
 
   return (

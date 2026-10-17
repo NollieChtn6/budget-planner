@@ -1,34 +1,27 @@
 import Link from "next/link";
-import { AppNav } from "@/components/app-nav";
-import { SignOutButton } from "@/components/sign-out-button";
-import { ThemeToggle } from "@/components/theme-toggle";
+import { AppSidebarContent } from "@/components/app-sidebar-content";
+import { MobileNav } from "@/components/mobile-nav";
 import { requireSession } from "@/lib/session";
-import packageJson from "@/package.json";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   await requireSession();
 
   return (
-    <div className="grid min-h-screen grid-cols-[224px_minmax(0,1fr)]">
-      <aside className="sticky top-0 flex h-screen flex-col gap-1 border-r bg-card p-4">
-        <Link
-          href="/"
-          className="mb-5 flex items-center gap-2 px-2 font-heading text-2xl tracking-tight"
-        >
+    <div className="grid min-h-screen grid-cols-1 md:grid-cols-[224px_minmax(0,1fr)]">
+      <aside className="sticky top-0 z-40 hidden h-screen flex-col gap-1 border-r bg-card p-4 md:flex">
+        <AppSidebarContent />
+      </aside>
+      <header className="sticky top-0 z-40 flex items-center justify-between border-b bg-card px-4 py-3 md:hidden">
+        <Link href="/" className="flex items-center gap-2 font-heading text-xl tracking-tight">
           {/* biome-ignore lint/performance/noImgElement: static brand mark, self-adapts to the theme via its own embedded media query */}
           <img src="/icon.svg" alt="" className="h-6 w-6" />
           Pécule
         </Link>
-        <AppNav />
-        <div className="mt-auto flex flex-col gap-2">
-          <div className="flex items-center justify-between gap-2">
-            <SignOutButton />
-            <ThemeToggle />
-          </div>
-          <p className="px-2 text-xs text-muted-foreground">v{packageJson.version}</p>
-        </div>
-      </aside>
-      <main className="mx-auto w-full max-w-5xl px-10 py-9">{children}</main>
+        <MobileNav />
+      </header>
+      <main className="mx-auto w-full max-w-5xl px-4 py-6 sm:px-6 md:px-10 md:py-9">
+        {children}
+      </main>
     </div>
   );
 }

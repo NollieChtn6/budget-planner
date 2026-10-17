@@ -8,7 +8,7 @@ import { twoFactor } from "better-auth/plugins";
 
 /**
  * Factory rather than a bare instance so tests can point the same
- * configuration at a different database (see scripts/create-user.test.ts).
+ * configuration at a different database (see lib/create-user.test.ts).
  */
 export function createAuth(prismaClient: PrismaClient) {
   return betterAuth({
@@ -25,7 +25,7 @@ export function createAuth(prismaClient: PrismaClient) {
     emailAndPassword: {
       enabled: true,
       // Pas d'inscription publique (ADR-0008) : le compte unique est créé par
-      // scripts/create-user.ts via l'API interne de Better Auth, pas ce endpoint.
+      // scripts/create-user.ts et /setup, via l'API interne de Better Auth, pas ce endpoint.
       disableSignUp: true,
       password: {
         hash: (password) => hash(password),

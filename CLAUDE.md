@@ -107,7 +107,11 @@ Route principale :
 
 - `/sign-in` — connexion
 
-Pas d'inscription pour le moment.
+Route de provisioning (one-time) :
+
+- `/setup` — création du compte unique, protégée par jeton (`SETUP_TOKEN`), fonctionnelle uniquement tant qu'aucun compte n'existe (voir [ADR-0008](docs/adr/0008-single-user-authentication.md))
+
+Pas d'inscription publique.
 
 ### Validation
 

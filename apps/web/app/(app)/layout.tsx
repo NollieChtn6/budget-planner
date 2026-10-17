@@ -3,6 +3,7 @@ import { AppNav } from "@/components/app-nav";
 import { SignOutButton } from "@/components/sign-out-button";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { requireSession } from "@/lib/session";
+import packageJson from "@/package.json";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   await requireSession();
@@ -19,9 +20,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           Pécule
         </Link>
         <AppNav />
-        <div className="mt-auto flex items-center justify-between gap-2">
-          <SignOutButton />
-          <ThemeToggle />
+        <div className="mt-auto flex flex-col gap-2">
+          <div className="flex items-center justify-between gap-2">
+            <SignOutButton />
+            <ThemeToggle />
+          </div>
+          <p className="px-2 text-xs text-muted-foreground">v{packageJson.version}</p>
         </div>
       </aside>
       <main className="mx-auto w-full max-w-5xl px-10 py-9">{children}</main>

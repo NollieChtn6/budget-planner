@@ -33,7 +33,11 @@ const THEME_INIT_SCRIPT = `(function(){try{var s=localStorage.getItem("theme");v
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="fr" className={`${sans.variable} ${serif.variable} h-full antialiased`}>
+    <html
+      lang="fr"
+      className={`${sans.variable} ${serif.variable} h-full antialiased`}
+      suppressHydrationWarning
+    >
       <head>
         {/* biome-ignore lint/security/noDangerouslySetInnerHtml: static inline script, no user input, needed before hydration to avoid a theme flash */}
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />

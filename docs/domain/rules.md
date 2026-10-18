@@ -27,6 +27,8 @@ Chaque règle a un identifiant stable, référencé dans la spec, le code et les
 
 **R8.** Supprimer un poste fixe, une enveloppe variable ou une provision qui apparaît dans un mois existant l'archive au lieu de l'effacer ; un élément sans historique est réellement supprimé. L'archivage fixe une date d'effet `archivedFrom`, choisie comme pour une modification de paramétrage (R7) : le mois en cours, seulement si l'élément n'a encore aucune opération (dépense, versement ou pointage) ce mois-là, sinon le mois suivant. *Tant que `BudgetMonth` n'existe pas, cette vérification est toujours vraie : l'archivage au mois en cours reste donc toujours autorisé.* À partir d'`archivedFrom`, l'élément n'est plus proposé pour de nouvelles opérations, mais les mois antérieurs restent inchangés. Il peut être désarchivé (`unarchive()`) tant qu'`archivedFrom` est postérieur au mois en cours, ce qui annule simplement la date d'archivage.
 
+**R34.** Une provision nouvellement active ce mois-ci (création, ou désarchivage avant son `archivedFrom`) voit sa cible ajoutée à l'instantané du mois déjà ouvert, calculée comme à l'ouverture (R5, R18/R21). Une cible déjà présente dans l'instantané n'est jamais recalculée en cours de mois, même si le solde de la provision a changé depuis (R19) ; une provision archivée ce mois-ci en sort symétriquement (R8).
+
 ## Reste à vivre et enveloppes variables
 
 **R9.** `reste à vivre = revenu du mois + report − Σ postes fixes`, charges et épargne programmée comprises. Les provisions ne sont pas déduites : leurs cibles sont des objectifs, financés par ce que l'utilisatrice parvient à mettre de côté. Le report (R32) est 0 si rien n'a été reporté le mois précédent.

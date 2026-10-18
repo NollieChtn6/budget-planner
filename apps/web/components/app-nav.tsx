@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { Kbd } from "@/components/ui/kbd";
 import { cn } from "@/lib/utils";
 
-const NAV_ITEMS = [
+export const NAV_ITEMS = [
   { href: "/", label: "Ce mois-ci" },
   { href: "/operations", label: "Opérations" },
   { href: "/provisions", label: "Provisions" },
@@ -23,7 +24,7 @@ export function AppNav() {
 
   return (
     <nav className="flex flex-col gap-0.5" aria-label="Navigation principale">
-      {NAV_ITEMS.map((item) => {
+      {NAV_ITEMS.map((item, index) => {
         const current = isActive(pathname, item.href);
         return (
           <Link
@@ -31,11 +32,12 @@ export function AppNav() {
             href={item.href}
             aria-current={current ? "page" : undefined}
             className={cn(
-              "rounded-lg px-2.5 py-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground",
+              "flex items-center justify-between gap-2 rounded-lg px-2.5 py-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground",
               current && "bg-muted font-semibold text-foreground",
             )}
           >
             {item.label}
+            <Kbd>{index + 1}</Kbd>
           </Link>
         );
       })}

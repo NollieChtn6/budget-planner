@@ -4,10 +4,11 @@ import {
   createCategory,
   findCategoryById,
   findVariableEnvelopesByUser,
+  persistCategoryUpdate,
   prisma,
   setCategoryArchived,
 } from "@budget/db";
-import { archiveCategory, unarchiveCategory } from "@budget/domain";
+import { archiveCategory, unarchiveCategory, updateCategory } from "@budget/domain";
 import { revalidatePath } from "next/cache";
 import type { VariableEnvelopeActionState } from "@/actions/variable-envelope-state";
 import { isEnvelopeActive } from "@/lib/active-envelopes";
@@ -18,9 +19,27 @@ import {
   createCategorySchema,
   NO_DEFAULT_ENVELOPE,
   unarchiveCategorySchema,
+  updateCategorySchema,
 } from "@/schemas/category";
 
 const CATEGORIES_PATH = "/settings/categories";
+
+/** Resolves the Select's "none" sentinel and checks the envelope exists and is active this month. */
+async function resolveDefaultEnvelopeId(
+  userId: string,
+  rawDefaultEnvelopeId: string,
+): Promise<{ defaultEnvelopeId: string | undefined } | { message: string }> {
+  if (rawDefaultEnvelopeId === NO_DEFAULT_ENVELOPE) {
+    return { defaultEnvelopeId: undefined };
+  }
+  const currentMonth = resolveCurrentMonth();
+  const envelopes = await findVariableEnvelopesByUser(prisma, userId);
+  const envelope = envelopes.find((e) => e.id === rawDefaultEnvelopeId);
+  if (!envelope || !isEnvelopeActive(envelope, currentMonth)) {
+    return { message: "Enveloppe par défaut introuvable." };
+  }
+  return { defaultEnvelopeId: rawDefaultEnvelopeId };
+}
 
 export async function createCategoryAction(
   _prevState: VariableEnvelopeActionState,
@@ -32,27 +51,52 @@ export async function createCategoryAction(
     return { status: "error", message: parsed.error.issues[0]?.message ?? "Entrée invalide." };
   }
 
-  const defaultEnvelopeId =
-    parsed.data.defaultEnvelopeId === NO_DEFAULT_ENVELOPE
-      ? undefined
-      : parsed.data.defaultEnvelopeId;
-
-  if (defaultEnvelopeId) {
-    const currentMonth = resolveCurrentMonth();
-    const envelopes = await findVariableEnvelopesByUser(prisma, session.user.id);
-    const envelope = envelopes.find((e) => e.id === defaultEnvelopeId);
-    if (!envelope || !isEnvelopeActive(envelope, currentMonth)) {
-      return { status: "error", message: "Enveloppe par défaut introuvable." };
-    }
+  const resolved = await resolveDefaultEnvelopeId(session.user.id, parsed.data.defaultEnvelopeId);
+  if ("message" in resolved) {
+    return { status: "error", message: resolved.message };
   }
 
   await createCategory(prisma, session.user.id, {
     label: parsed.data.label,
     color: parsed.data.color,
-    defaultEnvelopeId,
+    defaultEnvelopeId: resolved.defaultEnvelopeId,
   });
   revalidatePath(CATEGORIES_PATH);
   return { status: "success", message: "Catégorie créée." };
+}
+
+export async function updateCategoryAction(
+  _prevState: VariableEnvelopeActionState,
+  formData: FormData,
+): Promise<VariableEnvelopeActionState> {
+  const session = await requireSession();
+  const parsed = updateCategorySchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) {
+    return { status: "error", message: parsed.error.issues[0]?.message ?? "Entrée invalide." };
+  }
+
+  const category = await findCategoryById(prisma, session.user.id, parsed.data.categoryId);
+  if (!category) {
+    return { status: "error", message: "Catégorie introuvable." };
+  }
+
+  const resolved = await resolveDefaultEnvelopeId(session.user.id, parsed.data.defaultEnvelopeId);
+  if ("message" in resolved) {
+    return { status: "error", message: resolved.message };
+  }
+
+  const updated = updateCategory(category, {
+    label: parsed.data.label,
+    color: parsed.data.color,
+    defaultEnvelopeId: resolved.defaultEnvelopeId,
+  });
+  await persistCategoryUpdate(prisma, session.user.id, parsed.data.categoryId, {
+    label: updated.label,
+    color: updated.color,
+    defaultEnvelopeId: updated.defaultEnvelopeId,
+  });
+  revalidatePath(CATEGORIES_PATH);
+  return { status: "success", message: "Catégorie modifiée." };
 }
 
 export async function archiveCategoryAction(

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { AppSidebarContent } from "@/components/app-sidebar-content";
+import { KeyboardShortcuts } from "@/components/keyboard-shortcuts";
 import { MobileNav } from "@/components/mobile-nav";
 import { requireSession } from "@/lib/session";
 
@@ -8,6 +9,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="grid min-h-screen grid-cols-1 md:grid-cols-[224px_minmax(0,1fr)]">
+      <KeyboardShortcuts />
       <aside className="sticky top-0 z-40 hidden h-screen flex-col gap-1 border-r bg-card p-4 md:flex">
         <AppSidebarContent />
       </aside>

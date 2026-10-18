@@ -35,6 +35,31 @@ export async function createCategory(
   return toDomainCategory(row);
 }
 
+export async function persistCategoryUpdate(
+  prisma: PrismaClient,
+  userId: string,
+  categoryId: string,
+  input: { label: string; color: string; defaultEnvelopeId?: string },
+): Promise<Category> {
+  const updated = await prisma.category.updateMany({
+    where: { id: categoryId, userId },
+    data: {
+      label: input.label,
+      color: input.color,
+      defaultEnvelopeId: input.defaultEnvelopeId ?? null,
+    },
+  });
+  if (updated.count === 0) {
+    throw new Error(`Category ${categoryId} not found for this user`);
+  }
+
+  const result = await findCategoryById(prisma, userId, categoryId);
+  if (!result) {
+    throw new Error(`Category ${categoryId} not found for this user`);
+  }
+  return result;
+}
+
 export async function setCategoryArchived(
   prisma: PrismaClient,
   userId: string,

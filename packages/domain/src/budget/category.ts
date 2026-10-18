@@ -13,6 +13,13 @@ export type Category = {
   archived: boolean;
 };
 
+export function updateCategory(
+  category: Category,
+  input: { label: string; color: string; defaultEnvelopeId?: string },
+): Category {
+  return { ...category, ...input };
+}
+
 export function archiveCategory(category: Category): Category {
   return { ...category, archived: true };
 }

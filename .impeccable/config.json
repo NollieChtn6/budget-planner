@@ -1,0 +1,15 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "border-accent-on-rounded",
+        "value": "*",
+        "files": ["apps/web/components/ui/kbd.tsx"],
+        "createdAt": "2026-10-18T06:25:14.073Z",
+        "reason": "intentional keycap style specified verbatim in docs/ui/pecule_charte_V_01.html (border:1px solid var(--line); border-bottom-width:2px; border-radius:var(--r-s)) — the thicker bottom border simulates a 3D key edge, not an accidental accent clash"
+      }
+    ]
+  }
+}

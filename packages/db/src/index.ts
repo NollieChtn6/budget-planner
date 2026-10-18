@@ -3,6 +3,7 @@ export {
   createCategory,
   findCategoriesByUser,
   findCategoryById,
+  persistCategoryUpdate,
   setCategoryArchived,
 } from "./repositories/category";
 export {

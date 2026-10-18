@@ -4,6 +4,7 @@ import {
   findContributionsByUserAndProvision,
   findExpensesByUserAndMonth,
   findExpensesByUserAndProvision,
+  findFixedEntriesByUser,
   findKnownPlacesByUser,
   findLastUsedCategoryIdByUser,
   findLeftoverAllocationsByUserAndMonth,
@@ -12,6 +13,7 @@ import {
   prisma,
 } from "@budget/db";
 import {
+  activeFixedEntryVersionAt,
   activeVersionAt,
   addMoney,
   type ConsumptionLevel,
@@ -20,7 +22,6 @@ import {
   computeAllocationBase,
   computeCarriedOver,
   computeConsumptionLevel,
-  computeContributionSurplus,
   computeDisposableIncome,
   computeEnvelopeBonus,
   computeForecastMargin,
@@ -29,14 +30,11 @@ import {
   computeRemaining,
   computeSavingsFundedAmount,
   computeSpent,
-  computeUnallocated,
   type Expense,
-  type ExpenseSource,
   type FixedEntryType,
   firstDayOfMonth,
   formatCalendarDate,
   isMonthAfter,
-  isProvisionDone,
   isSameMonth,
   lastDayOfMonth,
   type Money,
@@ -44,12 +42,15 @@ import {
   moneyToEuros,
   monthOfCalendarDate,
   nextMonth,
+  type Provision,
   previousMonth,
   subtractMoney,
   sumMoney,
 } from "@budget/domain";
+import Link from "next/link";
 import { Meter } from "@/components/meter";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ProvisionStatusBadge } from "@/components/provision-status-badge";
+import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { envelopeLabelAt } from "@/lib/active-envelopes";
 import {
   CONSUMPTION_LEVEL_BG_CLASSES,
@@ -60,11 +61,8 @@ import { resolveActiveMonth, resolveCurrentMonth } from "@/lib/current-month";
 import { formatEuros } from "@/lib/format-money";
 import { formatMonthLabel } from "@/lib/format-month-label";
 import { requireSession } from "@/lib/session";
-import { AddContributionForm } from "./_components/add-contribution-form";
-import { AddExpenseForm } from "./_components/add-expense-form";
-import { CloseMonthForm } from "./_components/close-month-form";
-import { ContributionRow } from "./_components/contribution-row";
-import { ExpenseRow } from "./_components/expense-row";
+import { AddOperationDialogs } from "./_components/add-operation-dialogs";
+import { CloseMonthTeaser } from "./_components/close-month-teaser";
 import { OpenMonthForm } from "./_components/open-month-form";
 import { PointageCheckbox } from "./_components/pointage-checkbox";
 import { ReopenMonthForm } from "./_components/reopen-month-form";
@@ -80,23 +78,31 @@ export default async function HomePage() {
   const budgetMonth = await findBudgetMonthByMonth(prisma, session.user.id, activeMonth);
 
   if (!budgetMonth) {
-    const previousMonthRow = await findBudgetMonthByMonth(
-      prisma,
-      session.user.id,
-      previousMonth(activeMonth),
-    );
+    const [previousMonthRow, fixedEntries] = await Promise.all([
+      findBudgetMonthByMonth(prisma, session.user.id, previousMonth(activeMonth)),
+      findFixedEntriesByUser(prisma, session.user.id),
+    ]);
     const canOpen = !previousMonthRow || previousMonthRow.status === "closed";
+    const totalFixed = sumMoney(
+      fixedEntries.flatMap((fixedEntry) => {
+        const version = activeFixedEntryVersionAt(fixedEntry, activeMonth);
+        return version ? [version.amount] : [];
+      }),
+    );
 
     return (
       <div className="flex flex-col gap-6">
-        <h1 className="font-heading text-[34px] leading-tight">{formatMonthLabel(activeMonth)}</h1>
-        {canOpen ? (
-          <OpenMonthForm />
-        ) : (
-          <p className="text-sm text-muted-foreground">
-            Le mois précédent doit d'abord être clôturé.
+        <div>
+          <h1 className="font-heading text-[34px] leading-tight">
+            {formatMonthLabel(activeMonth)}
+          </h1>
+          <p className="mt-1.5 text-muted-foreground">
+            {canOpen
+              ? `${previousMonthRow ? `${formatMonthLabel(previousMonth(activeMonth))} est clôturé. ` : ""}Ce mois n'est pas encore ouvert.`
+              : "Le mois précédent doit d'abord être clôturé."}
           </p>
-        )}
+        </div>
+        {canOpen ? <OpenMonthForm totalFixedEuros={moneyToEuros(totalFixed)} /> : null}
       </div>
     );
   }
@@ -132,11 +138,6 @@ export default async function HomePage() {
     .map((entry) => entry.value);
   const allocationBase = computeAllocationBase(disposableIncome, amountModeValues);
 
-  const percentageBudgets = budgetMonth.envelopeBudgets
-    .filter((entry) => entry.mode === "percentage")
-    .map((entry) => entry.budget);
-  const unallocated = computeUnallocated(allocationBase, percentageBudgets);
-
   const forecastMargin = computeForecastMargin(
     disposableIncome,
     budgetMonth.envelopeBudgets.map((entry) => entry.budget),
@@ -151,20 +152,14 @@ export default async function HomePage() {
     findLastUsedCategoryIdByUser(prisma, session.user.id),
   ]);
   const activeCategories = categories.filter((category) => !category.archived);
-  const categoryLabels = new Map(categories.map((category) => [category.id, category.label]));
-  const envelopeLabels = new Map(
-    budgetMonth.envelopeBudgets.map((entry) => [entry.envelopeId, entry.label]),
-  );
+  const provisionsById = new Map<string, Provision>(provisions.map((p) => [p.id, p]));
   const provisionLabels = new Map(
     budgetMonth.provisionTargets.map((entry) => [entry.provisionId, entry.label]),
   );
-  const provisionGoals = new Map(provisions.map((provision) => [provision.id, provision.target]));
-
-  function targetLabel(source: ExpenseSource): string {
-    return source.type === "envelope"
-      ? (envelopeLabels.get(source.envelopeId) ?? "")
-      : `Provision : ${provisionLabels.get(source.provisionId) ?? ""}`;
-  }
+  // Versement/dépense targets aren't limited to this month's snapshotted targets (R7's
+  // recalculation explicitly leaves provisionTargets untouched) — any non-closed provision
+  // can receive a payment or an expense, as in the maquette's opForm provOpts.
+  const activeProvisions = provisions.filter((provision) => provision.status !== "closed");
 
   const envelopeConsumption = new Map<
     string,
@@ -190,10 +185,7 @@ export default async function HomePage() {
     });
   }
 
-  const provisionLedger = new Map<
-    string,
-    { balance: Money; paidThisMonth: Money; surplus: Money; done: boolean }
-  >();
+  const provisionLedger = new Map<string, { balance: Money; paidThisMonth: Money }>();
   const contributionsThisMonth: Contribution[] = [];
   for (const entry of budgetMonth.provisionTargets) {
     const [contributions, provisionExpenses] = await Promise.all([
@@ -209,12 +201,7 @@ export default async function HomePage() {
     );
     contributionsThisMonth.push(...thisMonth);
     const paidThisMonth = sumMoney(thisMonth.map((c) => c.amount));
-    provisionLedger.set(entry.provisionId, {
-      balance,
-      paidThisMonth,
-      surplus: computeContributionSurplus(entry.target, paidThisMonth),
-      done: isProvisionDone(entry.target, paidThisMonth),
-    });
+    provisionLedger.set(entry.provisionId, { balance, paidThisMonth });
   }
   contributionsThisMonth.sort((a, b) => compareCalendarDates(a.date, b.date));
 
@@ -263,6 +250,7 @@ export default async function HomePage() {
   const totalEnvelopeSpent = sumMoney(
     Array.from(envelopeConsumption.values()).map((entry) => entry.spent),
   );
+  const totalEnvelopeBudget = sumMoney(budgetMonth.envelopeBudgets.map((entry) => entry.budget));
   const totalContributed = sumMoney(contributionsThisMonth.map((c) => c.amount));
   const left = subtractMoney(subtractMoney(disposableIncome, totalEnvelopeSpent), totalContributed);
   const toSpend = sumMoney(
@@ -283,16 +271,54 @@ export default async function HomePage() {
   const today = resolveCurrentMonth();
   const closureDue = budgetMonth.status === "open" && isMonthAfter(today, activeMonth);
 
+  const canAddExpense =
+    activeCategories.length > 0 &&
+    (budgetMonth.envelopeBudgets.length > 0 || activeProvisions.length > 0);
+  const canAddContribution = activeProvisions.length > 0;
+
   return (
     <div className="flex flex-col gap-7">
-      <div>
-        <h1 className="font-heading text-[34px] leading-tight">{formatMonthLabel(activeMonth)}</h1>
-        <p className="mt-1.5 text-muted-foreground">
-          {expenses.length > 0
-            ? `${expenses.length} dépense${expenses.length > 1 ? "s" : ""} ce mois-ci.`
-            : "Rien de saisi pour l'instant. Ajoute ta première dépense."}
-        </p>
+      <div className="flex flex-wrap items-end justify-between gap-5">
+        <div>
+          <h1 className="font-heading text-[34px] leading-tight">
+            {formatMonthLabel(activeMonth)}
+          </h1>
+          <p className="mt-1.5 text-muted-foreground">
+            {expenses.length > 0
+              ? `${expenses.length} dépense${expenses.length > 1 ? "s" : ""} ce mois-ci.`
+              : "Rien de saisi pour l'instant. Ajoute ta première dépense."}
+          </p>
+        </div>
+        {budgetMonth.status === "open" ? (
+          <AddOperationDialogs
+            canAddExpense={canAddExpense}
+            canAddContribution={canAddContribution}
+            envelopes={budgetMonth.envelopeBudgets.map((entry) => ({
+              id: entry.envelopeId,
+              label: entry.label,
+            }))}
+            provisions={activeProvisions.map((provision) => ({
+              id: provision.id,
+              label: provision.label,
+            }))}
+            categories={activeCategories.map((category) => ({
+              id: category.id,
+              label: category.label,
+            }))}
+            minDate={formatCalendarDate(firstDayOfMonth(activeMonth))}
+            maxDate={formatCalendarDate(lastDayOfMonth(activeMonth))}
+            defaultDate={new Date().toISOString().slice(0, 10)}
+            knownPlaces={knownPlaces}
+            lastUsedCategoryId={lastUsedCategoryId}
+          />
+        ) : null}
       </div>
+
+      {budgetMonth.status === "open" && !canAddExpense ? (
+        <p className="text-sm text-muted-foreground">
+          Crée d'abord une catégorie dans les paramètres pour pouvoir saisir une dépense.
+        </p>
+      ) : null}
 
       {closureDue ? (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-accent bg-accent/10 px-4 py-3 text-sm">
@@ -335,53 +361,70 @@ export default async function HomePage() {
       ) : null}
 
       <div className="grid grid-cols-12 gap-5">
-        <Card className="col-span-12 p-6">
-          <p className="text-sm text-muted-foreground">Il te reste ce mois-ci</p>
-          <p
-            className={`mt-1 mb-4 font-heading text-[40px] leading-none ${left.cents < 0 ? "text-destructive" : ""}`}
-          >
-            {formatEuros(moneyToEuros(left))}
-          </p>
-          <div className="flex h-2 gap-0.5 overflow-hidden rounded-full bg-muted">
-            {toSpend.cents > 0 ? (
-              <div
-                className="h-full bg-alert-ok"
-                style={{ width: `${(toSpend.cents / stackTotal) * 100}%` }}
-              />
-            ) : null}
-            {toPay.cents > 0 ? (
-              <div
-                className="h-full bg-accent"
-                style={{ width: `${(toPay.cents / stackTotal) * 100}%` }}
-              />
-            ) : null}
-            {free.cents > 0 ? (
-              <div
-                className="h-full bg-muted-foreground/40"
-                style={{ width: `${(free.cents / stackTotal) * 100}%` }}
-              />
-            ) : null}
+        {free.cents < 0 ? (
+          <div className="col-span-12 rounded-md border border-l-4 border-l-alert-warning bg-card px-4 py-2.5 text-sm">
+            Tes enveloppes et provisions dépassent de{" "}
+            {formatEuros(moneyToEuros(moneyFromCents(Math.abs(free.cents))))} ce que le mois permet.
+            C'est un indicateur : rien n'est bloqué.
           </div>
-          <dl className="mt-3.5 flex flex-col gap-1.5 text-sm">
-            <div className="flex items-center gap-2.5">
-              <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-alert-ok" />
-              <dt className="flex-1">À dépenser dans les enveloppes</dt>
-              <dd>{formatEuros(moneyToEuros(toSpend))}</dd>
+        ) : null}
+        {allocationBase.cents < 0 ? (
+          <div className="col-span-12 rounded-md border border-l-4 border-l-alert-warning bg-card px-4 py-2.5 text-sm">
+            Les postes fixes et enveloppes en montant dépassent le reste à vivre.
+          </div>
+        ) : null}
+
+        <Card className="col-span-12 p-6">
+          <div className="grid gap-5 sm:grid-cols-2 sm:gap-x-14">
+            <div>
+              <p className="text-sm text-muted-foreground">Il te reste ce mois-ci</p>
+              <p
+                className={`mt-1 mb-4 font-heading text-[40px] leading-none ${left.cents < 0 ? "text-destructive" : ""}`}
+              >
+                {formatEuros(moneyToEuros(left))}
+              </p>
+              <div className="flex h-2 gap-0.5 overflow-hidden rounded-full bg-muted">
+                {toSpend.cents > 0 ? (
+                  <div
+                    className="h-full bg-alert-ok"
+                    style={{ width: `${(toSpend.cents / stackTotal) * 100}%` }}
+                  />
+                ) : null}
+                {toPay.cents > 0 ? (
+                  <div
+                    className="h-full bg-accent"
+                    style={{ width: `${(toPay.cents / stackTotal) * 100}%` }}
+                  />
+                ) : null}
+                {free.cents > 0 ? (
+                  <div
+                    className="h-full bg-muted-foreground/40"
+                    style={{ width: `${(free.cents / stackTotal) * 100}%` }}
+                  />
+                ) : null}
+              </div>
             </div>
-            <div className="flex items-center gap-2.5">
-              <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-accent" />
-              <dt className="flex-1">À verser sur les provisions</dt>
-              <dd>{formatEuros(moneyToEuros(toPay))}</dd>
-            </div>
-            <div className="flex items-center gap-2.5">
-              <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-muted-foreground/40" />
-              <dt className="flex-1">Libre, non engagé</dt>
-              <dd className={free.cents < 0 ? "text-destructive" : ""}>
-                {formatEuros(moneyToEuros(free))}
-              </dd>
-            </div>
-          </dl>
-          <div className="mt-4 grid grid-cols-4 gap-3 border-t pt-4 text-sm text-muted-foreground">
+            <dl className="flex flex-col justify-center gap-1.5 text-sm">
+              <div className="flex items-center gap-2.5">
+                <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-alert-ok" />
+                <dt className="flex-1">À dépenser dans les enveloppes</dt>
+                <dd>{formatEuros(moneyToEuros(toSpend))}</dd>
+              </div>
+              <div className="flex items-center gap-2.5">
+                <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-accent" />
+                <dt className="flex-1">À verser sur les provisions</dt>
+                <dd>{formatEuros(moneyToEuros(toPay))}</dd>
+              </div>
+              <div className="flex items-center gap-2.5">
+                <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-muted-foreground/40" />
+                <dt className="flex-1">Libre, non engagé</dt>
+                <dd className={free.cents < 0 ? "text-destructive" : ""}>
+                  {formatEuros(moneyToEuros(free))}
+                </dd>
+              </div>
+            </dl>
+          </div>
+          <div className="mt-5 grid grid-cols-2 gap-3 border-t pt-4 text-sm text-muted-foreground sm:grid-cols-4">
             <div>
               Revenu
               <p className="font-heading text-[17px] text-foreground">
@@ -414,22 +457,22 @@ export default async function HomePage() {
               Dont {formatEuros(moneyToEuros(carriedOver))} reportés du mois précédent
             </p>
           ) : null}
-          {allocationBase.cents < 0 ? (
-            <p className="mt-1 text-sm text-destructive">
-              Les postes fixes et enveloppes en montant dépassent le reste à vivre.
-            </p>
-          ) : null}
         </Card>
 
         <Card className="col-span-12 lg:col-span-7">
           <CardHeader>
             <CardTitle>Enveloppes variables</CardTitle>
+            <CardAction className="text-sm text-muted-foreground">
+              {formatEuros(moneyToEuros(totalEnvelopeSpent))} dépensés sur{" "}
+              {formatEuros(moneyToEuros(totalEnvelopeBudget))}
+            </CardAction>
           </CardHeader>
-          <CardContent className="flex flex-col gap-4">
-            <ul className="flex flex-col gap-4">
+          <CardContent className="p-0">
+            <ul className="flex flex-col">
               {budgetMonth.envelopeBudgets.map((entry) => {
                 const consumption = envelopeConsumption.get(entry.envelopeId);
                 const bonus = envelopeBonuses.get(entry.envelopeId) ?? moneyFromCents(0);
+                const remaining = consumption?.remaining ?? entry.budget;
                 const pct =
                   consumption && entry.budget.cents > 0
                     ? (consumption.spent.cents / entry.budget.cents) * 100
@@ -437,93 +480,114 @@ export default async function HomePage() {
                       ? 100
                       : 0;
                 return (
-                  <li key={entry.envelopeId} className="flex flex-col gap-1.5">
-                    <div className="flex justify-between">
-                      <span className="font-semibold">{entry.label}</span>
-                      <span className="font-heading">
-                        {formatEuros(moneyToEuros(consumption?.remaining ?? entry.budget))}
-                      </span>
+                  <li
+                    key={entry.envelopeId}
+                    className="flex flex-col gap-2 border-t p-4 first:border-t-0 sm:flex-row sm:items-center sm:gap-5"
+                  >
+                    <div className="sm:w-44 sm:shrink-0">
+                      <p className="font-semibold">{entry.label}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {entry.mode === "amount" ? "Montant fixe" : `${entry.value} % de la base`}
+                      </p>
                     </div>
-                    {consumption ? (
-                      <Meter
-                        percent={pct}
-                        className={CONSUMPTION_LEVEL_BG_CLASSES[consumption.level]}
-                      />
-                    ) : null}
-                    {bonus.cents > 0 ? (
-                      <div className="flex justify-between text-xs text-muted-foreground">
-                        <span>Bonus reporté du mois précédent</span>
-                        <span>+{formatEuros(moneyToEuros(bonus))}</span>
-                      </div>
-                    ) : null}
-                    {consumption ? (
-                      <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
-                        <span className={CONSUMPTION_LEVEL_TEXT_CLASSES[consumption.level]}>
-                          {CONSUMPTION_LEVEL_LABELS[consumption.level]}
-                        </span>
-                        <span>
-                          {formatEuros(moneyToEuros(consumption.spent))} dépensés sur{" "}
-                          {formatEuros(moneyToEuros(entry.budget))}
-                        </span>
-                      </div>
-                    ) : null}
+                    <div className="flex flex-1 flex-col gap-1.5">
+                      {consumption ? (
+                        <Meter
+                          percent={pct}
+                          className={CONSUMPTION_LEVEL_BG_CLASSES[consumption.level]}
+                        />
+                      ) : null}
+                      {bonus.cents > 0 ? (
+                        <div className="flex justify-between text-xs text-muted-foreground">
+                          <span>Bonus reporté du mois précédent</span>
+                          <span>+{formatEuros(moneyToEuros(bonus))}</span>
+                        </div>
+                      ) : null}
+                      {consumption ? (
+                        <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+                          <span className="flex items-center gap-1.5">
+                            <span
+                              className={`h-1.5 w-1.5 shrink-0 rounded-full ${CONSUMPTION_LEVEL_BG_CLASSES[consumption.level]}`}
+                            />
+                            <span className={CONSUMPTION_LEVEL_TEXT_CLASSES[consumption.level]}>
+                              {CONSUMPTION_LEVEL_LABELS[consumption.level]}
+                            </span>
+                          </span>
+                          <span>
+                            {formatEuros(moneyToEuros(consumption.spent))} dépensés sur{" "}
+                            {formatEuros(moneyToEuros(entry.budget))}
+                          </span>
+                        </div>
+                      ) : null}
+                    </div>
+                    <div className="text-right sm:w-28 sm:shrink-0">
+                      <p
+                        className={`font-heading text-lg ${remaining.cents < 0 ? "text-destructive" : ""}`}
+                      >
+                        {formatEuros(moneyToEuros(remaining))}
+                      </p>
+                      <p className="text-xs text-muted-foreground">restant</p>
+                    </div>
                   </li>
                 );
               })}
             </ul>
-            <p className="text-sm text-muted-foreground">
-              Non attribué : {formatEuros(moneyToEuros(unallocated))}
-            </p>
           </CardContent>
         </Card>
 
         <Card className="col-span-12 lg:col-span-5">
           <CardHeader>
             <CardTitle>Provisions</CardTitle>
+            <CardAction>
+              <Link
+                href="/provisions"
+                className="text-sm text-muted-foreground hover:text-foreground"
+              >
+                Tout voir
+              </Link>
+            </CardAction>
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-0">
             {budgetMonth.provisionTargets.length > 0 ? (
-              <ul className="flex flex-col gap-4">
-                {budgetMonth.provisionTargets.map((entry) => {
+              <ul className="flex flex-col">
+                {budgetMonth.provisionTargets.flatMap((entry) => {
+                  const provision = provisionsById.get(entry.provisionId);
+                  if (!provision) return [];
                   const ledger = provisionLedger.get(entry.provisionId);
-                  const goal = provisionGoals.get(entry.provisionId);
                   const pct =
-                    ledger && goal && goal.cents > 0
-                      ? (ledger.balance.cents / goal.cents) * 100
+                    ledger && provision.target.cents > 0
+                      ? (ledger.balance.cents / provision.target.cents) * 100
                       : 0;
-                  return (
-                    <li key={entry.provisionId} className="flex flex-col gap-1.5">
-                      <div className="flex justify-between">
-                        <span className="font-semibold">{entry.label}</span>
-                        <span className="text-sm text-muted-foreground">
-                          Cible du mois : {formatEuros(moneyToEuros(entry.target))}
-                        </span>
+                  return [
+                    <li
+                      key={entry.provisionId}
+                      className="flex flex-col gap-1.5 border-t p-3 first:border-t-0"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-semibold text-sm">{entry.label}</span>
+                        <ProvisionStatusBadge
+                          provision={provision}
+                          target={entry.target}
+                          balance={ledger?.balance ?? moneyFromCents(0)}
+                          paidThisMonth={ledger?.paidThisMonth ?? moneyFromCents(0)}
+                        />
                       </div>
                       {ledger ? <Meter percent={pct} className="bg-accent" /> : null}
                       {ledger ? (
-                        <div className="flex flex-col text-xs text-muted-foreground">
-                          <span>
-                            Solde {formatEuros(moneyToEuros(ledger.balance))}
-                            {goal ? ` sur ${formatEuros(moneyToEuros(goal))}` : ""}
-                          </span>
-                          <span>
-                            Versé ce mois {formatEuros(moneyToEuros(ledger.paidThisMonth))}
-                            {ledger.done ? <span className="text-positive"> · Pointée</span> : null}
-                            {ledger.surplus.cents > 0 ? (
-                              <span className="text-positive">
-                                {" "}
-                                · Avance de {formatEuros(moneyToEuros(ledger.surplus))}
-                              </span>
-                            ) : null}
-                          </span>
-                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          {formatEuros(moneyToEuros(ledger.balance))} sur{" "}
+                          {formatEuros(moneyToEuros(provision.target))}, cible du mois{" "}
+                          {formatEuros(moneyToEuros(entry.target))}
+                        </p>
                       ) : null}
-                    </li>
-                  );
+                    </li>,
+                  ];
                 })}
               </ul>
             ) : (
-              <p className="text-sm text-muted-foreground">Aucune provision active ce mois-ci.</p>
+              <p className="p-4 text-sm text-muted-foreground">
+                Aucune provision active ce mois-ci.
+              </p>
             )}
           </CardContent>
         </Card>
@@ -574,129 +638,23 @@ export default async function HomePage() {
             })}
           </CardContent>
         </Card>
+
+        {budgetMonth.status === "open" ? (
+          <CloseMonthTeaser
+            monthLabel={formatMonthLabel(activeMonth)}
+            envelopeRemainders={envelopeRemainders}
+            leftover={moneyToEuros(leftover)}
+            allocatable={moneyToEuros(allocatable)}
+            previousAllocations={previousAllocationsDisplay}
+            provisions={budgetMonth.provisionTargets.map((entry) => ({
+              id: entry.provisionId,
+              label: entry.label,
+            }))}
+            nextMonthEnvelopes={nextMonthEnvelopes}
+            nextMonthIsOpen={nextMonthIsOpen}
+          />
+        ) : null}
       </div>
-
-      {budgetMonth.status === "open" ? (
-        <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-          {activeCategories.length > 0 &&
-          (budgetMonth.envelopeBudgets.length > 0 || budgetMonth.provisionTargets.length > 0) ? (
-            <AddExpenseForm
-              envelopes={budgetMonth.envelopeBudgets.map((entry) => ({
-                id: entry.envelopeId,
-                label: entry.label,
-              }))}
-              provisions={budgetMonth.provisionTargets.map((entry) => ({
-                id: entry.provisionId,
-                label: entry.label,
-              }))}
-              categories={activeCategories.map((category) => ({
-                id: category.id,
-                label: category.label,
-              }))}
-              minDate={formatCalendarDate(firstDayOfMonth(activeMonth))}
-              maxDate={formatCalendarDate(lastDayOfMonth(activeMonth))}
-              defaultDate={new Date().toISOString().slice(0, 10)}
-              knownPlaces={knownPlaces}
-              lastUsedCategoryId={lastUsedCategoryId}
-            />
-          ) : (
-            <p className="text-sm text-muted-foreground">
-              Crée d'abord une catégorie dans les paramètres pour pouvoir saisir une dépense.
-            </p>
-          )}
-          {budgetMonth.provisionTargets.length > 0 ? (
-            <AddContributionForm
-              provisions={budgetMonth.provisionTargets.map((entry) => ({
-                id: entry.provisionId,
-                label: entry.label,
-              }))}
-              minDate={formatCalendarDate(firstDayOfMonth(activeMonth))}
-              maxDate={formatCalendarDate(lastDayOfMonth(activeMonth))}
-              defaultDate={new Date().toISOString().slice(0, 10)}
-            />
-          ) : null}
-        </div>
-      ) : null}
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Dépenses du mois</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {expenses.length > 0 ? (
-            <ul className="flex flex-col gap-2">
-              {expenses.map((expense) => (
-                <ExpenseRow
-                  key={expense.id}
-                  expense={expense}
-                  categoryLabel={categoryLabels.get(expense.categoryId) ?? ""}
-                  targetLabel={targetLabel(expense.source)}
-                  envelopes={budgetMonth.envelopeBudgets.map((entry) => ({
-                    id: entry.envelopeId,
-                    label: entry.label,
-                  }))}
-                  provisions={budgetMonth.provisionTargets.map((entry) => ({
-                    id: entry.provisionId,
-                    label: entry.label,
-                  }))}
-                  categories={categories.map((category) => ({
-                    id: category.id,
-                    label: category.label,
-                  }))}
-                  minDate={formatCalendarDate(firstDayOfMonth(activeMonth))}
-                  maxDate={formatCalendarDate(lastDayOfMonth(activeMonth))}
-                  editable={budgetMonth.status === "open"}
-                />
-              ))}
-            </ul>
-          ) : (
-            <p className="text-sm text-muted-foreground">Aucune dépense ce mois-ci.</p>
-          )}
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Versements du mois</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {contributionsThisMonth.length > 0 ? (
-            <ul className="flex flex-col gap-2">
-              {contributionsThisMonth.map((contribution) => (
-                <ContributionRow
-                  key={contribution.id}
-                  contribution={contribution}
-                  provisionLabel={provisionLabels.get(contribution.provisionId) ?? ""}
-                  provisions={budgetMonth.provisionTargets.map((entry) => ({
-                    id: entry.provisionId,
-                    label: entry.label,
-                  }))}
-                  minDate={formatCalendarDate(firstDayOfMonth(activeMonth))}
-                  maxDate={formatCalendarDate(lastDayOfMonth(activeMonth))}
-                  editable={budgetMonth.status === "open"}
-                />
-              ))}
-            </ul>
-          ) : (
-            <p className="text-sm text-muted-foreground">Aucun versement ce mois-ci.</p>
-          )}
-        </CardContent>
-      </Card>
-
-      {budgetMonth.status === "open" ? (
-        <CloseMonthForm
-          envelopeRemainders={envelopeRemainders}
-          leftover={moneyToEuros(leftover)}
-          allocatable={moneyToEuros(allocatable)}
-          previousAllocations={previousAllocationsDisplay}
-          provisions={budgetMonth.provisionTargets.map((entry) => ({
-            id: entry.provisionId,
-            label: entry.label,
-          }))}
-          nextMonthEnvelopes={nextMonthEnvelopes}
-          nextMonthIsOpen={nextMonthIsOpen}
-        />
-      ) : null}
     </div>
   );
 }

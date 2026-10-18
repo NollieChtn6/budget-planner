@@ -4,10 +4,8 @@ import { useActionState, useEffect, useState } from "react";
 import { createExpenseAction } from "@/actions/expense";
 import { initialExpenseActionState } from "@/actions/expense-state";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Kbd } from "@/components/ui/kbd";
 import {
   Select,
   SelectContent,
@@ -29,6 +27,7 @@ export function AddExpenseForm({
   knownPlaces,
   lastUsedCategoryId,
   defaultTarget: presetTarget,
+  onSuccess,
 }: {
   envelopes: { id: string; label: string }[];
   provisions: { id: string; label: string }[];
@@ -40,6 +39,7 @@ export function AddExpenseForm({
   lastUsedCategoryId: string | null;
   /** Presets "Imputer à", e.g. from a provision card's "Dépenser" action. */
   defaultTarget?: string;
+  onSuccess?: () => void;
 }) {
   const [state, formAction, pending] = useActionState(
     createExpenseAction,
@@ -51,6 +51,11 @@ export function AddExpenseForm({
       setExhaustionResolved(false);
     }
   }, [state.provisionExhausted]);
+  useEffect(() => {
+    if (state.status === "success" && !state.provisionExhausted) {
+      onSuccess?.();
+    }
+  }, [state.status, state.provisionExhausted, onSuccess]);
   const defaultTarget =
     presetTarget ??
     (envelopes.length > 0 ? `envelope:${envelopes[0]?.id}` : `provision:${provisions[0]?.id}`);
@@ -66,114 +71,107 @@ export function AddExpenseForm({
       <ProvisionExhaustionPrompt
         provisionId={state.provisionExhausted.provisionId}
         label={state.provisionExhausted.label}
-        onResolved={() => setExhaustionResolved(true)}
+        onResolved={() => {
+          setExhaustionResolved(true);
+          onSuccess?.();
+        }}
       />
     );
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Nouvelle dépense</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <form action={formAction}>
-          <FieldGroup>
-            <Field>
-              <FieldLabel htmlFor="amountEuros">Montant (€)</FieldLabel>
-              <Input
-                id="amountEuros"
-                name="amountEuros"
-                type="number"
-                step="0.01"
-                min="0"
-                required
-                autoFocus
-              />
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="place">Lieu</FieldLabel>
-              <Input id="place" name="place" placeholder="Monoprix" list="known-places" />
-              <datalist id="known-places">
-                {knownPlaces.map((place) => (
-                  <option key={place} value={place} />
-                ))}
-              </datalist>
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="description">Description</FieldLabel>
-              <Input id="description" name="description" placeholder="Produits d'entretien" />
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="categoryId">Catégorie</FieldLabel>
-              <Select name="categoryId" defaultValue={defaultCategoryId}>
-                <SelectTrigger id="categoryId">
-                  <SelectValue placeholder="Catégorie" />
-                </SelectTrigger>
-                <SelectContent>
-                  {categories.map((category) => (
-                    <SelectItem key={category.id} value={category.id}>
-                      {category.label}
+    <form action={formAction}>
+      <FieldGroup>
+        <Field>
+          <FieldLabel htmlFor="amountEuros">Montant (€)</FieldLabel>
+          <Input
+            id="amountEuros"
+            name="amountEuros"
+            type="number"
+            step="0.01"
+            min="0"
+            required
+            autoFocus
+          />
+        </Field>
+        <Field>
+          <FieldLabel htmlFor="place">Lieu</FieldLabel>
+          <Input id="place" name="place" placeholder="Monoprix" list="known-places" />
+          <datalist id="known-places">
+            {knownPlaces.map((place) => (
+              <option key={place} value={place} />
+            ))}
+          </datalist>
+        </Field>
+        <Field>
+          <FieldLabel htmlFor="description">Description</FieldLabel>
+          <Input id="description" name="description" placeholder="Produits d'entretien" />
+        </Field>
+        <Field>
+          <FieldLabel htmlFor="categoryId">Catégorie</FieldLabel>
+          <Select name="categoryId" defaultValue={defaultCategoryId}>
+            <SelectTrigger id="categoryId">
+              <SelectValue placeholder="Catégorie" />
+            </SelectTrigger>
+            <SelectContent>
+              {categories.map((category) => (
+                <SelectItem key={category.id} value={category.id}>
+                  {category.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Field>
+        <Field>
+          <FieldLabel htmlFor="target">Imputer à</FieldLabel>
+          <Select name="target" defaultValue={defaultTarget}>
+            <SelectTrigger id="target">
+              <SelectValue placeholder="Imputer à" />
+            </SelectTrigger>
+            <SelectContent>
+              {envelopes.length > 0 ? (
+                <SelectGroup>
+                  <SelectLabel>Enveloppes</SelectLabel>
+                  {envelopes.map((envelope) => (
+                    <SelectItem key={envelope.id} value={`envelope:${envelope.id}`}>
+                      {envelope.label}
                     </SelectItem>
                   ))}
-                </SelectContent>
-              </Select>
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="target">Imputer à</FieldLabel>
-              <Select name="target" defaultValue={defaultTarget}>
-                <SelectTrigger id="target">
-                  <SelectValue placeholder="Imputer à" />
-                </SelectTrigger>
-                <SelectContent>
-                  {envelopes.length > 0 ? (
-                    <SelectGroup>
-                      <SelectLabel>Enveloppes</SelectLabel>
-                      {envelopes.map((envelope) => (
-                        <SelectItem key={envelope.id} value={`envelope:${envelope.id}`}>
-                          {envelope.label}
-                        </SelectItem>
-                      ))}
-                    </SelectGroup>
-                  ) : null}
-                  {provisions.length > 0 ? (
-                    <SelectGroup>
-                      <SelectLabel>Provisions</SelectLabel>
-                      {provisions.map((provision) => (
-                        <SelectItem key={provision.id} value={`provision:${provision.id}`}>
-                          {provision.label}
-                        </SelectItem>
-                      ))}
-                    </SelectGroup>
-                  ) : null}
-                </SelectContent>
-              </Select>
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="date">Date</FieldLabel>
-              <Input
-                id="date"
-                name="date"
-                type="date"
-                required
-                min={minDate}
-                max={maxDate}
-                defaultValue={defaultDate}
-              />
-            </Field>
-            {state.status === "error" ? <FieldError>{state.message}</FieldError> : null}
-            {state.status === "success" ? (
-              <p className="text-sm text-muted-foreground">{state.message}</p>
-            ) : null}
-            <Button type="submit" disabled={pending}>
-              {pending ? "Ajout..." : "Ajouter la dépense"}
-              <Kbd className="border-primary-foreground/40 bg-transparent text-primary-foreground/70">
-                N
-              </Kbd>
-            </Button>
-          </FieldGroup>
-        </form>
-      </CardContent>
-    </Card>
+                </SelectGroup>
+              ) : null}
+              {provisions.length > 0 ? (
+                <SelectGroup>
+                  <SelectLabel>Provisions</SelectLabel>
+                  {provisions.map((provision) => (
+                    <SelectItem key={provision.id} value={`provision:${provision.id}`}>
+                      {provision.label}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              ) : null}
+            </SelectContent>
+          </Select>
+        </Field>
+        <Field>
+          <FieldLabel htmlFor="date">Date</FieldLabel>
+          <Input
+            id="date"
+            name="date"
+            type="date"
+            required
+            min={minDate}
+            max={maxDate}
+            defaultValue={defaultDate}
+          />
+        </Field>
+        {state.status === "error" ? <FieldError>{state.message}</FieldError> : null}
+        {state.status === "success" ? (
+          <p className="text-sm text-muted-foreground">{state.message}</p>
+        ) : null}
+        <Button type="submit" disabled={pending}>
+          {pending ? "Ajout..." : "Ajouter la dépense"}
+        </Button>
+      </FieldGroup>
+    </form>
   );
 }

@@ -1,0 +1,15 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "side-tab",
+        "value": "*",
+        "files": ["apps/web/app/(app)/page.tsx"],
+        "createdAt": "2026-10-18T13:53:05.117Z",
+        "reason": "Reproduces docs/ui/pecule_maquettes_v_02.html's own .warn style (border-left accent on the free<0 / allocationBase<0 banners) — the maquette is the approved reference this redesign was asked to match, not an incidental AI choice."
+      }
+    ]
+  }
+}

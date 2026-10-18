@@ -12,6 +12,7 @@ export const createFixedEntrySchema = z.object({
 
 export const addFixedEntryVersionSchema = z.object({
   fixedEntryId: z.string().min(1),
+  label: z.string().trim().min(1),
   amountEuros: z.coerce.number().nonnegative(),
   effectiveFrom: monthChoiceSchema,
 });

@@ -50,6 +50,7 @@ import {
 } from "@budget/domain";
 import { Meter } from "@/components/meter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { envelopeLabelAt } from "@/lib/active-envelopes";
 import {
   CONSUMPTION_LEVEL_BG_CLASSES,
   CONSUMPTION_LEVEL_LABELS,
@@ -112,9 +113,10 @@ export default async function HomePage() {
       computeEnvelopeBonus(previousMonthAllocations, entry.envelopeId),
     ]),
   );
-  const nextMonthEnvelopes = allEnvelopes
-    .filter((envelope) => activeVersionAt(envelope, nextMonth(activeMonth)))
-    .map((envelope) => ({ id: envelope.id, label: envelope.label }));
+  const nextMonthEnvelopes = allEnvelopes.flatMap((envelope) => {
+    const version = activeVersionAt(envelope, nextMonth(activeMonth));
+    return version ? [{ id: envelope.id, label: version.label }] : [];
+  });
   const nextMonthIsOpen = nextMonthRow?.status === "open";
 
   const fixedEntryAmounts = budgetMonth.fixedEntries.map((entry) => entry.amount);
@@ -235,7 +237,7 @@ export default async function HomePage() {
   const previouslyAllocated = sumMoney(existingAllocations.map((a) => a.amount));
   const allocatable = subtractMoney(leftover, previouslyAllocated);
   const envelopeLabelsForAllocations = new Map(
-    allEnvelopes.map((envelope) => [envelope.id, envelope.label]),
+    allEnvelopes.map((envelope) => [envelope.id, envelopeLabelAt(envelope, activeMonth)]),
   );
   function allocationLabel(allocation: (typeof existingAllocations)[number]): string {
     switch (allocation.destination) {

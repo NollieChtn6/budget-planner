@@ -1,5 +1,10 @@
 import { findFixedEntriesByUser, prisma } from "@budget/db";
-import { activeFixedEntryVersionAt, formatMonth, moneyToEuros } from "@budget/domain";
+import {
+  activeFixedEntryVersionAt,
+  compareMonths,
+  formatMonth,
+  moneyToEuros,
+} from "@budget/domain";
 import { resolveCurrentMonth } from "@/lib/current-month";
 import { requireSession } from "@/lib/session";
 import { type FixedEntryRowData, FixedEntryTable } from "./fixed-entry-table";
@@ -12,11 +17,11 @@ export default async function FixedEntriesSettingsPage() {
   const rows: FixedEntryRowData[] = fixedEntries.map((entry) => {
     const displayed =
       activeFixedEntryVersionAt(entry, currentMonth) ??
-      [...entry.versions].sort((a, b) => (a.effectiveFrom < b.effectiveFrom ? 1 : -1))[0];
+      [...entry.versions].sort((a, b) => compareMonths(b.effectiveFrom, a.effectiveFrom))[0];
 
     return {
       id: entry.id,
-      label: entry.label,
+      label: displayed?.label ?? "",
       type: entry.type,
       archivedFrom: entry.archivedFrom ? formatMonth(entry.archivedFrom) : null,
       amountEuros: displayed ? moneyToEuros(displayed.amount) : null,

@@ -15,7 +15,11 @@ export const createVariableEnvelopeSchema = z
   .and(modeAndValueSchema);
 
 export const addVariableEnvelopeVersionSchema = z
-  .object({ envelopeId: z.string().min(1), effectiveFrom: monthChoiceSchema })
+  .object({
+    envelopeId: z.string().min(1),
+    label: z.string().trim().min(1),
+    effectiveFrom: monthChoiceSchema,
+  })
   .and(modeAndValueSchema);
 
 export const archiveVariableEnvelopeSchema = z.object({

@@ -1,5 +1,5 @@
 import { findVariableEnvelopesByUser, prisma } from "@budget/db";
-import { activeVersionAt, formatMonth, moneyToEuros } from "@budget/domain";
+import { activeVersionAt, compareMonths, formatMonth, moneyToEuros } from "@budget/domain";
 import { resolveCurrentMonth } from "@/lib/current-month";
 import { formatEuros } from "@/lib/format-money";
 import { requireSession } from "@/lib/session";
@@ -13,11 +13,11 @@ export default async function EnvelopesSettingsPage() {
   const rows: EnvelopeRowData[] = envelopes.map((envelope) => {
     const displayed =
       activeVersionAt(envelope, currentMonth) ??
-      [...envelope.versions].sort((a, b) => (a.effectiveFrom < b.effectiveFrom ? 1 : -1))[0];
+      [...envelope.versions].sort((a, b) => compareMonths(b.effectiveFrom, a.effectiveFrom))[0];
 
     return {
       id: envelope.id,
-      label: envelope.label,
+      label: displayed?.label ?? "",
       archivedFrom: envelope.archivedFrom ? formatMonth(envelope.archivedFrom) : null,
       mode: displayed?.mode ?? "amount",
       valueLabel: displayed

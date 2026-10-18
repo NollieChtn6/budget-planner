@@ -33,22 +33,22 @@ describe("createFixedEntry / findFixedEntryById", () => {
     const user = await createTestUser(primaryEmail);
 
     const created = await createFixedEntry(prisma, user.id, {
-      label: "Loyer",
       type: "charge",
       firstVersion: {
         fixedEntryId: "pending",
         effectiveFrom: parseMonth("2026-01"),
+        label: "Loyer",
         amount: moneyFromEuros(1000),
       },
     });
 
-    expect(created.label).toBe("Loyer");
     expect(created.type).toBe("charge");
     expect(created.versions).toHaveLength(1);
 
     const found = await findFixedEntryById(prisma, user.id, created.id);
     expect(found).not.toBeNull();
     const version = found?.versions[0];
+    expect(version?.label).toBe("Loyer");
     expect(version && moneyToCents(version.amount)).toBe(100000);
   });
 
@@ -56,11 +56,11 @@ describe("createFixedEntry / findFixedEntryById", () => {
     const user = await createTestUser(primaryEmail);
 
     const created = await createFixedEntry(prisma, user.id, {
-      label: "Assurance vie",
       type: "scheduledSaving",
       firstVersion: {
         fixedEntryId: "pending",
         effectiveFrom: parseMonth("2026-01"),
+        label: "Assurance vie",
         amount: moneyFromEuros(100),
       },
     });
@@ -75,27 +75,27 @@ describe("findFixedEntriesByUser", () => {
     const otherUser = await createTestUser(otherEmail);
 
     await createFixedEntry(prisma, user.id, {
-      label: "Loyer",
       type: "charge",
       firstVersion: {
         fixedEntryId: "pending",
         effectiveFrom: parseMonth("2026-01"),
+        label: "Loyer",
         amount: moneyFromEuros(1000),
       },
     });
     await createFixedEntry(prisma, otherUser.id, {
-      label: "Autre utilisatrice",
       type: "charge",
       firstVersion: {
         fixedEntryId: "pending",
         effectiveFrom: parseMonth("2026-01"),
+        label: "Autre utilisatrice",
         amount: moneyFromEuros(500),
       },
     });
 
     const entries = await findFixedEntriesByUser(prisma, user.id);
     expect(entries).toHaveLength(1);
-    expect(entries[0]?.label).toBe("Loyer");
+    expect(entries[0]?.versions[0]?.label).toBe("Loyer");
   });
 });
 
@@ -103,11 +103,11 @@ describe("persistFixedEntryVersion", () => {
   it("appends a version with a new amount", async () => {
     const user = await createTestUser(primaryEmail);
     const created = await createFixedEntry(prisma, user.id, {
-      label: "Loyer",
       type: "charge",
       firstVersion: {
         fixedEntryId: "pending",
         effectiveFrom: parseMonth("2026-01"),
+        label: "Loyer",
         amount: moneyFromEuros(1000),
       },
     });
@@ -115,6 +115,7 @@ describe("persistFixedEntryVersion", () => {
     const updated = await persistFixedEntryVersion(prisma, user.id, created.id, {
       fixedEntryId: created.id,
       effectiveFrom: parseMonth("2026-02"),
+      label: "Loyer",
       amount: moneyFromEuros(1050),
     });
 
@@ -123,15 +124,38 @@ describe("persistFixedEntryVersion", () => {
     expect(secondVersion).toBeDefined();
   });
 
-  it("rejects adding a version to another user's fixed entry", async () => {
-    const owner = await createTestUser(primaryEmail);
-    const attacker = await createTestUser(otherEmail);
-    const created = await createFixedEntry(prisma, owner.id, {
-      label: "Loyer",
+  it("replaces the label alongside the amount (R7: renaming goes through the same version)", async () => {
+    const user = await createTestUser(primaryEmail);
+    const created = await createFixedEntry(prisma, user.id, {
       type: "charge",
       firstVersion: {
         fixedEntryId: "pending",
         effectiveFrom: parseMonth("2026-01"),
+        label: "Loyer",
+        amount: moneyFromEuros(1000),
+      },
+    });
+
+    const updated = await persistFixedEntryVersion(prisma, user.id, created.id, {
+      fixedEntryId: created.id,
+      effectiveFrom: parseMonth("2026-01"),
+      label: "Loyer cave et appart",
+      amount: moneyFromEuros(1000),
+    });
+
+    expect(updated.versions).toHaveLength(1);
+    expect(updated.versions[0]?.label).toBe("Loyer cave et appart");
+  });
+
+  it("rejects adding a version to another user's fixed entry", async () => {
+    const owner = await createTestUser(primaryEmail);
+    const attacker = await createTestUser(otherEmail);
+    const created = await createFixedEntry(prisma, owner.id, {
+      type: "charge",
+      firstVersion: {
+        fixedEntryId: "pending",
+        effectiveFrom: parseMonth("2026-01"),
+        label: "Loyer",
         amount: moneyFromEuros(1000),
       },
     });
@@ -140,6 +164,7 @@ describe("persistFixedEntryVersion", () => {
       persistFixedEntryVersion(prisma, attacker.id, created.id, {
         fixedEntryId: created.id,
         effectiveFrom: parseMonth("2026-02"),
+        label: "Loyer",
         amount: moneyFromEuros(1),
       }),
     ).rejects.toThrow();
@@ -153,11 +178,11 @@ describe("setFixedEntryArchivedFrom", () => {
   it("sets then clears the archive date", async () => {
     const user = await createTestUser(primaryEmail);
     const created = await createFixedEntry(prisma, user.id, {
-      label: "Loyer",
       type: "charge",
       firstVersion: {
         fixedEntryId: "pending",
         effectiveFrom: parseMonth("2026-01"),
+        label: "Loyer",
         amount: moneyFromEuros(1000),
       },
     });
@@ -178,11 +203,11 @@ describe("setFixedEntryArchivedFrom", () => {
     const owner = await createTestUser(primaryEmail);
     const attacker = await createTestUser(otherEmail);
     const created = await createFixedEntry(prisma, owner.id, {
-      label: "Loyer",
       type: "charge",
       firstVersion: {
         fixedEntryId: "pending",
         effectiveFrom: parseMonth("2026-01"),
+        label: "Loyer",
         amount: moneyFromEuros(1000),
       },
     });
@@ -200,11 +225,11 @@ describe("database constraints", () => {
   it("rejects a negative amount_cents", async () => {
     const user = await createTestUser(primaryEmail);
     const created = await createFixedEntry(prisma, user.id, {
-      label: "Loyer",
       type: "charge",
       firstVersion: {
         fixedEntryId: "pending",
         effectiveFrom: parseMonth("2026-01"),
+        label: "Loyer",
         amount: moneyFromEuros(1000),
       },
     });
@@ -214,6 +239,7 @@ describe("database constraints", () => {
         data: {
           fixedEntryId: created.id,
           effectiveFrom: new Date("2026-02-01T00:00:00.000Z"),
+          label: "Loyer",
           amountCents: -100,
         },
       }),
@@ -223,11 +249,11 @@ describe("database constraints", () => {
   it("rejects an effectiveFrom that isn't the first day of the month", async () => {
     const user = await createTestUser(primaryEmail);
     const created = await createFixedEntry(prisma, user.id, {
-      label: "Loyer",
       type: "charge",
       firstVersion: {
         fixedEntryId: "pending",
         effectiveFrom: parseMonth("2026-01"),
+        label: "Loyer",
         amount: moneyFromEuros(1000),
       },
     });
@@ -237,6 +263,7 @@ describe("database constraints", () => {
         data: {
           fixedEntryId: created.id,
           effectiveFrom: new Date("2026-02-15T00:00:00.000Z"),
+          label: "Loyer",
           amountCents: 1000,
         },
       }),

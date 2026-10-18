@@ -56,7 +56,16 @@ export function EnvelopeRow({ envelope }: { envelope: EnvelopeRowData }) {
           <form action={valueAction} className="flex flex-wrap items-end gap-3 py-1">
             <input type="hidden" name="envelopeId" value={envelope.id} />
             <input type="hidden" name="mode" value={mode} />
-            <div className="min-w-32 font-medium text-sm">{envelope.label}</div>
+            <div className="flex flex-col gap-1">
+              <span className="text-muted-foreground text-xs">Libellé</span>
+              <Input
+                name="label"
+                defaultValue={envelope.label}
+                required
+                autoFocus
+                className="w-40"
+              />
+            </div>
             <div className="flex flex-col gap-1">
               <span className="text-muted-foreground text-xs">Mode</span>
               <Select value={mode} onValueChange={(value) => setMode(value as typeof mode)}>
@@ -79,7 +88,6 @@ export function EnvelopeRow({ envelope }: { envelope: EnvelopeRowData }) {
                   min="0"
                   defaultValue={envelope.amountEuros ?? undefined}
                   required
-                  autoFocus
                   className="w-28"
                 />
               </div>
@@ -94,7 +102,6 @@ export function EnvelopeRow({ envelope }: { envelope: EnvelopeRowData }) {
                   max="100"
                   defaultValue={envelope.percentage ?? undefined}
                   required
-                  autoFocus
                   className="w-24"
                 />
               </div>

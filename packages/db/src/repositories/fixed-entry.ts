@@ -31,12 +31,11 @@ export async function findFixedEntryById(
 export async function createFixedEntry(
   prisma: PrismaClient,
   userId: string,
-  input: { label: string; type: FixedEntryType; firstVersion: FixedEntryVersion },
+  input: { type: FixedEntryType; firstVersion: FixedEntryVersion },
 ): Promise<FixedEntry> {
   const row = await prisma.fixedEntry.create({
     data: {
       userId,
-      label: input.label,
       type: input.type,
       versions: { create: toPrismaFixedEntryVersionData(input.firstVersion) },
     },

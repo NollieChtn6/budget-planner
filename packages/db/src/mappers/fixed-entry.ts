@@ -14,6 +14,7 @@ export function toDomainFixedEntryVersion(row: PrismaFixedEntryVersion): FixedEn
   return {
     fixedEntryId: row.fixedEntryId,
     effectiveFrom: dateToMonth(row.effectiveFrom),
+    label: row.label,
     amount: moneyFromCents(row.amountCents),
   };
 }
@@ -23,7 +24,6 @@ export function toDomainFixedEntry(
 ): FixedEntry {
   return {
     id: row.id,
-    label: row.label,
     type: row.type,
     versions: row.versions.map(toDomainFixedEntryVersion),
     ...(row.archivedFrom ? { archivedFrom: dateToMonth(row.archivedFrom) } : {}),
@@ -32,10 +32,12 @@ export function toDomainFixedEntry(
 
 export function toPrismaFixedEntryVersionData(version: FixedEntryVersion): {
   effectiveFrom: Date;
+  label: string;
   amountCents: number;
 } {
   return {
     effectiveFrom: monthToDate(version.effectiveFrom),
+    label: version.label,
     amountCents: moneyToCents(version.amount),
   };
 }

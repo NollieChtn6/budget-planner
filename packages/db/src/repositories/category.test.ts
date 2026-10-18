@@ -32,10 +32,10 @@ describe("createCategory / findCategoryById", () => {
   it("round-trips label and defaultEnvelopeId", async () => {
     const user = await createTestUser(primaryEmail);
     const envelope = await createVariableEnvelope(prisma, user.id, {
-      label: "Vie quotidienne",
       firstVersion: {
         envelopeId: "pending",
         effectiveFrom: parseMonth("2026-01"),
+        label: "Vie quotidienne",
         mode: "amount",
         value: moneyFromEuros(150),
       },

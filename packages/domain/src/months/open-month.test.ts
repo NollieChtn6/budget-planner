@@ -4,7 +4,13 @@ import type { VariableEnvelope } from "../budget/variable-envelope";
 import { type Money, moneyFromEuros, moneyToCents } from "../money";
 import { parseMonth } from "../month";
 import type { Provision } from "../provisions/provision";
-import { openMonth, pointFixedEntry, type SnapshotFixedEntry } from "./open-month";
+import {
+  type BudgetMonth,
+  openMonth,
+  pointFixedEntry,
+  recalculateOpenMonthSnapshot,
+  type SnapshotFixedEntry,
+} from "./open-month";
 
 const month = parseMonth("2026-01");
 
@@ -16,18 +22,30 @@ function expectDefined<T>(value: T | undefined): T {
 function charges(): FixedEntry {
   return {
     id: "charges",
-    label: "Charges",
     type: "charge",
-    versions: [{ fixedEntryId: "charges", effectiveFrom: month, amount: moneyFromEuros(1400) }],
+    versions: [
+      {
+        fixedEntryId: "charges",
+        effectiveFrom: month,
+        label: "Charges",
+        amount: moneyFromEuros(1400),
+      },
+    ],
   };
 }
 
 function scheduledSaving(): FixedEntry {
   return {
     id: "epargne",
-    label: "Épargne programmée",
     type: "scheduledSaving",
-    versions: [{ fixedEntryId: "epargne", effectiveFrom: month, amount: moneyFromEuros(400) }],
+    versions: [
+      {
+        fixedEntryId: "epargne",
+        effectiveFrom: month,
+        label: "Épargne programmée",
+        amount: moneyFromEuros(400),
+      },
+    ],
   };
 }
 
@@ -35,11 +53,11 @@ function referenceEnvelopes(): [VariableEnvelope, VariableEnvelope, VariableEnve
   return [
     {
       id: "vie-quotidienne",
-      label: "Vie quotidienne",
       versions: [
         {
           envelopeId: "vie-quotidienne",
           effectiveFrom: month,
+          label: "Vie quotidienne",
           mode: "amount",
           value: moneyFromEuros(150),
         },
@@ -47,13 +65,27 @@ function referenceEnvelopes(): [VariableEnvelope, VariableEnvelope, VariableEnve
     },
     {
       id: "sorties",
-      label: "Sorties et loisirs",
-      versions: [{ envelopeId: "sorties", effectiveFrom: month, mode: "percentage", value: 15 }],
+      versions: [
+        {
+          envelopeId: "sorties",
+          effectiveFrom: month,
+          label: "Sorties et loisirs",
+          mode: "percentage",
+          value: 15,
+        },
+      ],
     },
     {
       id: "plaisir",
-      label: "Achats plaisir",
-      versions: [{ envelopeId: "plaisir", effectiveFrom: month, mode: "percentage", value: 15 }],
+      versions: [
+        {
+          envelopeId: "plaisir",
+          effectiveFrom: month,
+          label: "Achats plaisir",
+          mode: "percentage",
+          value: 15,
+        },
+      ],
     },
   ];
 }
@@ -256,6 +288,7 @@ describe("openMonth — R13", () => {
             {
               envelopeId: "vie-quotidienne",
               effectiveFrom: month,
+              label: "Vie quotidienne",
               mode: "amount" as const,
               value: moneyFromEuros(200),
             },
@@ -320,5 +353,130 @@ describe("pointFixedEntry (R27)", () => {
   it("rejects a fixed entry outside this month's snapshot", () => {
     const result = pointFixedEntry(entries(), "unknown", true);
     expect(result).toEqual({ ok: false, error: { type: "fixedEntryNotInSnapshot" } });
+  });
+});
+
+describe("recalculateOpenMonthSnapshot — R7", () => {
+  function openedBudgetMonth(): BudgetMonth {
+    const result = openMonth(referenceInput());
+    if (!result.ok) throw new Error("expected openMonth to succeed");
+    return result.budgetMonth;
+  }
+
+  it("reflects a rename made effective this month", () => {
+    const budgetMonth = openedBudgetMonth();
+    const renamedCharges: FixedEntry = {
+      ...charges(),
+      versions: [
+        {
+          fixedEntryId: "charges",
+          effectiveFrom: month,
+          label: "Charges du foyer",
+          amount: moneyFromEuros(1400),
+        },
+      ],
+    };
+
+    const result = recalculateOpenMonthSnapshot({
+      budgetMonth,
+      carriedOver: moneyFromEuros(0),
+      fixedEntries: [renamedCharges, scheduledSaving()],
+      envelopes: referenceEnvelopes(),
+    });
+
+    const chargesEntry = expectDefined(
+      result.fixedEntries.find((entry) => entry.fixedEntryId === "charges"),
+    );
+    expect(chargesEntry.label).toBe("Charges du foyer");
+  });
+
+  it("reflects an amount change made effective this month", () => {
+    const budgetMonth = openedBudgetMonth();
+    const raisedCharges: FixedEntry = {
+      ...charges(),
+      versions: [
+        {
+          fixedEntryId: "charges",
+          effectiveFrom: month,
+          label: "Charges",
+          amount: moneyFromEuros(1500),
+        },
+      ],
+    };
+
+    const result = recalculateOpenMonthSnapshot({
+      budgetMonth,
+      carriedOver: moneyFromEuros(0),
+      fixedEntries: [raisedCharges, scheduledSaving()],
+      envelopes: referenceEnvelopes(),
+    });
+
+    const chargesEntry = expectDefined(
+      result.fixedEntries.find((entry) => entry.fixedEntryId === "charges"),
+    );
+    expect(moneyToCents(chargesEntry.amount)).toBe(moneyToCents(moneyFromEuros(1500)));
+  });
+
+  it("preserves pointage status for entries that remain active", () => {
+    const budgetMonth = openedBudgetMonth();
+    const pointed: BudgetMonth = {
+      ...budgetMonth,
+      fixedEntries: budgetMonth.fixedEntries.map((entry) =>
+        entry.fixedEntryId === "charges" ? { ...entry, status: "done" as const } : entry,
+      ),
+    };
+
+    const result = recalculateOpenMonthSnapshot({
+      budgetMonth: pointed,
+      carriedOver: moneyFromEuros(0),
+      fixedEntries: [charges(), scheduledSaving()],
+      envelopes: referenceEnvelopes(),
+    });
+
+    expect(result.fixedEntries.find((entry) => entry.fixedEntryId === "charges")?.status).toBe(
+      "done",
+    );
+  });
+
+  it("drops a fixed entry archived as of this month", () => {
+    const budgetMonth = openedBudgetMonth();
+    const archivedCharges: FixedEntry = { ...charges(), archivedFrom: month };
+
+    const result = recalculateOpenMonthSnapshot({
+      budgetMonth,
+      carriedOver: moneyFromEuros(0),
+      fixedEntries: [archivedCharges, scheduledSaving()],
+      envelopes: referenceEnvelopes(),
+    });
+
+    expect(result.fixedEntries.map((entry) => entry.fixedEntryId)).not.toContain("charges");
+  });
+
+  it("recomputes percentage-mode envelope budgets alongside a fixed-entry change", () => {
+    const budgetMonth = openedBudgetMonth();
+    const raisedCharges: FixedEntry = {
+      ...charges(),
+      versions: [
+        {
+          fixedEntryId: "charges",
+          effectiveFrom: month,
+          label: "Charges",
+          amount: moneyFromEuros(1500),
+        },
+      ],
+    };
+
+    const result = recalculateOpenMonthSnapshot({
+      budgetMonth,
+      carriedOver: moneyFromEuros(0),
+      fixedEntries: [raisedCharges, scheduledSaving()],
+      envelopes: referenceEnvelopes(),
+    });
+
+    // disposableIncome = 2800 - 1500 - 400 = 900 ; allocationBase = 900 - 150 = 750 ; 15% -> 112,50€
+    const sorties = expectDefined(
+      result.envelopeBudgets.find((entry) => entry.envelopeId === "sorties"),
+    );
+    expect(moneyToCents(sorties.budget)).toBe(moneyToCents(moneyFromEuros(112.5)));
   });
 });

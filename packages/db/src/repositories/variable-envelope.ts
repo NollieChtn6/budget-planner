@@ -31,12 +31,11 @@ export async function findVariableEnvelopeById(
 export async function createVariableEnvelope(
   prisma: PrismaClient,
   userId: string,
-  input: { label: string; firstVersion: VariableEnvelopeVersion },
+  input: { firstVersion: VariableEnvelopeVersion },
 ): Promise<VariableEnvelope> {
   const row = await prisma.variableEnvelope.create({
     data: {
       userId,
-      label: input.label,
       versions: { create: toPrismaVersionData(input.firstVersion) },
     },
     include: WITH_VERSIONS,

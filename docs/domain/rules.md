@@ -20,7 +20,7 @@ Chaque règle a un identifiant stable, référencé dans la spec, le code et les
 
 ## Paramétrage
 
-**R7.** Une modification d'un poste fixe ou d'une enveloppe variable demande sa date d'effet : le mois en cours ou le mois suivant.
+**R7.** Une modification d'un poste fixe (libellé et/ou montant) ou d'une enveloppe variable (libellé et/ou mode/valeur) demande sa date d'effet : le mois en cours ou le mois suivant. Le libellé est versionné au même titre que le montant/mode/valeur (`docs/domain/model.md`) : renommer suit exactement la même mécanique qu'une modification de montant, dans le même formulaire.
 - Mois en cours : l'instantané du mois ouvert est recalculé.
 - Mois suivant : le mois ouvert n'est pas touché.
 - Les mois clôturés ne sont jamais affectés (R6).

@@ -104,6 +104,8 @@ export {
   type PointFixedEntryFailure,
   type PointFixedEntryResult,
   pointFixedEntry,
+  type RecalculateOpenMonthSnapshotInput,
+  recalculateOpenMonthSnapshot,
   type SnapshotEnvelopeBudget,
   type SnapshotFixedEntry,
   type SnapshotProvisionTarget,

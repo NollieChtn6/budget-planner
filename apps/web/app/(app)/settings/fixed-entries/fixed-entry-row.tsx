@@ -54,7 +54,10 @@ export function FixedEntryRow({ entry }: { entry: FixedEntryRowData }) {
         <TableCell colSpan={4} className="whitespace-normal">
           <form action={valueAction} className="flex flex-wrap items-end gap-3 py-1">
             <input type="hidden" name="fixedEntryId" value={entry.id} />
-            <div className="min-w-32 font-medium text-sm">{entry.label}</div>
+            <div className="flex flex-col gap-1">
+              <span className="text-muted-foreground text-xs">Libellé</span>
+              <Input name="label" defaultValue={entry.label} required autoFocus className="w-40" />
+            </div>
             <div className="flex flex-col gap-1">
               <span className="text-muted-foreground text-xs">Montant (€)</span>
               <Input
@@ -64,7 +67,6 @@ export function FixedEntryRow({ entry }: { entry: FixedEntryRowData }) {
                 min="0"
                 defaultValue={entry.amountEuros ?? undefined}
                 required
-                autoFocus
                 className="w-28"
               />
             </div>

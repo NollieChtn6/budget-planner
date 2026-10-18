@@ -443,6 +443,9 @@ describe("replaceBudgetMonthSnapshot (R7)", () => {
           budget: moneyFromEuros(180),
         },
       ],
+      provisionTargets: [
+        { provisionId: seed.provision.id, label: "Orthodontie", target: moneyFromEuros(66.67) },
+      ],
     });
 
     const found = await findBudgetMonthByMonth(prisma, user.id, month);
@@ -468,10 +471,39 @@ describe("replaceBudgetMonthSnapshot (R7)", () => {
           budget: moneyFromEuros(150),
         },
       ],
+      provisionTargets: [
+        { provisionId: seed.provision.id, label: "Orthodontie", target: moneyFromEuros(66.67) },
+      ],
     });
 
     const found = await findBudgetMonthByMonth(prisma, user.id, month);
     expect(found?.fixedEntries).toHaveLength(0);
+  });
+
+  it("adds a provision target newly present in the replacement set, and drops one no longer present", async () => {
+    const user = await createTestUser(primaryEmail);
+    const seed = await seedParameterization(user.id);
+    await createBudgetMonth(prisma, user.id, buildBudgetMonth(seed));
+    const newProvision = await createProvision(prisma, user.id, {
+      type: "deadline",
+      label: "Vacances",
+      target: moneyFromEuros(700),
+      startMonth: month,
+      durationMonths: 10,
+    });
+
+    await replaceBudgetMonthSnapshot(prisma, user.id, month, {
+      fixedEntries: buildBudgetMonth(seed).fixedEntries,
+      envelopeBudgets: buildBudgetMonth(seed).envelopeBudgets,
+      provisionTargets: [
+        { provisionId: newProvision.id, label: "Vacances", target: moneyFromEuros(70) },
+      ],
+    });
+
+    const found = await findBudgetMonthByMonth(prisma, user.id, month);
+    expect(found?.provisionTargets).toHaveLength(1);
+    expect(found?.provisionTargets[0]?.provisionId).toBe(newProvision.id);
+    expect(moneyToCents(found?.provisionTargets[0]?.target ?? moneyFromEuros(-1))).toBe(7000);
   });
 
   it("rejects replacing another user's open month", async () => {
@@ -484,6 +516,7 @@ describe("replaceBudgetMonthSnapshot (R7)", () => {
       replaceBudgetMonthSnapshot(prisma, attacker.id, month, {
         fixedEntries: [],
         envelopeBudgets: [],
+        provisionTargets: [],
       }),
     ).rejects.toThrow();
   });
@@ -499,7 +532,11 @@ describe("replaceBudgetMonthSnapshot (R7)", () => {
     });
 
     await expect(
-      replaceBudgetMonthSnapshot(prisma, user.id, month, { fixedEntries: [], envelopeBudgets: [] }),
+      replaceBudgetMonthSnapshot(prisma, user.id, month, {
+        fixedEntries: [],
+        envelopeBudgets: [],
+        provisionTargets: [],
+      }),
     ).rejects.toThrow();
   });
 });

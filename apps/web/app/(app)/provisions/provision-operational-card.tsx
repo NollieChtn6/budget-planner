@@ -36,8 +36,8 @@ export function ProvisionOperationalCard({
   return (
     <Card className="gap-4 p-5">
       <CardHeader className="p-0">
-        <div className="flex items-start justify-between gap-3">
-          <div>
+        <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1.5">
+          <div className="min-w-0">
             <CardTitle className="font-heading text-xl">{provision.label}</CardTitle>
             <p className="mt-0.5 text-sm text-muted-foreground">
               {provision.type === "deadline"

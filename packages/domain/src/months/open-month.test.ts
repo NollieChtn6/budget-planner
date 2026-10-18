@@ -126,6 +126,18 @@ function referenceProvisions(): [ReferenceProvision, ReferenceProvision, Referen
   ];
 }
 
+function newProvision(): ReferenceProvision {
+  return {
+    id: "loisirs",
+    label: "Loisirs d'été",
+    type: "reserve",
+    target: moneyFromEuros(300),
+    monthlyAmount: moneyFromEuros(100),
+    status: "active",
+    balance: moneyFromEuros(0),
+  };
+}
+
 function referenceInput() {
   return {
     month,
@@ -382,6 +394,7 @@ describe("recalculateOpenMonthSnapshot — R7", () => {
       carriedOver: moneyFromEuros(0),
       fixedEntries: [renamedCharges, scheduledSaving()],
       envelopes: referenceEnvelopes(),
+      provisions: referenceProvisions(),
     });
 
     const chargesEntry = expectDefined(
@@ -409,6 +422,7 @@ describe("recalculateOpenMonthSnapshot — R7", () => {
       carriedOver: moneyFromEuros(0),
       fixedEntries: [raisedCharges, scheduledSaving()],
       envelopes: referenceEnvelopes(),
+      provisions: referenceProvisions(),
     });
 
     const chargesEntry = expectDefined(
@@ -431,6 +445,7 @@ describe("recalculateOpenMonthSnapshot — R7", () => {
       carriedOver: moneyFromEuros(0),
       fixedEntries: [charges(), scheduledSaving()],
       envelopes: referenceEnvelopes(),
+      provisions: referenceProvisions(),
     });
 
     expect(result.fixedEntries.find((entry) => entry.fixedEntryId === "charges")?.status).toBe(
@@ -447,6 +462,7 @@ describe("recalculateOpenMonthSnapshot — R7", () => {
       carriedOver: moneyFromEuros(0),
       fixedEntries: [archivedCharges, scheduledSaving()],
       envelopes: referenceEnvelopes(),
+      provisions: referenceProvisions(),
     });
 
     expect(result.fixedEntries.map((entry) => entry.fixedEntryId)).not.toContain("charges");
@@ -471,6 +487,7 @@ describe("recalculateOpenMonthSnapshot — R7", () => {
       carriedOver: moneyFromEuros(0),
       fixedEntries: [raisedCharges, scheduledSaving()],
       envelopes: referenceEnvelopes(),
+      provisions: referenceProvisions(),
     });
 
     // disposableIncome = 2800 - 1500 - 400 = 900 ; allocationBase = 900 - 150 = 750 ; 15% -> 112,50€
@@ -478,5 +495,65 @@ describe("recalculateOpenMonthSnapshot — R7", () => {
       result.envelopeBudgets.find((entry) => entry.envelopeId === "sorties"),
     );
     expect(moneyToCents(sorties.budget)).toBe(moneyToCents(moneyFromEuros(112.5)));
+  });
+
+  it("adds a target for a provision newly active this month", () => {
+    const budgetMonth = openedBudgetMonth();
+
+    const result = recalculateOpenMonthSnapshot({
+      budgetMonth,
+      carriedOver: moneyFromEuros(0),
+      fixedEntries: [charges(), scheduledSaving()],
+      envelopes: referenceEnvelopes(),
+      provisions: [...referenceProvisions(), newProvision()],
+    });
+
+    const loisirs = expectDefined(
+      result.provisionTargets.find((entry) => entry.provisionId === "loisirs"),
+    );
+    // R21: cible = min(mensualité, objectif - solde) = min(100, 300 - 0)
+    expect(moneyToCents(loisirs.target)).toBe(moneyToCents(moneyFromEuros(100)));
+    expect(result.provisionTargets).toHaveLength(4);
+  });
+
+  it("preserves an existing provision target even if its balance changed since opening (R19)", () => {
+    const budgetMonth = openedBudgetMonth();
+    const originalTarget = expectDefined(
+      budgetMonth.provisionTargets.find((entry) => entry.provisionId === "orthodontie"),
+    ).target;
+    const [orthodontie, vacances, imprevus] = referenceProvisions();
+    const paidDownOrthodontie: ReferenceProvision = {
+      ...orthodontie,
+      balance: moneyFromEuros(200),
+    };
+
+    const result = recalculateOpenMonthSnapshot({
+      budgetMonth,
+      carriedOver: moneyFromEuros(0),
+      fixedEntries: [charges(), scheduledSaving()],
+      envelopes: referenceEnvelopes(),
+      provisions: [paidDownOrthodontie, vacances, imprevus],
+    });
+
+    const recalculated = expectDefined(
+      result.provisionTargets.find((entry) => entry.provisionId === "orthodontie"),
+    );
+    expect(moneyToCents(recalculated.target)).toBe(moneyToCents(originalTarget));
+  });
+
+  it("drops a provision archived as of this month", () => {
+    const budgetMonth = openedBudgetMonth();
+    const [orthodontie, vacances, imprevus] = referenceProvisions();
+    const archivedOrthodontie: ReferenceProvision = { ...orthodontie, archivedFrom: month };
+
+    const result = recalculateOpenMonthSnapshot({
+      budgetMonth,
+      carriedOver: moneyFromEuros(0),
+      fixedEntries: [charges(), scheduledSaving()],
+      envelopes: referenceEnvelopes(),
+      provisions: [archivedOrthodontie, vacances, imprevus],
+    });
+
+    expect(result.provisionTargets.map((entry) => entry.provisionId)).not.toContain("orthodontie");
   });
 });

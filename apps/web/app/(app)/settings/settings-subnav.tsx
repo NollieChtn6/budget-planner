@@ -15,7 +15,11 @@ export function SettingsSubnav() {
   const pathname = usePathname();
 
   return (
-    <div className="flex gap-1 overflow-x-auto border-b" role="tablist" aria-label="Paramètres">
+    <div
+      className="flex gap-1 overflow-x-auto overflow-y-hidden border-b"
+      role="tablist"
+      aria-label="Paramètres"
+    >
       {TABS.map((tab) => {
         const active = pathname.startsWith(tab.href);
         return (

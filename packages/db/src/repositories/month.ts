@@ -169,11 +169,13 @@ export async function updateSnapshotFixedEntryStatus(
 }
 
 /**
- * R7: replaces the open month's fixed-entry and envelope-budget snapshot
- * rows wholesale after a recalculation — entries archived or newly active
- * this month aren't just updated, they can appear or disappear entirely, so
- * a delete-then-recreate is simpler than reconciling row-by-row. Provision
- * targets are untouched (R7 doesn't cover provisions).
+ * R7/R5: replaces the open month's fixed-entry, envelope-budget and
+ * provision-target snapshot rows wholesale after a recalculation — entries
+ * archived or newly active this month aren't just updated, they can appear
+ * or disappear entirely, so a delete-then-recreate is simpler than
+ * reconciling row-by-row. An existing provision target is passed through
+ * unchanged by the caller (R19), so this never alters one that was already
+ * there — only adds or drops rows.
  */
 export async function replaceBudgetMonthSnapshot(
   prisma: PrismaClient,
@@ -182,6 +184,7 @@ export async function replaceBudgetMonthSnapshot(
   snapshot: {
     fixedEntries: BudgetMonth["fixedEntries"];
     envelopeBudgets: BudgetMonth["envelopeBudgets"];
+    provisionTargets: BudgetMonth["provisionTargets"];
   },
 ): Promise<void> {
   await prisma.$transaction(async (tx) => {
@@ -195,6 +198,7 @@ export async function replaceBudgetMonthSnapshot(
 
     await tx.snapshotFixedEntry.deleteMany({ where: { budgetMonthId: existing.id } });
     await tx.snapshotEnvelopeBudget.deleteMany({ where: { budgetMonthId: existing.id } });
+    await tx.snapshotProvisionTarget.deleteMany({ where: { budgetMonthId: existing.id } });
 
     if (snapshot.fixedEntries.length > 0) {
       await tx.snapshotFixedEntry.createMany({
@@ -209,6 +213,14 @@ export async function replaceBudgetMonthSnapshot(
         data: snapshot.envelopeBudgets.map((entry) => ({
           budgetMonthId: existing.id,
           ...toPrismaSnapshotEnvelopeBudgetData(entry),
+        })),
+      });
+    }
+    if (snapshot.provisionTargets.length > 0) {
+      await tx.snapshotProvisionTarget.createMany({
+        data: snapshot.provisionTargets.map((entry) => ({
+          budgetMonthId: existing.id,
+          ...toPrismaSnapshotProvisionTargetData(entry),
         })),
       });
     }

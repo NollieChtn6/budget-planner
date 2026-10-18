@@ -285,20 +285,28 @@ export type RecalculateOpenMonthSnapshotInput = {
   carriedOver: Money;
   fixedEntries: FixedEntry[];
   envelopes: VariableEnvelope[];
+  provisions: (Provision & { balance: Money })[];
 };
 
 /**
- * R7: when a poste fixe or enveloppe variable change takes effect "ce
+ * R7/R5: when a poste fixe or enveloppe variable change takes effect "ce
  * mois-ci", the already-open month's snapshot must reflect it — a budget
  * recomputed from the versions now active for that month, not just the next
  * one. Pointage status (R27) is preserved per fixed entry; an entry that's
  * newly active this month (a brand-new one, or one un-archived in time)
- * starts "planned" like at opening. Provision targets aren't touched: R7 only
- * covers fixed entries and envelopes.
+ * starts "planned" like at opening.
+ *
+ * A provision newly active this month (just created, or un-archived in time)
+ * gets the same treatment — it needs a target to show up in calculations and
+ * on the dashboard at all. One already in the snapshot keeps its existing
+ * target untouched (R19: a frozen target never changes mid-month, however
+ * the provision's balance has moved since opening) — only its presence is
+ * re-derived, so one archived effective this month drops out.
  */
 export function recalculateOpenMonthSnapshot(input: RecalculateOpenMonthSnapshotInput): {
   fixedEntries: SnapshotFixedEntry[];
   envelopeBudgets: SnapshotEnvelopeBudget[];
+  provisionTargets: SnapshotProvisionTarget[];
 } {
   const { month, income } = input.budgetMonth;
   const statusByFixedEntryId = new Map(
@@ -323,5 +331,19 @@ export function recalculateOpenMonthSnapshot(input: RecalculateOpenMonthSnapshot
     disposableIncome,
   );
 
-  return { fixedEntries, envelopeBudgets };
+  const existingTargetByProvisionId = new Map(
+    input.budgetMonth.provisionTargets.map((entry) => [entry.provisionId, entry]),
+  );
+  const provisionTargets: SnapshotProvisionTarget[] = input.provisions
+    .filter((provision) => isProvisionActiveAt(provision, month))
+    .map(
+      (provision) =>
+        existingTargetByProvisionId.get(provision.id) ?? {
+          provisionId: provision.id,
+          label: provision.label,
+          target: computeMonthlyTarget(provision, month, provision.balance),
+        },
+    );
+
+  return { fixedEntries, envelopeBudgets, provisionTargets };
 }

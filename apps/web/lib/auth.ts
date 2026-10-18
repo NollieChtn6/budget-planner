@@ -22,6 +22,15 @@ export function createAuth(prismaClient: PrismaClient) {
         generateId: "uuid",
       },
     },
+    // Évite de retaper la DB à chaque requête (proxy.ts + requireSession() vérifient
+    // tous les deux la session, cf. ADR-0008) : le cookie signé fait foi pendant 60s,
+    // la session réelle reste la source de vérité en base au-delà.
+    session: {
+      cookieCache: {
+        enabled: true,
+        maxAge: 60,
+      },
+    },
     emailAndPassword: {
       enabled: true,
       // Pas d'inscription publique (ADR-0008) : le compte unique est créé par

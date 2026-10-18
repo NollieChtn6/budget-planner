@@ -1,10 +1,8 @@
 import { findCategoriesByUser, findVariableEnvelopesByUser, prisma } from "@budget/db";
-import { Separator } from "@/components/ui/separator";
 import { filterActiveEnvelopes } from "@/lib/active-envelopes";
 import { resolveCurrentMonth } from "@/lib/current-month";
 import { requireSession } from "@/lib/session";
-import { CategoryCard } from "./category-card";
-import { CreateCategoryForm } from "./create-category-form";
+import { type CategoryRowData, CategoryTable } from "./category-table";
 
 export default async function CategoriesSettingsPage() {
   const session = await requireSession();
@@ -14,16 +12,25 @@ export default async function CategoriesSettingsPage() {
   ]);
   const activeEnvelopes = filterActiveEnvelopes(envelopes, resolveCurrentMonth());
 
+  const rows: CategoryRowData[] = categories.map((category) => ({
+    id: category.id,
+    label: category.label,
+    color: category.color,
+    archived: category.archived,
+    defaultEnvelopeId: category.defaultEnvelopeId ?? null,
+    defaultEnvelopeLabel:
+      envelopes.find((envelope) => envelope.id === category.defaultEnvelopeId)?.label ?? null,
+  }));
+
+  const envelopeOptions = activeEnvelopes.map((envelope) => ({
+    id: envelope.id,
+    label: envelope.label,
+  }));
+
   return (
-    <div className="mx-auto flex max-w-2xl flex-col gap-6 p-6">
+    <div className="flex flex-col gap-2">
       <h2 className="font-heading text-xl">Catégories</h2>
-      <CreateCategoryForm envelopes={activeEnvelopes} />
-      <Separator />
-      <div className="flex flex-col gap-4">
-        {categories.map((category) => (
-          <CategoryCard key={category.id} category={category} envelopes={envelopes} />
-        ))}
-      </div>
+      <CategoryTable rows={rows} envelopeOptions={envelopeOptions} />
     </div>
   );
 }

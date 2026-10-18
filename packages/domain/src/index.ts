@@ -1,4 +1,9 @@
-export { archiveCategory, type Category, unarchiveCategory } from "./budget/category";
+export {
+  archiveCategory,
+  type Category,
+  unarchiveCategory,
+  updateCategory,
+} from "./budget/category";
 export {
   type AddFixedEntryVersionFailure,
   type AddFixedEntryVersionInput,

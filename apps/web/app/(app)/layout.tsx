@@ -8,7 +8,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   await requireSession();
 
   return (
-    <div className="grid min-h-screen grid-cols-1 md:grid-cols-[224px_minmax(0,1fr)]">
+    <div className="grid min-h-screen grid-cols-1 content-start md:grid-cols-[224px_minmax(0,1fr)]">
       <KeyboardShortcuts />
       <aside className="sticky top-0 z-40 hidden h-screen flex-col gap-1 border-r bg-card p-4 md:flex">
         <AppSidebarContent />

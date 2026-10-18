@@ -17,6 +17,7 @@ import {
   type ExtendProvisionFailure,
   extendProvision,
   formatMonth,
+  isSameMonth,
   type Money,
   type Month,
   moneyFromEuros,
@@ -28,6 +29,7 @@ import {
 import { revalidatePath } from "next/cache";
 import type { VariableEnvelopeActionState } from "@/actions/variable-envelope-state";
 import { resolveCurrentMonth } from "@/lib/current-month";
+import { recalculateOpenMonthSnapshotForUser } from "@/lib/recalculate-open-month";
 import { requireSession } from "@/lib/session";
 import {
   archiveProvisionSchema,
@@ -112,7 +114,14 @@ export async function createProvisionAction(
     });
   }
 
+  // A new provision active this month (e.g. a deadline starting now) needs
+  // its target added to the already-open month's snapshot right away — see
+  // recalculateOpenMonthSnapshot's doc comment. A no-op otherwise (not yet
+  // active, or no month open).
+  await recalculateOpenMonthSnapshotForUser(prisma, session.user.id);
   revalidatePath(PROVISIONS_PATH);
+  revalidatePath("/");
+  revalidatePath("/operations");
   return { status: "success", message: "Provision créée." };
 }
 
@@ -188,7 +197,12 @@ export async function archiveProvisionAction(
   }
 
   await setProvisionArchivedFrom(prisma, session.user.id, parsed.data.provisionId, effectiveFrom);
+  if (isSameMonth(effectiveFrom, currentMonth)) {
+    await recalculateOpenMonthSnapshotForUser(prisma, session.user.id);
+  }
   revalidatePath(PROVISIONS_PATH);
+  revalidatePath("/");
+  revalidatePath("/operations");
   return { status: "success", message: "Provision archivée." };
 }
 

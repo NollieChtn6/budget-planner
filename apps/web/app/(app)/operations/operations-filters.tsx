@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useRef } from "react";
 import { Input } from "@/components/ui/input";
+import { Kbd } from "@/components/ui/kbd";
 import {
   Select,
   SelectContent,
@@ -41,13 +42,17 @@ export function OperationsFilters({
 
   return (
     <div className="flex flex-wrap gap-2.5">
-      <Input
-        type="search"
-        placeholder="Rechercher un lieu, une description…"
-        defaultValue={q}
-        onChange={(event) => onSearchChange(event.target.value)}
-        className="max-w-xs"
-      />
+      <div className="relative max-w-xs">
+        <Input
+          id="operations-search"
+          type="search"
+          placeholder="Rechercher un lieu, une description…"
+          defaultValue={q}
+          onChange={(event) => onSearchChange(event.target.value)}
+          className="pr-8"
+        />
+        <Kbd className="pointer-events-none absolute inset-y-0 right-2 my-auto">/</Kbd>
+      </div>
       <Select
         value={categoryId || "all"}
         onValueChange={(value) => navigate({ category: value === "all" ? "" : String(value) })}

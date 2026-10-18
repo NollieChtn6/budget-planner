@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { Kbd } from "@/components/ui/kbd";
 import {
   Select,
   SelectContent,
@@ -83,6 +84,9 @@ export function AddContributionForm({
             ) : null}
             <Button type="submit" variant="accent" disabled={pending}>
               {pending ? "Ajout..." : "Ajouter le versement"}
+              <Kbd className="border-accent-foreground/40 bg-transparent text-accent-foreground/70">
+                V
+              </Kbd>
             </Button>
           </FieldGroup>
         </form>

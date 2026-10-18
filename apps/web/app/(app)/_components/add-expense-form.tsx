@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { Kbd } from "@/components/ui/kbd";
 import {
   Select,
   SelectContent,
@@ -166,6 +167,9 @@ export function AddExpenseForm({
             ) : null}
             <Button type="submit" disabled={pending}>
               {pending ? "Ajout..." : "Ajouter la dépense"}
+              <Kbd className="border-primary-foreground/40 bg-transparent text-primary-foreground/70">
+                N
+              </Kbd>
             </Button>
           </FieldGroup>
         </form>

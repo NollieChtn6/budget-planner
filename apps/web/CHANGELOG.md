@@ -1,5 +1,29 @@
 # Changelog
 
+## [0.3.0](https://github.com/NollieChtn6/budget-planner/compare/budget-planner-v0.2.1...budget-planner-v0.3.0) (2026-10-18)
+
+
+### Features
+
+* **dashboard:** redesign "Ce mois-ci" to match maquette v02 ([70c7e87](https://github.com/NollieChtn6/budget-planner/commit/70c7e87d4b8b3958f1df5cdfdffabc1996a9c3c1))
+* **dashboard:** redesign "Ce mois-ci" to match maquette v02 ([47792e3](https://github.com/NollieChtn6/budget-planner/commit/47792e389737b072c2babbd18cfc17865a12b6f8))
+* editable fixed-entry and envelope labels (versioned, R7) ([3cca505](https://github.com/NollieChtn6/budget-planner/commit/3cca505c55e10d768969845dc287a3d47fdf7a95))
+* **nav:** add keyboard shortcuts and visible shortcut badges ([5a39a71](https://github.com/NollieChtn6/budget-planner/commit/5a39a719cccff149ec8ca0c575a15271d610ce2b))
+* **nav:** move Historique next to Ce mois-ci and pin the sidebar ([33310bf](https://github.com/NollieChtn6/budget-planner/commit/33310bf3f4d567059cc551b4aeb8e939b3a1546c))
+* **nav:** move Historique next to Ce mois-ci and pin the sidebar ([31b4a44](https://github.com/NollieChtn6/budget-planner/commit/31b4a4449eb2b81e79149fa03316e577edfcb276))
+* **settings:** edit fixed-entry and envelope labels from the amount/value form ([12ea1c4](https://github.com/NollieChtn6/budget-planner/commit/12ea1c4645d7b552eb06d09965ab52dd2f0b1703))
+* **settings:** rebuild as inline-editable tables ([5e69198](https://github.com/NollieChtn6/budget-planner/commit/5e6919849cb1bf34e3682187d297e38aca5706a7))
+
+
+### Bug Fixes
+
+* **nav:** stop the mobile header from stretching on short pages ([e8b8b30](https://github.com/NollieChtn6/budget-planner/commit/e8b8b30104b0c6b846bb73e7b85b853f16bc83d4))
+* **nav:** stop the mobile header from stretching on short pages ([ee8ee22](https://github.com/NollieChtn6/budget-planner/commit/ee8ee22dd2583674b33e1406b8a6136457504bf8))
+* **provisions:** add newly active provisions to the open month's snapshot ([35bb3f0](https://github.com/NollieChtn6/budget-planner/commit/35bb3f0e83af4d40add169dddd325d3aa1ef2da5))
+* **provisions:** add newly active provisions to the open month's snapshot ([0f86f60](https://github.com/NollieChtn6/budget-planner/commit/0f86f605e95fd2317a21b28bbed38aab1eca1b13))
+* **settings,provisions:** remove tabs scroll and fix card overlap on mobile ([7b757d0](https://github.com/NollieChtn6/budget-planner/commit/7b757d0ed0ad572631fda2bda31a68d496b41552))
+* **settings,provisions:** remove tabs scroll and fix card overlap on mobile ([9bccc01](https://github.com/NollieChtn6/budget-planner/commit/9bccc013a4d0189f6a069a5ca7f71a418a99f321))
+
 ## [0.2.1](https://github.com/NollieChtn6/budget-planner/compare/budget-planner-v0.2.0...budget-planner-v0.2.1) (2026-10-17)
 
 

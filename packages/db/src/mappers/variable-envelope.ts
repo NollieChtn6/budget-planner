@@ -13,7 +13,11 @@ import { dateToMonth, monthToDate } from "./month";
 export function toDomainVariableEnvelopeVersion(
   row: PrismaVariableEnvelopeVersion,
 ): VariableEnvelopeVersion {
-  const base = { envelopeId: row.envelopeId, effectiveFrom: dateToMonth(row.effectiveFrom) };
+  const base = {
+    envelopeId: row.envelopeId,
+    effectiveFrom: dateToMonth(row.effectiveFrom),
+    label: row.label,
+  };
   if (row.mode === "amount") {
     // The mode/value-column pairing is enforced by a DB CHECK constraint (see the migration).
     return { ...base, mode: "amount", value: moneyFromCents(row.amountCents as number) };
@@ -26,7 +30,6 @@ export function toDomainVariableEnvelope(
 ): VariableEnvelope {
   return {
     id: row.id,
-    label: row.label,
     versions: row.versions.map(toDomainVariableEnvelopeVersion),
     ...(row.archivedFrom ? { archivedFrom: dateToMonth(row.archivedFrom) } : {}),
   };
@@ -34,6 +37,7 @@ export function toDomainVariableEnvelope(
 
 export function toPrismaVersionData(version: VariableEnvelopeVersion): {
   effectiveFrom: Date;
+  label: string;
   mode: "amount" | "percentage";
   amountCents: number | null;
   percentage: number | null;
@@ -42,10 +46,17 @@ export function toPrismaVersionData(version: VariableEnvelopeVersion): {
   if (version.mode === "amount") {
     return {
       effectiveFrom,
+      label: version.label,
       mode: "amount",
       amountCents: moneyToCents(version.value),
       percentage: null,
     };
   }
-  return { effectiveFrom, mode: "percentage", amountCents: null, percentage: version.value };
+  return {
+    effectiveFrom,
+    label: version.label,
+    mode: "percentage",
+    amountCents: null,
+    percentage: version.value,
+  };
 }

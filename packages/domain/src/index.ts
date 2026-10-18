@@ -1,4 +1,9 @@
-export { archiveCategory, type Category, unarchiveCategory } from "./budget/category";
+export {
+  archiveCategory,
+  type Category,
+  unarchiveCategory,
+  updateCategory,
+} from "./budget/category";
 export {
   type AddFixedEntryVersionFailure,
   type AddFixedEntryVersionInput,
@@ -99,6 +104,8 @@ export {
   type PointFixedEntryFailure,
   type PointFixedEntryResult,
   pointFixedEntry,
+  type RecalculateOpenMonthSnapshotInput,
+  recalculateOpenMonthSnapshot,
   type SnapshotEnvelopeBudget,
   type SnapshotFixedEntry,
   type SnapshotProvisionTarget,

@@ -16,6 +16,7 @@ import {
   addVersion,
   archive,
   formatMonth,
+  isSameMonth,
   type Money,
   type Month,
   moneyFromEuros,
@@ -26,6 +27,7 @@ import {
 import { revalidatePath } from "next/cache";
 import type { VariableEnvelopeActionState } from "@/actions/variable-envelope-state";
 import { resolveCurrentMonth } from "@/lib/current-month";
+import { recalculateOpenMonthSnapshotForUser } from "@/lib/recalculate-open-month";
 import { requireSession } from "@/lib/session";
 import {
   addVariableEnvelopeVersionSchema,
@@ -66,17 +68,22 @@ function describeUnarchiveFailure(): string {
 
 function buildAddVersionInput(
   data:
-    | { mode: "amount"; amountEuros: number; effectiveFrom: Month }
-    | { mode: "percentage"; percentage: number; effectiveFrom: Month },
+    | { mode: "amount"; label: string; amountEuros: number; effectiveFrom: Month }
+    | { mode: "percentage"; label: string; percentage: number; effectiveFrom: Month },
 ): AddVersionInput | { message: string } {
   if (data.mode === "amount") {
     const value = toMoneyOrMessage(data.amountEuros);
     if (!("cents" in value)) {
       return value;
     }
-    return { mode: "amount", effectiveFrom: data.effectiveFrom, value };
+    return { mode: "amount", effectiveFrom: data.effectiveFrom, label: data.label, value };
   }
-  return { mode: "percentage", effectiveFrom: data.effectiveFrom, value: data.percentage };
+  return {
+    mode: "percentage",
+    effectiveFrom: data.effectiveFrom,
+    label: data.label,
+    value: data.percentage,
+  };
 }
 
 export async function createVariableEnvelopeAction(
@@ -98,11 +105,7 @@ export async function createVariableEnvelopeAction(
 
   const existingEnvelopes = await findVariableEnvelopesByUser(prisma, session.user.id);
   const placeholderId = randomUUID();
-  const placeholder: VariableEnvelope = {
-    id: placeholderId,
-    label: parsed.data.label,
-    versions: [],
-  };
+  const placeholder: VariableEnvelope = { id: placeholderId, versions: [] };
   const result = addVersion(
     placeholderId,
     [...existingEnvelopes, placeholder],
@@ -113,14 +116,21 @@ export async function createVariableEnvelopeAction(
     return { status: "error", message: describeAddVersionFailure(result.error) };
   }
 
-  await createVariableEnvelope(prisma, session.user.id, {
-    label: parsed.data.label,
-    firstVersion: result.version,
-  });
+  await createVariableEnvelope(prisma, session.user.id, { firstVersion: result.version });
+  if (isSameMonth(effectiveFrom, currentMonth)) {
+    await recalculateOpenMonthSnapshotForUser(prisma, session.user.id);
+  }
   revalidatePath(ENVELOPES_PATH);
+  revalidatePath("/");
+  revalidatePath("/operations");
   return { status: "success", message: "Enveloppe créée." };
 }
 
+/**
+ * R7: the single "Modifier" form covers both the label and the mode/value —
+ * a rename and a value change are the same kind of edit (the version
+ * carries both), with the same current/next-month effective-date choice.
+ */
 export async function addVariableEnvelopeVersionAction(
   _prevState: VariableEnvelopeActionState,
   formData: FormData,
@@ -149,8 +159,13 @@ export async function addVariableEnvelopeVersionAction(
   }
 
   await addVariableEnvelopeVersion(prisma, session.user.id, parsed.data.envelopeId, result.version);
+  if (isSameMonth(effectiveFrom, currentMonth)) {
+    await recalculateOpenMonthSnapshotForUser(prisma, session.user.id);
+  }
   revalidatePath(ENVELOPES_PATH);
-  return { status: "success", message: "Version ajoutée." };
+  revalidatePath("/");
+  revalidatePath("/operations");
+  return { status: "success", message: "Enveloppe modifiée." };
 }
 
 export async function archiveVariableEnvelopeAction(
@@ -185,7 +200,12 @@ export async function archiveVariableEnvelopeAction(
     parsed.data.envelopeId,
     effectiveFrom,
   );
+  if (isSameMonth(effectiveFrom, currentMonth)) {
+    await recalculateOpenMonthSnapshotForUser(prisma, session.user.id);
+  }
   revalidatePath(ENVELOPES_PATH);
+  revalidatePath("/");
+  revalidatePath("/operations");
   return { status: "success", message: "Enveloppe archivée." };
 }
 

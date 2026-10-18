@@ -4,7 +4,13 @@ import type { VariableEnvelope } from "../budget/variable-envelope";
 import { type Money, moneyFromEuros, moneyToCents } from "../money";
 import { parseMonth } from "../month";
 import type { Provision } from "../provisions/provision";
-import { openMonth, pointFixedEntry, type SnapshotFixedEntry } from "./open-month";
+import {
+  type BudgetMonth,
+  openMonth,
+  pointFixedEntry,
+  recalculateOpenMonthSnapshot,
+  type SnapshotFixedEntry,
+} from "./open-month";
 
 const month = parseMonth("2026-01");
 
@@ -16,18 +22,30 @@ function expectDefined<T>(value: T | undefined): T {
 function charges(): FixedEntry {
   return {
     id: "charges",
-    label: "Charges",
     type: "charge",
-    versions: [{ fixedEntryId: "charges", effectiveFrom: month, amount: moneyFromEuros(1400) }],
+    versions: [
+      {
+        fixedEntryId: "charges",
+        effectiveFrom: month,
+        label: "Charges",
+        amount: moneyFromEuros(1400),
+      },
+    ],
   };
 }
 
 function scheduledSaving(): FixedEntry {
   return {
     id: "epargne",
-    label: "Épargne programmée",
     type: "scheduledSaving",
-    versions: [{ fixedEntryId: "epargne", effectiveFrom: month, amount: moneyFromEuros(400) }],
+    versions: [
+      {
+        fixedEntryId: "epargne",
+        effectiveFrom: month,
+        label: "Épargne programmée",
+        amount: moneyFromEuros(400),
+      },
+    ],
   };
 }
 
@@ -35,11 +53,11 @@ function referenceEnvelopes(): [VariableEnvelope, VariableEnvelope, VariableEnve
   return [
     {
       id: "vie-quotidienne",
-      label: "Vie quotidienne",
       versions: [
         {
           envelopeId: "vie-quotidienne",
           effectiveFrom: month,
+          label: "Vie quotidienne",
           mode: "amount",
           value: moneyFromEuros(150),
         },
@@ -47,13 +65,27 @@ function referenceEnvelopes(): [VariableEnvelope, VariableEnvelope, VariableEnve
     },
     {
       id: "sorties",
-      label: "Sorties et loisirs",
-      versions: [{ envelopeId: "sorties", effectiveFrom: month, mode: "percentage", value: 15 }],
+      versions: [
+        {
+          envelopeId: "sorties",
+          effectiveFrom: month,
+          label: "Sorties et loisirs",
+          mode: "percentage",
+          value: 15,
+        },
+      ],
     },
     {
       id: "plaisir",
-      label: "Achats plaisir",
-      versions: [{ envelopeId: "plaisir", effectiveFrom: month, mode: "percentage", value: 15 }],
+      versions: [
+        {
+          envelopeId: "plaisir",
+          effectiveFrom: month,
+          label: "Achats plaisir",
+          mode: "percentage",
+          value: 15,
+        },
+      ],
     },
   ];
 }
@@ -92,6 +124,18 @@ function referenceProvisions(): [ReferenceProvision, ReferenceProvision, Referen
       balance: moneyFromEuros(0),
     },
   ];
+}
+
+function newProvision(): ReferenceProvision {
+  return {
+    id: "loisirs",
+    label: "Loisirs d'été",
+    type: "reserve",
+    target: moneyFromEuros(300),
+    monthlyAmount: moneyFromEuros(100),
+    status: "active",
+    balance: moneyFromEuros(0),
+  };
 }
 
 function referenceInput() {
@@ -256,6 +300,7 @@ describe("openMonth — R13", () => {
             {
               envelopeId: "vie-quotidienne",
               effectiveFrom: month,
+              label: "Vie quotidienne",
               mode: "amount" as const,
               value: moneyFromEuros(200),
             },
@@ -320,5 +365,195 @@ describe("pointFixedEntry (R27)", () => {
   it("rejects a fixed entry outside this month's snapshot", () => {
     const result = pointFixedEntry(entries(), "unknown", true);
     expect(result).toEqual({ ok: false, error: { type: "fixedEntryNotInSnapshot" } });
+  });
+});
+
+describe("recalculateOpenMonthSnapshot — R7", () => {
+  function openedBudgetMonth(): BudgetMonth {
+    const result = openMonth(referenceInput());
+    if (!result.ok) throw new Error("expected openMonth to succeed");
+    return result.budgetMonth;
+  }
+
+  it("reflects a rename made effective this month", () => {
+    const budgetMonth = openedBudgetMonth();
+    const renamedCharges: FixedEntry = {
+      ...charges(),
+      versions: [
+        {
+          fixedEntryId: "charges",
+          effectiveFrom: month,
+          label: "Charges du foyer",
+          amount: moneyFromEuros(1400),
+        },
+      ],
+    };
+
+    const result = recalculateOpenMonthSnapshot({
+      budgetMonth,
+      carriedOver: moneyFromEuros(0),
+      fixedEntries: [renamedCharges, scheduledSaving()],
+      envelopes: referenceEnvelopes(),
+      provisions: referenceProvisions(),
+    });
+
+    const chargesEntry = expectDefined(
+      result.fixedEntries.find((entry) => entry.fixedEntryId === "charges"),
+    );
+    expect(chargesEntry.label).toBe("Charges du foyer");
+  });
+
+  it("reflects an amount change made effective this month", () => {
+    const budgetMonth = openedBudgetMonth();
+    const raisedCharges: FixedEntry = {
+      ...charges(),
+      versions: [
+        {
+          fixedEntryId: "charges",
+          effectiveFrom: month,
+          label: "Charges",
+          amount: moneyFromEuros(1500),
+        },
+      ],
+    };
+
+    const result = recalculateOpenMonthSnapshot({
+      budgetMonth,
+      carriedOver: moneyFromEuros(0),
+      fixedEntries: [raisedCharges, scheduledSaving()],
+      envelopes: referenceEnvelopes(),
+      provisions: referenceProvisions(),
+    });
+
+    const chargesEntry = expectDefined(
+      result.fixedEntries.find((entry) => entry.fixedEntryId === "charges"),
+    );
+    expect(moneyToCents(chargesEntry.amount)).toBe(moneyToCents(moneyFromEuros(1500)));
+  });
+
+  it("preserves pointage status for entries that remain active", () => {
+    const budgetMonth = openedBudgetMonth();
+    const pointed: BudgetMonth = {
+      ...budgetMonth,
+      fixedEntries: budgetMonth.fixedEntries.map((entry) =>
+        entry.fixedEntryId === "charges" ? { ...entry, status: "done" as const } : entry,
+      ),
+    };
+
+    const result = recalculateOpenMonthSnapshot({
+      budgetMonth: pointed,
+      carriedOver: moneyFromEuros(0),
+      fixedEntries: [charges(), scheduledSaving()],
+      envelopes: referenceEnvelopes(),
+      provisions: referenceProvisions(),
+    });
+
+    expect(result.fixedEntries.find((entry) => entry.fixedEntryId === "charges")?.status).toBe(
+      "done",
+    );
+  });
+
+  it("drops a fixed entry archived as of this month", () => {
+    const budgetMonth = openedBudgetMonth();
+    const archivedCharges: FixedEntry = { ...charges(), archivedFrom: month };
+
+    const result = recalculateOpenMonthSnapshot({
+      budgetMonth,
+      carriedOver: moneyFromEuros(0),
+      fixedEntries: [archivedCharges, scheduledSaving()],
+      envelopes: referenceEnvelopes(),
+      provisions: referenceProvisions(),
+    });
+
+    expect(result.fixedEntries.map((entry) => entry.fixedEntryId)).not.toContain("charges");
+  });
+
+  it("recomputes percentage-mode envelope budgets alongside a fixed-entry change", () => {
+    const budgetMonth = openedBudgetMonth();
+    const raisedCharges: FixedEntry = {
+      ...charges(),
+      versions: [
+        {
+          fixedEntryId: "charges",
+          effectiveFrom: month,
+          label: "Charges",
+          amount: moneyFromEuros(1500),
+        },
+      ],
+    };
+
+    const result = recalculateOpenMonthSnapshot({
+      budgetMonth,
+      carriedOver: moneyFromEuros(0),
+      fixedEntries: [raisedCharges, scheduledSaving()],
+      envelopes: referenceEnvelopes(),
+      provisions: referenceProvisions(),
+    });
+
+    // disposableIncome = 2800 - 1500 - 400 = 900 ; allocationBase = 900 - 150 = 750 ; 15% -> 112,50€
+    const sorties = expectDefined(
+      result.envelopeBudgets.find((entry) => entry.envelopeId === "sorties"),
+    );
+    expect(moneyToCents(sorties.budget)).toBe(moneyToCents(moneyFromEuros(112.5)));
+  });
+
+  it("adds a target for a provision newly active this month", () => {
+    const budgetMonth = openedBudgetMonth();
+
+    const result = recalculateOpenMonthSnapshot({
+      budgetMonth,
+      carriedOver: moneyFromEuros(0),
+      fixedEntries: [charges(), scheduledSaving()],
+      envelopes: referenceEnvelopes(),
+      provisions: [...referenceProvisions(), newProvision()],
+    });
+
+    const loisirs = expectDefined(
+      result.provisionTargets.find((entry) => entry.provisionId === "loisirs"),
+    );
+    // R21: cible = min(mensualité, objectif - solde) = min(100, 300 - 0)
+    expect(moneyToCents(loisirs.target)).toBe(moneyToCents(moneyFromEuros(100)));
+    expect(result.provisionTargets).toHaveLength(4);
+  });
+
+  it("preserves an existing provision target even if its balance changed since opening (R19)", () => {
+    const budgetMonth = openedBudgetMonth();
+    const originalTarget = expectDefined(
+      budgetMonth.provisionTargets.find((entry) => entry.provisionId === "orthodontie"),
+    ).target;
+    const [orthodontie, vacances, imprevus] = referenceProvisions();
+    const paidDownOrthodontie: ReferenceProvision = {
+      ...orthodontie,
+      balance: moneyFromEuros(200),
+    };
+
+    const result = recalculateOpenMonthSnapshot({
+      budgetMonth,
+      carriedOver: moneyFromEuros(0),
+      fixedEntries: [charges(), scheduledSaving()],
+      envelopes: referenceEnvelopes(),
+      provisions: [paidDownOrthodontie, vacances, imprevus],
+    });
+
+    const recalculated = expectDefined(
+      result.provisionTargets.find((entry) => entry.provisionId === "orthodontie"),
+    );
+    expect(moneyToCents(recalculated.target)).toBe(moneyToCents(originalTarget));
+  });
+
+  it("drops a provision archived as of this month", () => {
+    const budgetMonth = openedBudgetMonth();
+    const [orthodontie, vacances, imprevus] = referenceProvisions();
+    const archivedOrthodontie: ReferenceProvision = { ...orthodontie, archivedFrom: month };
+
+    const result = recalculateOpenMonthSnapshot({
+      budgetMonth,
+      carriedOver: moneyFromEuros(0),
+      fixedEntries: [charges(), scheduledSaving()],
+      envelopes: referenceEnvelopes(),
+      provisions: [archivedOrthodontie, vacances, imprevus],
+    });
+
+    expect(result.provisionTargets.map((entry) => entry.provisionId)).not.toContain("orthodontie");
   });
 });

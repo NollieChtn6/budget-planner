@@ -44,19 +44,19 @@ const today = `${formatMonth(currentMonth)}-05`;
 
 async function seedParameterization(userId: string) {
   await createFixedEntry(prisma, userId, {
-    label: "Loyer",
     type: "charge",
     firstVersion: {
       fixedEntryId: "pending",
       effectiveFrom: currentMonth,
+      label: "Loyer",
       amount: moneyFromEuros(1000),
     },
   });
   const envelope = await createVariableEnvelope(prisma, userId, {
-    label: "Vie quotidienne",
     firstVersion: {
       envelopeId: "pending",
       effectiveFrom: currentMonth,
+      label: "Vie quotidienne",
       mode: "amount",
       value: moneyFromEuros(150),
     },
@@ -146,19 +146,19 @@ describe("openMonthForUser — R32", () => {
   it("adds the previous month's report to disposable income, flowing into percentage budgets", async () => {
     const user = await createTestUser();
     await createFixedEntry(prisma, user.id, {
-      label: "Loyer",
       type: "charge",
       firstVersion: {
         fixedEntryId: "pending",
         effectiveFrom: previousMonth(currentMonth),
+        label: "Loyer",
         amount: moneyFromEuros(1000),
       },
     });
     await createVariableEnvelope(prisma, user.id, {
-      label: "Sorties",
       firstVersion: {
         envelopeId: "pending",
         effectiveFrom: previousMonth(currentMonth),
+        label: "Sorties",
         mode: "percentage",
         value: 10,
       },

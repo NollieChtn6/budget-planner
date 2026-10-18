@@ -127,42 +127,48 @@ function isProvisionActiveAt(provision: Provision, month: Month): boolean {
 }
 
 /**
- * R4: validates the previous month's status, then freezes the snapshot (R5)
- * — fixed entries (R27: status starts at "planned"), envelope budgets
- * (R10-R13, R32's carried-over report flows into disposableIncome and so into
- * percentage-mode budgets via the allocation base), and provision targets
- * (R18, R21) — and computes the month's derived values (R9, R14) from that
- * same snapshot. The envelope bonus (R31) isn't part of this: it never
- * changes the snapshot's budget, only what's displayed alongside it (see
- * `computeEnvelopeBonus`).
+ * The fixed-entry half of a month's snapshot (R5): each active entry's
+ * current label/type/amount, with pointage status resolved by the caller —
+ * "planned" at opening (R27), or preserved from the existing snapshot when
+ * recalculating an already-open month (R7).
  */
-export function openMonth(input: OpenMonthInput): OpenMonthResult {
-  if (input.previousMonthStatus === "open") {
-    return { ok: false, error: { type: "previousMonthNotClosed" } };
-  }
-
-  const fixedEntries: SnapshotFixedEntry[] = input.fixedEntries.flatMap((fixedEntry) => {
-    const version = activeFixedEntryVersionAt(fixedEntry, input.month);
+function buildFixedEntriesSnapshot(
+  fixedEntries: FixedEntry[],
+  month: Month,
+  statusFor: (fixedEntryId: string) => PointageStatus,
+): SnapshotFixedEntry[] {
+  return fixedEntries.flatMap((fixedEntry) => {
+    const version = activeFixedEntryVersionAt(fixedEntry, month);
     if (!version) return [];
     return [
       {
         fixedEntryId: fixedEntry.id,
-        label: fixedEntry.label,
+        label: version.label,
         type: fixedEntry.type,
         amount: version.amount,
-        status: "planned" as const,
+        status: statusFor(fixedEntry.id),
       },
     ];
   });
+}
 
-  const disposableIncome = computeDisposableIncome(
-    input.income,
-    input.carriedOver,
-    fixedEntries.map((entry) => entry.amount),
-  );
-
-  const activeEnvelopes = input.envelopes.flatMap((envelope) => {
-    const version = activeVersionAt(envelope, input.month);
+/**
+ * The envelope half of a month's snapshot (R10-R13): each active envelope's
+ * current label/mode/value and its computed budget, plus the allocation
+ * values (R11, R13) and unallocated share (R12) it took to get there.
+ */
+function buildEnvelopeBudgetsSnapshot(
+  envelopes: VariableEnvelope[],
+  month: Month,
+  disposableIncome: Money,
+): {
+  envelopeBudgets: SnapshotEnvelopeBudget[];
+  allocationBase: Money;
+  allocationBaseNegative: boolean;
+  unallocated: Money;
+} {
+  const activeEnvelopes = envelopes.flatMap((envelope) => {
+    const version = activeVersionAt(envelope, month);
     return version ? [{ envelope, version }] : [];
   });
 
@@ -186,7 +192,7 @@ export function openMonth(input: OpenMonthInput): OpenMonthResult {
     if (version.mode === "amount") {
       return {
         envelopeId: envelope.id,
-        label: envelope.label,
+        label: version.label,
         mode: "amount",
         value: version.value,
         budget: version.value,
@@ -198,7 +204,7 @@ export function openMonth(input: OpenMonthInput): OpenMonthResult {
     }
     return {
       envelopeId: envelope.id,
-      label: envelope.label,
+      label: version.label,
       mode: "percentage",
       value: version.value,
       budget,
@@ -209,6 +215,35 @@ export function openMonth(input: OpenMonthInput): OpenMonthResult {
     allocationBase,
     envelopeBudgets.filter((entry) => entry.mode === "percentage").map((entry) => entry.budget),
   );
+
+  return { envelopeBudgets, allocationBase, allocationBaseNegative, unallocated };
+}
+
+/**
+ * R4: validates the previous month's status, then freezes the snapshot (R5)
+ * — fixed entries (R27: status starts at "planned"), envelope budgets
+ * (R10-R13, R32's carried-over report flows into disposableIncome and so into
+ * percentage-mode budgets via the allocation base), and provision targets
+ * (R18, R21) — and computes the month's derived values (R9, R14) from that
+ * same snapshot. The envelope bonus (R31) isn't part of this: it never
+ * changes the snapshot's budget, only what's displayed alongside it (see
+ * `computeEnvelopeBonus`).
+ */
+export function openMonth(input: OpenMonthInput): OpenMonthResult {
+  if (input.previousMonthStatus === "open") {
+    return { ok: false, error: { type: "previousMonthNotClosed" } };
+  }
+
+  const fixedEntries = buildFixedEntriesSnapshot(input.fixedEntries, input.month, () => "planned");
+
+  const disposableIncome = computeDisposableIncome(
+    input.income,
+    input.carriedOver,
+    fixedEntries.map((entry) => entry.amount),
+  );
+
+  const { envelopeBudgets, allocationBase, allocationBaseNegative, unallocated } =
+    buildEnvelopeBudgetsSnapshot(input.envelopes, input.month, disposableIncome);
 
   const provisionTargets: SnapshotProvisionTarget[] = input.provisions
     .filter((provision) => isProvisionActiveAt(provision, input.month))
@@ -242,4 +277,73 @@ export function openMonth(input: OpenMonthInput): OpenMonthResult {
       forecastMargin,
     },
   };
+}
+
+export type RecalculateOpenMonthSnapshotInput = {
+  budgetMonth: BudgetMonth;
+  /** R32, resolved by the caller exactly as at opening. */
+  carriedOver: Money;
+  fixedEntries: FixedEntry[];
+  envelopes: VariableEnvelope[];
+  provisions: (Provision & { balance: Money })[];
+};
+
+/**
+ * R7/R5: when a poste fixe or enveloppe variable change takes effect "ce
+ * mois-ci", the already-open month's snapshot must reflect it — a budget
+ * recomputed from the versions now active for that month, not just the next
+ * one. Pointage status (R27) is preserved per fixed entry; an entry that's
+ * newly active this month (a brand-new one, or one un-archived in time)
+ * starts "planned" like at opening.
+ *
+ * A provision newly active this month (just created, or un-archived in time)
+ * gets the same treatment — it needs a target to show up in calculations and
+ * on the dashboard at all. One already in the snapshot keeps its existing
+ * target untouched (R19: a frozen target never changes mid-month, however
+ * the provision's balance has moved since opening) — only its presence is
+ * re-derived, so one archived effective this month drops out.
+ */
+export function recalculateOpenMonthSnapshot(input: RecalculateOpenMonthSnapshotInput): {
+  fixedEntries: SnapshotFixedEntry[];
+  envelopeBudgets: SnapshotEnvelopeBudget[];
+  provisionTargets: SnapshotProvisionTarget[];
+} {
+  const { month, income } = input.budgetMonth;
+  const statusByFixedEntryId = new Map(
+    input.budgetMonth.fixedEntries.map((entry) => [entry.fixedEntryId, entry.status]),
+  );
+
+  const fixedEntries = buildFixedEntriesSnapshot(
+    input.fixedEntries,
+    month,
+    (fixedEntryId) => statusByFixedEntryId.get(fixedEntryId) ?? "planned",
+  );
+
+  const disposableIncome = computeDisposableIncome(
+    income,
+    input.carriedOver,
+    fixedEntries.map((entry) => entry.amount),
+  );
+
+  const { envelopeBudgets } = buildEnvelopeBudgetsSnapshot(
+    input.envelopes,
+    month,
+    disposableIncome,
+  );
+
+  const existingTargetByProvisionId = new Map(
+    input.budgetMonth.provisionTargets.map((entry) => [entry.provisionId, entry]),
+  );
+  const provisionTargets: SnapshotProvisionTarget[] = input.provisions
+    .filter((provision) => isProvisionActiveAt(provision, month))
+    .map(
+      (provision) =>
+        existingTargetByProvisionId.get(provision.id) ?? {
+          provisionId: provision.id,
+          label: provision.label,
+          target: computeMonthlyTarget(provision, month, provision.balance),
+        },
+    );
+
+  return { fixedEntries, envelopeBudgets, provisionTargets };
 }

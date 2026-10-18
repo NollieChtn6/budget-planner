@@ -30,10 +30,10 @@ function createTestUser(email: string) {
 
 async function seedEnvelopeAndCategory(userId: string) {
   const envelope = await createVariableEnvelope(prisma, userId, {
-    label: "Vie quotidienne",
     firstVersion: {
       envelopeId: "pending",
       effectiveFrom: parseMonth("2026-01"),
+      label: "Vie quotidienne",
       mode: "amount",
       value: moneyFromEuros(150),
     },
@@ -91,10 +91,10 @@ describe("createExpense", () => {
     const attacker = await createTestUser(otherEmail);
     const { category } = await seedEnvelopeAndCategory(owner.id);
     const attackerEnvelope = await createVariableEnvelope(prisma, attacker.id, {
-      label: "Vie quotidienne",
       firstVersion: {
         envelopeId: "pending",
         effectiveFrom: parseMonth("2026-01"),
+        label: "Vie quotidienne",
         mode: "amount",
         value: moneyFromEuros(150),
       },

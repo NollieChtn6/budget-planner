@@ -20,12 +20,14 @@ Chaque règle a un identifiant stable, référencé dans la spec, le code et les
 
 ## Paramétrage
 
-**R7.** Une modification d'un poste fixe ou d'une enveloppe variable demande sa date d'effet : le mois en cours ou le mois suivant.
+**R7.** Une modification d'un poste fixe (libellé et/ou montant) ou d'une enveloppe variable (libellé et/ou mode/valeur) demande sa date d'effet : le mois en cours ou le mois suivant. Le libellé est versionné au même titre que le montant/mode/valeur (`docs/domain/model.md`) : renommer suit exactement la même mécanique qu'une modification de montant, dans le même formulaire.
 - Mois en cours : l'instantané du mois ouvert est recalculé.
 - Mois suivant : le mois ouvert n'est pas touché.
 - Les mois clôturés ne sont jamais affectés (R6).
 
 **R8.** Supprimer un poste fixe, une enveloppe variable ou une provision qui apparaît dans un mois existant l'archive au lieu de l'effacer ; un élément sans historique est réellement supprimé. L'archivage fixe une date d'effet `archivedFrom`, choisie comme pour une modification de paramétrage (R7) : le mois en cours, seulement si l'élément n'a encore aucune opération (dépense, versement ou pointage) ce mois-là, sinon le mois suivant. *Tant que `BudgetMonth` n'existe pas, cette vérification est toujours vraie : l'archivage au mois en cours reste donc toujours autorisé.* À partir d'`archivedFrom`, l'élément n'est plus proposé pour de nouvelles opérations, mais les mois antérieurs restent inchangés. Il peut être désarchivé (`unarchive()`) tant qu'`archivedFrom` est postérieur au mois en cours, ce qui annule simplement la date d'archivage.
+
+**R34.** Une provision nouvellement active ce mois-ci (création, ou désarchivage avant son `archivedFrom`) voit sa cible ajoutée à l'instantané du mois déjà ouvert, calculée comme à l'ouverture (R5, R18/R21). Une cible déjà présente dans l'instantané n'est jamais recalculée en cours de mois, même si le solde de la provision a changé depuis (R19) ; une provision archivée ce mois-ci en sort symétriquement (R8).
 
 ## Reste à vivre et enveloppes variables
 

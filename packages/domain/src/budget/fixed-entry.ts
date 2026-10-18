@@ -6,12 +6,12 @@ export type FixedEntryType = "charge" | "scheduledSaving";
 export type FixedEntryVersion = {
   fixedEntryId: string;
   effectiveFrom: Month;
+  label: string;
   amount: Money;
 };
 
 export type FixedEntry = {
   id: string;
-  label: string;
   type: FixedEntryType;
   versions: FixedEntryVersion[];
   archivedFrom?: Month;
@@ -39,7 +39,7 @@ export function activeFixedEntryVersionAt(
     }, undefined);
 }
 
-export type AddFixedEntryVersionInput = { effectiveFrom: Month; amount: Money };
+export type AddFixedEntryVersionInput = { effectiveFrom: Month; label: string; amount: Money };
 
 export type AddFixedEntryVersionFailure = { type: "invalidEffectiveDate"; allowed: Month[] };
 
@@ -48,7 +48,9 @@ export type AddFixedEntryVersionResult =
   | { ok: false; error: AddFixedEntryVersionFailure };
 
 /**
- * R7: effectiveFrom must be the current or the next month. Unlike
+ * R7: effectiveFrom must be the current or the next month. Carries the label
+ * alongside the amount — renaming goes through this same version mechanism,
+ * not a separate immediate update (docs/domain/model.md). Unlike
  * VariableEnvelope, a fixed entry has no cross-entity constraint (no R12
  * equivalent), so this validates in complete isolation — no need for the
  * full list of the user's other fixed entries.

@@ -117,7 +117,6 @@ enum VariableEnvelopeVersionMode {
 model VariableEnvelope {
   id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   userId       String    @map("user_id") @db.Uuid
-  label        String
   archivedFrom DateTime? @map("archived_from") @db.Date
 
   user                 User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -131,9 +130,14 @@ model VariableEnvelope {
   @@map("variable_envelopes")
 }
 
+// Le libellé est versionné comme le mode/la valeur (R7, docs/domain/model.md) :
+// renommer une enveloppe demande la même date d'effet qu'une modification de
+// mode/valeur, et chaque instantané de mois garde sa propre copie du libellé
+// d'alors.
 model VariableEnvelopeVersion {
   envelopeId    String                      @map("envelope_id") @db.Uuid
   effectiveFrom DateTime                    @map("effective_from") @db.Date
+  label         String
   mode          VariableEnvelopeVersionMode
   amountCents   Int?                        @map("amount_cents")
   percentage    Int?
@@ -156,7 +160,6 @@ enum FixedEntryType {
 model FixedEntry {
   id           String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   userId       String         @map("user_id") @db.Uuid
-  label        String
   type         FixedEntryType
   archivedFrom DateTime?      @map("archived_from") @db.Date
 
@@ -168,9 +171,14 @@ model FixedEntry {
   @@map("fixed_entries")
 }
 
+// Le libellé est versionné comme le montant (R7, docs/domain/model.md) :
+// renommer un poste fixe demande la même date d'effet qu'une modification de
+// montant, et chaque instantané de mois garde sa propre copie du libellé
+// d'alors.
 model FixedEntryVersion {
   fixedEntryId  String   @map("fixed_entry_id") @db.Uuid
   effectiveFrom DateTime @map("effective_from") @db.Date
+  label         String
   amountCents   Int      @map("amount_cents")
 
   fixedEntry FixedEntry @relation(fields: [fixedEntryId], references: [id], onDelete: Cascade)

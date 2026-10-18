@@ -3,6 +3,7 @@ export {
   createCategory,
   findCategoriesByUser,
   findCategoryById,
+  persistCategoryUpdate,
   setCategoryArchived,
 } from "./repositories/category";
 export {
@@ -38,6 +39,7 @@ export {
   findClosedBudgetMonthsByUser,
   findOpenBudgetMonthByUser,
   reopenBudgetMonth,
+  replaceBudgetMonthSnapshot,
   updateSnapshotFixedEntryStatus,
 } from "./repositories/month";
 export {

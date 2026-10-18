@@ -9,22 +9,22 @@ Une notation `A.b[]` désigne une collection d'éléments qui n'existent pas san
 ### Paramétrage
 
 **FixedEntry**
-- `id`, `label`, `type` : `charge` | `scheduledSaving`
+- `id`, `type` : `charge` | `scheduledSaving`
 - `versions[]` : `FixedEntryVersion`
 - `archivedFrom?` (`AAAA-MM`, R8)
 
 **FixedEntryVersion**
 - identité : (`fixedEntryId`, `effectiveFrom`)
-- `amount`
+- `label`, `amount`
 
 **VariableEnvelope**
-- `id`, `label`
+- `id`
 - `versions[]` : `VariableEnvelopeVersion`
 - `archivedFrom?` (`AAAA-MM`, R8)
 
 **VariableEnvelopeVersion**
 - identité : (`envelopeId`, `effectiveFrom`)
-- `mode` : `amount` | `percentage`, `value`
+- `label`, `mode` : `amount` | `percentage`, `value`
 
 **Provision**
 - `id`, `label`, `type` : `deadline` | `reserve`, `target`
@@ -62,7 +62,7 @@ L'instantané (`MonthSnapshot`) est l'ensemble de ces trois collections. Il n'a 
 - identité : (`month`, `provisionId`)
 - `label`, `target` : copiés ou calculés à l'ouverture
 
-Les libellés sont copiés volontairement : renommer un élément ne modifie pas les mois passés.
+Les libellés sont copiés volontairement : renommer un élément ne modifie pas les mois passés. Pour `FixedEntry`/`VariableEnvelope`, le libellé est versionné comme le reste du paramétrage (R7) ; pour `Category`, jamais copiée dans un instantané, le renommage est immédiat (voir plus bas).
 
 **LeftoverAllocation**
 - `month`, `destination` : `savings` | `provision` | `envelope` | `report`, `provisionId?`, `envelopeId?`, `amount`

@@ -33,21 +33,21 @@ describe("createVariableEnvelope / findVariableEnvelopeById", () => {
     const user = await createTestUser(primaryEmail);
 
     const created = await createVariableEnvelope(prisma, user.id, {
-      label: "Vie quotidienne",
       firstVersion: {
         envelopeId: "pending",
         effectiveFrom: parseMonth("2026-01"),
+        label: "Vie quotidienne",
         mode: "amount",
         value: moneyFromEuros(150),
       },
     });
 
-    expect(created.label).toBe("Vie quotidienne");
     expect(created.versions).toHaveLength(1);
 
     const found = await findVariableEnvelopeById(prisma, user.id, created.id);
     expect(found).not.toBeNull();
     const version = found?.versions[0];
+    expect(version?.label).toBe("Vie quotidienne");
     expect(version?.mode).toBe("amount");
     if (version?.mode === "amount") {
       expect(moneyToCents(version.value)).toBe(15000);
@@ -61,19 +61,19 @@ describe("findVariableEnvelopesByUser", () => {
     const otherUser = await createTestUser(otherEmail);
 
     await createVariableEnvelope(prisma, user.id, {
-      label: "Sorties et loisirs",
       firstVersion: {
         envelopeId: "pending",
         effectiveFrom: parseMonth("2026-01"),
+        label: "Sorties et loisirs",
         mode: "percentage",
         value: 15,
       },
     });
     await createVariableEnvelope(prisma, otherUser.id, {
-      label: "Autre utilisatrice",
       firstVersion: {
         envelopeId: "pending",
         effectiveFrom: parseMonth("2026-01"),
+        label: "Autre utilisatrice",
         mode: "percentage",
         value: 20,
       },
@@ -81,7 +81,7 @@ describe("findVariableEnvelopesByUser", () => {
 
     const envelopes = await findVariableEnvelopesByUser(prisma, user.id);
     expect(envelopes).toHaveLength(1);
-    expect(envelopes[0]?.label).toBe("Sorties et loisirs");
+    expect(envelopes[0]?.versions[0]?.label).toBe("Sorties et loisirs");
   });
 });
 
@@ -89,10 +89,10 @@ describe("addVariableEnvelopeVersion", () => {
   it("appends a version with a different mode", async () => {
     const user = await createTestUser(primaryEmail);
     const created = await createVariableEnvelope(prisma, user.id, {
-      label: "Achats plaisir",
       firstVersion: {
         envelopeId: "pending",
         effectiveFrom: parseMonth("2026-01"),
+        label: "Achats plaisir",
         mode: "amount",
         value: moneyFromEuros(80),
       },
@@ -101,6 +101,7 @@ describe("addVariableEnvelopeVersion", () => {
     const updated = await addVariableEnvelopeVersion(prisma, user.id, created.id, {
       envelopeId: created.id,
       effectiveFrom: parseMonth("2026-02"),
+      label: "Achats plaisir",
       mode: "percentage",
       value: 15,
     });
@@ -113,14 +114,38 @@ describe("addVariableEnvelopeVersion", () => {
     }
   });
 
+  it("replaces the label alongside mode/value (R7: renaming goes through the same version)", async () => {
+    const user = await createTestUser(primaryEmail);
+    const created = await createVariableEnvelope(prisma, user.id, {
+      firstVersion: {
+        envelopeId: "pending",
+        effectiveFrom: parseMonth("2026-01"),
+        label: "Courses",
+        mode: "amount",
+        value: moneyFromEuros(150),
+      },
+    });
+
+    const updated = await addVariableEnvelopeVersion(prisma, user.id, created.id, {
+      envelopeId: created.id,
+      effectiveFrom: parseMonth("2026-01"),
+      label: "Alimentation",
+      mode: "amount",
+      value: moneyFromEuros(150),
+    });
+
+    expect(updated.versions).toHaveLength(1);
+    expect(updated.versions[0]?.label).toBe("Alimentation");
+  });
+
   it("rejects adding a version to another user's envelope", async () => {
     const owner = await createTestUser(primaryEmail);
     const attacker = await createTestUser(otherEmail);
     const created = await createVariableEnvelope(prisma, owner.id, {
-      label: "Achats plaisir",
       firstVersion: {
         envelopeId: "pending",
         effectiveFrom: parseMonth("2026-01"),
+        label: "Achats plaisir",
         mode: "amount",
         value: moneyFromEuros(80),
       },
@@ -130,6 +155,7 @@ describe("addVariableEnvelopeVersion", () => {
       addVariableEnvelopeVersion(prisma, attacker.id, created.id, {
         envelopeId: created.id,
         effectiveFrom: parseMonth("2026-02"),
+        label: "Achats plaisir",
         mode: "amount",
         value: moneyFromEuros(999),
       }),
@@ -144,10 +170,10 @@ describe("setVariableEnvelopeArchivedFrom", () => {
   it("sets then clears the archive date", async () => {
     const user = await createTestUser(primaryEmail);
     const created = await createVariableEnvelope(prisma, user.id, {
-      label: "Vie quotidienne",
       firstVersion: {
         envelopeId: "pending",
         effectiveFrom: parseMonth("2026-01"),
+        label: "Vie quotidienne",
         mode: "amount",
         value: moneyFromEuros(150),
       },
@@ -169,10 +195,10 @@ describe("setVariableEnvelopeArchivedFrom", () => {
     const owner = await createTestUser(primaryEmail);
     const attacker = await createTestUser(otherEmail);
     const created = await createVariableEnvelope(prisma, owner.id, {
-      label: "Vie quotidienne",
       firstVersion: {
         envelopeId: "pending",
         effectiveFrom: parseMonth("2026-01"),
+        label: "Vie quotidienne",
         mode: "amount",
         value: moneyFromEuros(150),
       },
@@ -191,10 +217,10 @@ describe("database constraints", () => {
   it("rejects a version row with both amount_cents and percentage set", async () => {
     const user = await createTestUser(primaryEmail);
     const created = await createVariableEnvelope(prisma, user.id, {
-      label: "Vie quotidienne",
       firstVersion: {
         envelopeId: "pending",
         effectiveFrom: parseMonth("2026-01"),
+        label: "Vie quotidienne",
         mode: "amount",
         value: moneyFromEuros(150),
       },
@@ -205,6 +231,7 @@ describe("database constraints", () => {
         data: {
           envelopeId: created.id,
           effectiveFrom: new Date("2026-02-01T00:00:00.000Z"),
+          label: "Vie quotidienne",
           mode: "amount",
           amountCents: 1000,
           percentage: 10,
@@ -216,10 +243,10 @@ describe("database constraints", () => {
   it("rejects a version row with neither amount_cents nor percentage set", async () => {
     const user = await createTestUser(primaryEmail);
     const created = await createVariableEnvelope(prisma, user.id, {
-      label: "Vie quotidienne",
       firstVersion: {
         envelopeId: "pending",
         effectiveFrom: parseMonth("2026-01"),
+        label: "Vie quotidienne",
         mode: "amount",
         value: moneyFromEuros(150),
       },
@@ -230,6 +257,7 @@ describe("database constraints", () => {
         data: {
           envelopeId: created.id,
           effectiveFrom: new Date("2026-02-01T00:00:00.000Z"),
+          label: "Vie quotidienne",
           mode: "amount",
           amountCents: null,
           percentage: null,
@@ -241,10 +269,10 @@ describe("database constraints", () => {
   it("rejects an effectiveFrom that isn't the first day of the month", async () => {
     const user = await createTestUser(primaryEmail);
     const created = await createVariableEnvelope(prisma, user.id, {
-      label: "Vie quotidienne",
       firstVersion: {
         envelopeId: "pending",
         effectiveFrom: parseMonth("2026-01"),
+        label: "Vie quotidienne",
         mode: "amount",
         value: moneyFromEuros(150),
       },
@@ -255,6 +283,7 @@ describe("database constraints", () => {
         data: {
           envelopeId: created.id,
           effectiveFrom: new Date("2026-02-15T00:00:00.000Z"),
+          label: "Vie quotidienne",
           mode: "amount",
           amountCents: 1000,
           percentage: null,

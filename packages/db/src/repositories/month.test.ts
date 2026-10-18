@@ -17,6 +17,7 @@ import {
   findClosedBudgetMonthsByUser,
   findOpenBudgetMonthByUser,
   reopenBudgetMonth,
+  replaceBudgetMonthSnapshot,
   updateSnapshotFixedEntryStatus,
 } from "./month";
 import { createProvision } from "./provision";
@@ -39,15 +40,19 @@ const month = parseMonth("2026-01");
 
 async function seedParameterization(userId: string) {
   const fixedEntry = await createFixedEntry(prisma, userId, {
-    label: "Loyer",
     type: "charge",
-    firstVersion: { fixedEntryId: "pending", effectiveFrom: month, amount: moneyFromEuros(1000) },
+    firstVersion: {
+      fixedEntryId: "pending",
+      effectiveFrom: month,
+      label: "Loyer",
+      amount: moneyFromEuros(1000),
+    },
   });
   const envelope = await createVariableEnvelope(prisma, userId, {
-    label: "Vie quotidienne",
     firstVersion: {
       envelopeId: "pending",
       effectiveFrom: month,
+      label: "Vie quotidienne",
       mode: "amount",
       value: moneyFromEuros(150),
     },
@@ -409,6 +414,129 @@ describe("updateSnapshotFixedEntryStatus (R27)", () => {
 
     await expect(
       updateSnapshotFixedEntryStatus(prisma, attacker.id, month, seed.fixedEntry.id, "done"),
+    ).rejects.toThrow();
+  });
+});
+
+describe("replaceBudgetMonthSnapshot (R7)", () => {
+  it("overwrites fixed entries and envelope budgets for the open month", async () => {
+    const user = await createTestUser(primaryEmail);
+    const seed = await seedParameterization(user.id);
+    await createBudgetMonth(prisma, user.id, buildBudgetMonth(seed));
+
+    await replaceBudgetMonthSnapshot(prisma, user.id, month, {
+      fixedEntries: [
+        {
+          fixedEntryId: seed.fixedEntry.id,
+          label: "Loyer cave et appart",
+          type: "charge",
+          amount: moneyFromEuros(1050),
+          status: "planned",
+        },
+      ],
+      envelopeBudgets: [
+        {
+          envelopeId: seed.envelope.id,
+          label: "Vie quotidienne",
+          mode: "amount",
+          value: moneyFromEuros(180),
+          budget: moneyFromEuros(180),
+        },
+      ],
+      provisionTargets: [
+        { provisionId: seed.provision.id, label: "Orthodontie", target: moneyFromEuros(66.67) },
+      ],
+    });
+
+    const found = await findBudgetMonthByMonth(prisma, user.id, month);
+    expect(found?.fixedEntries[0]?.label).toBe("Loyer cave et appart");
+    expect(moneyToCents(found?.fixedEntries[0]?.amount ?? moneyFromEuros(-1))).toBe(105000);
+    expect(moneyToCents(found?.envelopeBudgets[0]?.budget ?? moneyFromEuros(-1))).toBe(18000);
+    expect(found?.provisionTargets).toHaveLength(1);
+  });
+
+  it("drops a fixed entry no longer present in the replacement set", async () => {
+    const user = await createTestUser(primaryEmail);
+    const seed = await seedParameterization(user.id);
+    await createBudgetMonth(prisma, user.id, buildBudgetMonth(seed));
+
+    await replaceBudgetMonthSnapshot(prisma, user.id, month, {
+      fixedEntries: [],
+      envelopeBudgets: [
+        {
+          envelopeId: seed.envelope.id,
+          label: "Vie quotidienne",
+          mode: "amount",
+          value: moneyFromEuros(150),
+          budget: moneyFromEuros(150),
+        },
+      ],
+      provisionTargets: [
+        { provisionId: seed.provision.id, label: "Orthodontie", target: moneyFromEuros(66.67) },
+      ],
+    });
+
+    const found = await findBudgetMonthByMonth(prisma, user.id, month);
+    expect(found?.fixedEntries).toHaveLength(0);
+  });
+
+  it("adds a provision target newly present in the replacement set, and drops one no longer present", async () => {
+    const user = await createTestUser(primaryEmail);
+    const seed = await seedParameterization(user.id);
+    await createBudgetMonth(prisma, user.id, buildBudgetMonth(seed));
+    const newProvision = await createProvision(prisma, user.id, {
+      type: "deadline",
+      label: "Vacances",
+      target: moneyFromEuros(700),
+      startMonth: month,
+      durationMonths: 10,
+    });
+
+    await replaceBudgetMonthSnapshot(prisma, user.id, month, {
+      fixedEntries: buildBudgetMonth(seed).fixedEntries,
+      envelopeBudgets: buildBudgetMonth(seed).envelopeBudgets,
+      provisionTargets: [
+        { provisionId: newProvision.id, label: "Vacances", target: moneyFromEuros(70) },
+      ],
+    });
+
+    const found = await findBudgetMonthByMonth(prisma, user.id, month);
+    expect(found?.provisionTargets).toHaveLength(1);
+    expect(found?.provisionTargets[0]?.provisionId).toBe(newProvision.id);
+    expect(moneyToCents(found?.provisionTargets[0]?.target ?? moneyFromEuros(-1))).toBe(7000);
+  });
+
+  it("rejects replacing another user's open month", async () => {
+    const owner = await createTestUser(primaryEmail);
+    const attacker = await createTestUser(otherEmail);
+    const seed = await seedParameterization(owner.id);
+    await createBudgetMonth(prisma, owner.id, buildBudgetMonth(seed));
+
+    await expect(
+      replaceBudgetMonthSnapshot(prisma, attacker.id, month, {
+        fixedEntries: [],
+        envelopeBudgets: [],
+        provisionTargets: [],
+      }),
+    ).rejects.toThrow();
+  });
+
+  it("rejects replacing a closed month's snapshot", async () => {
+    const user = await createTestUser(primaryEmail);
+    const seed = await seedParameterization(user.id);
+    await createBudgetMonth(prisma, user.id, buildBudgetMonth(seed));
+    await closeBudgetMonth(prisma, user.id, month, {
+      closedAt: new Date("2026-01-31T12:00:00.000Z"),
+      allocations: [],
+      contributions: [],
+    });
+
+    await expect(
+      replaceBudgetMonthSnapshot(prisma, user.id, month, {
+        fixedEntries: [],
+        envelopeBudgets: [],
+        provisionTargets: [],
+      }),
     ).rejects.toThrow();
   });
 });

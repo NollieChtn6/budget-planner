@@ -1,23 +1,44 @@
 import { findVariableEnvelopesByUser, prisma } from "@budget/db";
-import { Separator } from "@/components/ui/separator";
+import { activeVersionAt, compareMonths, formatMonth, moneyToEuros } from "@budget/domain";
+import { resolveCurrentMonth } from "@/lib/current-month";
+import { formatEuros } from "@/lib/format-money";
 import { requireSession } from "@/lib/session";
-import { CreateEnvelopeForm } from "./create-envelope-form";
-import { EnvelopeCard } from "./envelope-card";
+import { type EnvelopeRowData, EnvelopeTable } from "./envelope-table";
 
 export default async function EnvelopesSettingsPage() {
   const session = await requireSession();
   const envelopes = await findVariableEnvelopesByUser(prisma, session.user.id);
+  const currentMonth = resolveCurrentMonth();
+
+  const rows: EnvelopeRowData[] = envelopes.map((envelope) => {
+    const displayed =
+      activeVersionAt(envelope, currentMonth) ??
+      [...envelope.versions].sort((a, b) => compareMonths(b.effectiveFrom, a.effectiveFrom))[0];
+
+    return {
+      id: envelope.id,
+      label: displayed?.label ?? "",
+      archivedFrom: envelope.archivedFrom ? formatMonth(envelope.archivedFrom) : null,
+      mode: displayed?.mode ?? "amount",
+      valueLabel: displayed
+        ? displayed.mode === "amount"
+          ? formatEuros(moneyToEuros(displayed.value))
+          : `${displayed.value} %`
+        : "—",
+      amountEuros: displayed?.mode === "amount" ? moneyToEuros(displayed.value) : null,
+      percentage: displayed?.mode === "percentage" ? displayed.value : null,
+    };
+  });
+
+  const activePercentageSum = envelopes.reduce((sum, envelope) => {
+    const displayed = activeVersionAt(envelope, currentMonth);
+    return displayed?.mode === "percentage" ? sum + displayed.value : sum;
+  }, 0);
 
   return (
-    <div className="mx-auto flex max-w-2xl flex-col gap-6 p-6">
+    <div className="flex flex-col gap-2">
       <h2 className="font-heading text-xl">Enveloppes variables</h2>
-      <CreateEnvelopeForm />
-      <Separator />
-      <div className="flex flex-col gap-4">
-        {envelopes.map((envelope) => (
-          <EnvelopeCard key={envelope.id} envelope={envelope} />
-        ))}
-      </div>
+      <EnvelopeTable rows={rows} activePercentageSum={activePercentageSum} />
     </div>
   );
 }

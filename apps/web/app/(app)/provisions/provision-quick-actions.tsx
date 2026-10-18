@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AddContributionForm } from "../_components/add-contribution-form";
 import { AddExpenseForm } from "../_components/add-expense-form";
 
@@ -47,25 +48,39 @@ export function ProvisionQuickActions({
         </Button>
       </div>
       {open === "contribution" ? (
-        <AddContributionForm
-          provisions={[{ id: provisionId, label: provisionLabel }]}
-          minDate={minDate}
-          maxDate={maxDate}
-          defaultDate={defaultDate}
-        />
+        <Card>
+          <CardHeader>
+            <CardTitle>Nouveau versement</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <AddContributionForm
+              provisions={[{ id: provisionId, label: provisionLabel }]}
+              minDate={minDate}
+              maxDate={maxDate}
+              defaultDate={defaultDate}
+            />
+          </CardContent>
+        </Card>
       ) : null}
       {open === "expense" ? (
-        <AddExpenseForm
-          envelopes={[]}
-          provisions={[{ id: provisionId, label: provisionLabel }]}
-          categories={categories}
-          minDate={minDate}
-          maxDate={maxDate}
-          defaultDate={defaultDate}
-          knownPlaces={knownPlaces}
-          lastUsedCategoryId={lastUsedCategoryId}
-          defaultTarget={`provision:${provisionId}`}
-        />
+        <Card>
+          <CardHeader>
+            <CardTitle>Nouvelle dépense</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <AddExpenseForm
+              envelopes={[]}
+              provisions={[{ id: provisionId, label: provisionLabel }]}
+              categories={categories}
+              minDate={minDate}
+              maxDate={maxDate}
+              defaultDate={defaultDate}
+              knownPlaces={knownPlaces}
+              lastUsedCategoryId={lastUsedCategoryId}
+              defaultTarget={`provision:${provisionId}`}
+            />
+          </CardContent>
+        </Card>
       ) : null}
     </div>
   );

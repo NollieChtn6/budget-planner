@@ -4,7 +4,6 @@ import { useActionState, useMemo, useState } from "react";
 import { closeMonthAction } from "@/actions/month";
 import { initialVariableEnvelopeActionState } from "@/actions/variable-envelope-state";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { formatEuros as euros } from "@/lib/format-money";
@@ -77,119 +76,111 @@ export function CloseMonthForm({
   ];
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Clôturer le mois</CardTitle>
-        <CardDescription>
-          Une fois clôturé, le mois ne sera plus modifiable, sauf réouverture.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-4">
-        <ul className="flex flex-col gap-1 text-sm">
-          {envelopeRemainders.map((entry) => (
-            <li key={entry.label} className="flex justify-between">
-              <span>{entry.label}</span>
-              <span className={entry.remaining < 0 ? "text-destructive" : ""}>
-                {euros(entry.remaining)}
-              </span>
-            </li>
-          ))}
-          <li className="flex justify-between border-t pt-1 font-medium">
-            <span>Reliquat total</span>
-            <span className={leftover < 0 ? "text-destructive" : ""}>{euros(leftover)}</span>
+    <div className="flex flex-col gap-4">
+      <ul className="flex flex-col gap-1 text-sm">
+        {envelopeRemainders.map((entry) => (
+          <li key={entry.label} className="flex justify-between">
+            <span>{entry.label}</span>
+            <span className={entry.remaining < 0 ? "text-destructive" : ""}>
+              {euros(entry.remaining)}
+            </span>
           </li>
-        </ul>
-        {leftover < 0 ? (
-          <p className="text-sm text-destructive">
-            Le reliquat est négatif : {euros(-leftover)} seront enregistrés comme financés par
-            l'épargne.
-          </p>
-        ) : null}
+        ))}
+        <li className="flex justify-between border-t pt-1 font-medium">
+          <span>Reliquat total</span>
+          <span className={leftover < 0 ? "text-destructive" : ""}>{euros(leftover)}</span>
+        </li>
+      </ul>
+      {leftover < 0 ? (
+        <p className="text-sm text-destructive">
+          Le reliquat est négatif : {euros(-leftover)} seront enregistrés comme financés par
+          l'épargne.
+        </p>
+      ) : null}
 
-        {previousAllocations.length > 0 ? (
-          <div className="flex flex-col gap-1 text-sm">
-            <p className="font-medium">Déjà réparti</p>
-            <ul className="flex flex-col gap-1 text-muted-foreground">
-              {previousAllocations.map((allocation) => (
-                <li key={allocation.label} className="flex justify-between">
-                  <span>{allocation.label}</span>
-                  <span>{euros(allocation.amount)}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        ) : null}
+      {previousAllocations.length > 0 ? (
+        <div className="flex flex-col gap-1 text-sm">
+          <p className="font-medium">Déjà réparti</p>
+          <ul className="flex flex-col gap-1 text-muted-foreground">
+            {previousAllocations.map((allocation) => (
+              <li key={allocation.label} className="flex justify-between">
+                <span>{allocation.label}</span>
+                <span>{euros(allocation.amount)}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
 
-        <form action={formAction} className="flex flex-col gap-3">
-          <p className="text-sm font-medium">
-            {previousAllocations.length > 0
-              ? allocatable > 0
-                ? "Répartir le reste"
-                : "Rien de plus à répartir pour l'instant"
-              : "Répartition du reliquat"}
-          </p>
-          {rows.map((row) => (
-            <Field key={row.key}>
-              <FieldLabel htmlFor={`allocation-${row.key}`}>{row.label}</FieldLabel>
-              {/* Disabled alongside the amount input: a disabled field is dropped from
+      <form action={formAction} className="flex flex-col gap-3">
+        <p className="text-sm font-medium">
+          {previousAllocations.length > 0
+            ? allocatable > 0
+              ? "Répartir le reste"
+              : "Rien de plus à répartir pour l'instant"
+            : "Répartition du reliquat"}
+        </p>
+        {rows.map((row) => (
+          <Field key={row.key}>
+            <FieldLabel htmlFor={`allocation-${row.key}`}>{row.label}</FieldLabel>
+            {/* Disabled alongside the amount input: a disabled field is dropped from
                   FormData entirely, keeping every "allocation*" array aligned by index
                   server-side — a hidden field left enabled here would submit without
                   its amount and shift every row after it out of sync. */}
-              <input
-                type="hidden"
-                name="allocationDestination"
-                value={row.destination}
-                disabled={row.locked}
-              />
-              <input
-                type="hidden"
-                name="allocationProvisionId"
-                value={row.provisionId}
-                disabled={row.locked}
-              />
-              <input
-                type="hidden"
-                name="allocationEnvelopeId"
-                value={row.envelopeId}
-                disabled={row.locked}
-              />
-              <Input
-                id={`allocation-${row.key}`}
-                name="allocationAmountEuros"
-                type="number"
-                step="0.01"
-                min="0"
-                placeholder="0,00"
-                disabled={row.locked}
-                onChange={(event) =>
-                  setAmounts((current) => ({
-                    ...current,
-                    [row.key]: event.target.valueAsNumber,
-                  }))
-                }
-              />
-              {row.locked ? (
-                <p className="text-xs text-muted-foreground">
-                  Le mois suivant est déjà ouvert : plus modifiable.
-                </p>
-              ) : null}
-            </Field>
-          ))}
-          {overAllocated ? (
-            <p className="text-sm text-muted-foreground">
-              Tu répartis {euros(allocated - Math.max(0, allocatable))} de plus que ce qu'il reste à
-              répartir. C'est possible, mais cet argent viendra d'ailleurs.
-            </p>
-          ) : null}
-          {state.status === "error" ? <FieldError>{state.message}</FieldError> : null}
-          {state.status === "success" ? (
-            <p className="text-sm text-muted-foreground">{state.message}</p>
-          ) : null}
-          <Button type="submit" variant="destructive" disabled={pending}>
-            {pending ? "Clôture..." : "Clôturer le mois"}
-          </Button>
-        </form>
-      </CardContent>
-    </Card>
+            <input
+              type="hidden"
+              name="allocationDestination"
+              value={row.destination}
+              disabled={row.locked}
+            />
+            <input
+              type="hidden"
+              name="allocationProvisionId"
+              value={row.provisionId}
+              disabled={row.locked}
+            />
+            <input
+              type="hidden"
+              name="allocationEnvelopeId"
+              value={row.envelopeId}
+              disabled={row.locked}
+            />
+            <Input
+              id={`allocation-${row.key}`}
+              name="allocationAmountEuros"
+              type="number"
+              step="0.01"
+              min="0"
+              placeholder="0,00"
+              disabled={row.locked}
+              onChange={(event) =>
+                setAmounts((current) => ({
+                  ...current,
+                  [row.key]: event.target.valueAsNumber,
+                }))
+              }
+            />
+            {row.locked ? (
+              <p className="text-xs text-muted-foreground">
+                Le mois suivant est déjà ouvert : plus modifiable.
+              </p>
+            ) : null}
+          </Field>
+        ))}
+        {overAllocated ? (
+          <p className="text-sm text-muted-foreground">
+            Tu répartis {euros(allocated - Math.max(0, allocatable))} de plus que ce qu'il reste à
+            répartir. C'est possible, mais cet argent viendra d'ailleurs.
+          </p>
+        ) : null}
+        {state.status === "error" ? <FieldError>{state.message}</FieldError> : null}
+        {state.status === "success" ? (
+          <p className="text-sm text-muted-foreground">{state.message}</p>
+        ) : null}
+        <Button type="submit" variant="destructive" disabled={pending}>
+          {pending ? "Clôture..." : "Clôturer le mois"}
+        </Button>
+      </form>
+    </div>
   );
 }

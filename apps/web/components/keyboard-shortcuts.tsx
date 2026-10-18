@@ -32,12 +32,12 @@ export function KeyboardShortcuts() {
       }
 
       if (event.key === "n" && pathname === "/") {
-        focusAndScrollTo("amountEuros");
+        window.dispatchEvent(new Event("pecule:open-add-expense"));
         return;
       }
 
       if (event.key === "v" && pathname === "/") {
-        focusAndScrollTo("contributionAmountEuros");
+        window.dispatchEvent(new Event("pecule:open-add-contribution"));
         return;
       }
 

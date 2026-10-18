@@ -30,15 +30,19 @@ const month = parseMonth("2026-01");
 
 async function seedOpenMonth(userId: string) {
   await createFixedEntry(prisma, userId, {
-    label: "Loyer",
     type: "charge",
-    firstVersion: { fixedEntryId: "pending", effectiveFrom: month, amount: moneyFromEuros(1000) },
+    firstVersion: {
+      fixedEntryId: "pending",
+      effectiveFrom: month,
+      label: "Loyer",
+      amount: moneyFromEuros(1000),
+    },
   });
   const envelope = await createVariableEnvelope(prisma, userId, {
-    label: "Vie quotidienne",
     firstVersion: {
       envelopeId: "pending",
       effectiveFrom: month,
+      label: "Vie quotidienne",
       mode: "amount",
       value: moneyFromEuros(150),
     },

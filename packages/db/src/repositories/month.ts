@@ -168,6 +168,53 @@ export async function updateSnapshotFixedEntryStatus(
   }
 }
 
+/**
+ * R7: replaces the open month's fixed-entry and envelope-budget snapshot
+ * rows wholesale after a recalculation — entries archived or newly active
+ * this month aren't just updated, they can appear or disappear entirely, so
+ * a delete-then-recreate is simpler than reconciling row-by-row. Provision
+ * targets are untouched (R7 doesn't cover provisions).
+ */
+export async function replaceBudgetMonthSnapshot(
+  prisma: PrismaClient,
+  userId: string,
+  month: Month,
+  snapshot: {
+    fixedEntries: BudgetMonth["fixedEntries"];
+    envelopeBudgets: BudgetMonth["envelopeBudgets"];
+  },
+): Promise<void> {
+  await prisma.$transaction(async (tx) => {
+    const existing = await tx.budgetMonth.findFirst({
+      where: { userId, month: monthToDate(month), status: "open" },
+      select: { id: true },
+    });
+    if (!existing) {
+      throw new Error("Open budget month not found for this user");
+    }
+
+    await tx.snapshotFixedEntry.deleteMany({ where: { budgetMonthId: existing.id } });
+    await tx.snapshotEnvelopeBudget.deleteMany({ where: { budgetMonthId: existing.id } });
+
+    if (snapshot.fixedEntries.length > 0) {
+      await tx.snapshotFixedEntry.createMany({
+        data: snapshot.fixedEntries.map((entry) => ({
+          budgetMonthId: existing.id,
+          ...toPrismaSnapshotFixedEntryData(entry),
+        })),
+      });
+    }
+    if (snapshot.envelopeBudgets.length > 0) {
+      await tx.snapshotEnvelopeBudget.createMany({
+        data: snapshot.envelopeBudgets.map((entry) => ({
+          budgetMonthId: existing.id,
+          ...toPrismaSnapshotEnvelopeBudgetData(entry),
+        })),
+      });
+    }
+  });
+}
+
 /** R29: unlocks a closed month again, without touching its frozen snapshot (R7). */
 export async function reopenBudgetMonth(
   prisma: PrismaClient,

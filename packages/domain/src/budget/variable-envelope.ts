@@ -9,14 +9,14 @@ import {
   nextMonth,
 } from "../month";
 
-export type VariableEnvelopeVersion = { envelopeId: string; effectiveFrom: Month } & (
-  | { mode: "amount"; value: Money }
-  | { mode: "percentage"; value: number }
-);
+export type VariableEnvelopeVersion = {
+  envelopeId: string;
+  effectiveFrom: Month;
+  label: string;
+} & ({ mode: "amount"; value: Money } | { mode: "percentage"; value: number });
 
 export type VariableEnvelope = {
   id: string;
-  label: string;
   versions: VariableEnvelopeVersion[];
   archivedFrom?: Month;
 };
@@ -43,7 +43,7 @@ export function activeVersionAt(
     }, undefined);
 }
 
-export type AddVersionInput = { effectiveFrom: Month } & (
+export type AddVersionInput = { effectiveFrom: Month; label: string } & (
   | { mode: "amount"; value: Money }
   | { mode: "percentage"; value: number }
 );
@@ -88,7 +88,9 @@ function percentageSumAt(envelopes: VariableEnvelope[], month: Month): number {
 }
 
 /**
- * R7: effectiveFrom must be the current or the next month.
+ * R7: effectiveFrom must be the current or the next month. Carries the label
+ * alongside mode/value — renaming goes through this same version mechanism,
+ * not a separate immediate update (docs/domain/model.md).
  * R12: a percentage-mode version must not push, at any month for which it
  * would be active, the sum of active percentage envelopes past 100.
  */

@@ -39,6 +39,7 @@ export {
   findClosedBudgetMonthsByUser,
   findOpenBudgetMonthByUser,
   reopenBudgetMonth,
+  replaceBudgetMonthSnapshot,
   updateSnapshotFixedEntryStatus,
 } from "./repositories/month";
 export {

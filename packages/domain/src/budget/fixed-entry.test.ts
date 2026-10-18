@@ -10,31 +10,31 @@ import {
   unarchiveFixedEntry,
 } from "./fixed-entry";
 
-function fixedEntry(
-  id: string,
-  label: string,
-  versions: FixedEntryVersion[],
-  archivedFrom?: Month,
-): FixedEntry {
+function fixedEntry(id: string, versions: FixedEntryVersion[], archivedFrom?: Month): FixedEntry {
   return archivedFrom
-    ? { id, label, type: "charge", versions, archivedFrom }
-    : { id, label, type: "charge", versions };
+    ? { id, type: "charge", versions, archivedFrom }
+    : { id, type: "charge", versions };
 }
 
-function amountVersion(fixedEntryId: string, month: string, euros: number): FixedEntryVersion {
-  return { fixedEntryId, effectiveFrom: parseMonth(month), amount: moneyFromEuros(euros) };
+function amountVersion(
+  fixedEntryId: string,
+  month: string,
+  euros: number,
+  label = "Loyer",
+): FixedEntryVersion {
+  return { fixedEntryId, effectiveFrom: parseMonth(month), label, amount: moneyFromEuros(euros) };
 }
 
 describe("activeFixedEntryVersionAt", () => {
   it("returns undefined before the first version", () => {
-    const entry = fixedEntry("a", "Loyer", [amountVersion("a", "2026-03", 1000)]);
+    const entry = fixedEntry("a", [amountVersion("a", "2026-03", 1000)]);
     expect(activeFixedEntryVersionAt(entry, parseMonth("2026-02"))).toBeUndefined();
   });
 
   it("picks the latest version whose effectiveFrom is at or before the month", () => {
     const v1 = amountVersion("a", "2026-01", 1000);
     const v2 = amountVersion("a", "2026-03", 1050);
-    const entry = fixedEntry("a", "Loyer", [v1, v2]);
+    const entry = fixedEntry("a", [v1, v2]);
     expect(activeFixedEntryVersionAt(entry, parseMonth("2026-02"))).toEqual(v1);
     expect(activeFixedEntryVersionAt(entry, parseMonth("2026-03"))).toEqual(v2);
     expect(activeFixedEntryVersionAt(entry, parseMonth("2026-05"))).toEqual(v2);
@@ -42,7 +42,7 @@ describe("activeFixedEntryVersionAt", () => {
 
   it("resolves normally before archivedFrom and returns undefined at/after it", () => {
     const v1 = amountVersion("a", "2026-01", 1000);
-    const entry = fixedEntry("a", "Loyer", [v1], parseMonth("2026-04"));
+    const entry = fixedEntry("a", [v1], parseMonth("2026-04"));
     expect(activeFixedEntryVersionAt(entry, parseMonth("2026-03"))).toEqual(v1);
     expect(activeFixedEntryVersionAt(entry, parseMonth("2026-04"))).toBeUndefined();
     expect(activeFixedEntryVersionAt(entry, parseMonth("2026-05"))).toBeUndefined();
@@ -55,7 +55,7 @@ describe("addFixedEntryVersion — R7 (effective date)", () => {
   it("accepts the current month", () => {
     const result = addFixedEntryVersion(
       "a",
-      { effectiveFrom: currentMonth, amount: moneyFromEuros(1000) },
+      { effectiveFrom: currentMonth, label: "Loyer", amount: moneyFromEuros(1000) },
       currentMonth,
     );
     expect(result.ok).toBe(true);
@@ -64,7 +64,7 @@ describe("addFixedEntryVersion — R7 (effective date)", () => {
   it("accepts the next month", () => {
     const result = addFixedEntryVersion(
       "a",
-      { effectiveFrom: nextMonth(currentMonth), amount: moneyFromEuros(1000) },
+      { effectiveFrom: nextMonth(currentMonth), label: "Loyer", amount: moneyFromEuros(1000) },
       currentMonth,
     );
     expect(result.ok).toBe(true);
@@ -73,7 +73,7 @@ describe("addFixedEntryVersion — R7 (effective date)", () => {
   it("rejects the previous month", () => {
     const result = addFixedEntryVersion(
       "a",
-      { effectiveFrom: previousMonth(currentMonth), amount: moneyFromEuros(1000) },
+      { effectiveFrom: previousMonth(currentMonth), label: "Loyer", amount: moneyFromEuros(1000) },
       currentMonth,
     );
     expect(result.ok).toBe(false);
@@ -83,22 +83,27 @@ describe("addFixedEntryVersion — R7 (effective date)", () => {
   it("rejects a month further than the next one", () => {
     const result = addFixedEntryVersion(
       "a",
-      { effectiveFrom: nextMonth(nextMonth(currentMonth)), amount: moneyFromEuros(1000) },
+      {
+        effectiveFrom: nextMonth(nextMonth(currentMonth)),
+        label: "Loyer",
+        amount: moneyFromEuros(1000),
+      },
       currentMonth,
     );
     expect(result.ok).toBe(false);
     expect(!result.ok && result.error.type).toBe("invalidEffectiveDate");
   });
 
-  it("returns the version attached to the given fixedEntryId on success", () => {
+  it("returns the version attached to the given fixedEntryId on success, label included", () => {
     const result = addFixedEntryVersion(
       "entry-42",
-      { effectiveFrom: currentMonth, amount: moneyFromEuros(1000) },
+      { effectiveFrom: currentMonth, label: "Loyer cave et appart", amount: moneyFromEuros(1000) },
       currentMonth,
     );
     expect(result.ok && result.version).toEqual({
       fixedEntryId: "entry-42",
       effectiveFrom: currentMonth,
+      label: "Loyer cave et appart",
       amount: moneyFromEuros(1000),
     });
   });
@@ -106,7 +111,7 @@ describe("addFixedEntryVersion — R7 (effective date)", () => {
 
 describe("archiveFixedEntry — R8", () => {
   const currentMonth = parseMonth("2026-03");
-  const entry = fixedEntry("a", "Loyer", [amountVersion("a", "2026-01", 1000)]);
+  const entry = fixedEntry("a", [amountVersion("a", "2026-01", 1000)]);
 
   it("allows the current month when there are no operations yet", () => {
     const result = archiveFixedEntry(
@@ -142,26 +147,26 @@ describe("unarchiveFixedEntry — R8", () => {
   const currentMonth = parseMonth("2026-03");
 
   it("allows unarchiving before the archive date takes effect", () => {
-    const archived = fixedEntry("a", "Loyer", [], nextMonth(currentMonth));
+    const archived = fixedEntry("a", [], nextMonth(currentMonth));
     const result = unarchiveFixedEntry(archived, currentMonth);
     expect(result.ok).toBe(true);
     expect(result.ok && result.fixedEntry.archivedFrom).toBeUndefined();
   });
 
   it("rejects when the archive date is the current month", () => {
-    const archived = fixedEntry("a", "Loyer", [], currentMonth);
+    const archived = fixedEntry("a", [], currentMonth);
     const result = unarchiveFixedEntry(archived, currentMonth);
     expect(result.ok).toBe(false);
   });
 
   it("rejects when the archive date is in the past", () => {
-    const archived = fixedEntry("a", "Loyer", [], previousMonth(currentMonth));
+    const archived = fixedEntry("a", [], previousMonth(currentMonth));
     const result = unarchiveFixedEntry(archived, currentMonth);
     expect(result.ok).toBe(false);
   });
 
   it("rejects when the fixed entry isn't archived", () => {
-    const notArchived = fixedEntry("a", "Loyer", []);
+    const notArchived = fixedEntry("a", []);
     const result = unarchiveFixedEntry(notArchived, currentMonth);
     expect(result.ok).toBe(false);
   });

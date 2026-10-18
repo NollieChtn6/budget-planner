@@ -187,11 +187,16 @@ export default async function HomePage() {
 
   const provisionLedger = new Map<string, { balance: Money; paidThisMonth: Money }>();
   const contributionsThisMonth: Contribution[] = [];
-  for (const entry of budgetMonth.provisionTargets) {
-    const [contributions, provisionExpenses] = await Promise.all([
-      findContributionsByUserAndProvision(prisma, session.user.id, entry.provisionId),
-      findExpensesByUserAndProvision(prisma, session.user.id, entry.provisionId),
-    ]);
+  const provisionLedgerData = await Promise.all(
+    budgetMonth.provisionTargets.map(async (entry) => {
+      const [contributions, provisionExpenses] = await Promise.all([
+        findContributionsByUserAndProvision(prisma, session.user.id, entry.provisionId),
+        findExpensesByUserAndProvision(prisma, session.user.id, entry.provisionId),
+      ]);
+      return { provisionId: entry.provisionId, contributions, provisionExpenses };
+    }),
+  );
+  for (const { provisionId, contributions, provisionExpenses } of provisionLedgerData) {
     const balance = computeProvisionBalance(
       contributions.map((c) => c.amount),
       provisionExpenses,
@@ -201,7 +206,7 @@ export default async function HomePage() {
     );
     contributionsThisMonth.push(...thisMonth);
     const paidThisMonth = sumMoney(thisMonth.map((c) => c.amount));
-    provisionLedger.set(entry.provisionId, { balance, paidThisMonth });
+    provisionLedger.set(provisionId, { balance, paidThisMonth });
   }
   contributionsThisMonth.sort((a, b) => compareCalendarDates(a.date, b.date));
 

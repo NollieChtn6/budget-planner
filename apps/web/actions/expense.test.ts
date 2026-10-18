@@ -32,10 +32,10 @@ const today = `${currentMonth.year.toString().padStart(4, "0")}-${currentMonth.m
 
 async function seedOpenMonth(userId: string) {
   const envelope = await createVariableEnvelope(prisma, userId, {
-    label: "Vie quotidienne",
     firstVersion: {
       envelopeId: "pending",
       effectiveFrom: currentMonth,
+      label: "Vie quotidienne",
       mode: "amount",
       value: moneyFromEuros(150),
     },
@@ -80,10 +80,10 @@ describe("createExpenseForUser — envelope target", () => {
   it("rejects an expense when the month isn't open", async () => {
     const user = await createTestUser();
     const envelope = await createVariableEnvelope(prisma, user.id, {
-      label: "Vie quotidienne",
       firstVersion: {
         envelopeId: "pending",
         effectiveFrom: currentMonth,
+        label: "Vie quotidienne",
         mode: "amount",
         value: moneyFromEuros(150),
       },
@@ -136,10 +136,10 @@ describe("createExpenseForUser — envelope target", () => {
     const user = await createTestUser();
     const { category } = await seedOpenMonth(user.id);
     const otherEnvelope = await createVariableEnvelope(prisma, user.id, {
-      label: "Ajoutée après ouverture",
       firstVersion: {
         envelopeId: "pending",
         effectiveFrom: currentMonth,
+        label: "Ajoutée après ouverture",
         mode: "amount",
         value: moneyFromEuros(50),
       },

@@ -11,6 +11,7 @@ import {
   type ArchiveFixedEntryFailure,
   addFixedEntryVersion,
   archiveFixedEntry,
+  isSameMonth,
   type Money,
   type Month,
   moneyFromEuros,
@@ -20,6 +21,7 @@ import {
 import { revalidatePath } from "next/cache";
 import type { VariableEnvelopeActionState } from "@/actions/variable-envelope-state";
 import { resolveCurrentMonth } from "@/lib/current-month";
+import { recalculateOpenMonthSnapshotForUser } from "@/lib/recalculate-open-month";
 import { requireSession } from "@/lib/session";
 import {
   addFixedEntryVersionSchema,
@@ -71,20 +73,33 @@ export async function createFixedEntryAction(
     return { status: "error", message: amount.message };
   }
 
-  const result = addFixedEntryVersion("pending", { effectiveFrom, amount }, currentMonth);
+  const result = addFixedEntryVersion(
+    "pending",
+    { effectiveFrom, label: parsed.data.label, amount },
+    currentMonth,
+  );
   if (!result.ok) {
     return { status: "error", message: describeAddVersionFailure() };
   }
 
   await createFixedEntry(prisma, session.user.id, {
-    label: parsed.data.label,
     type: parsed.data.type,
     firstVersion: result.version,
   });
+  if (isSameMonth(effectiveFrom, currentMonth)) {
+    await recalculateOpenMonthSnapshotForUser(prisma, session.user.id);
+  }
   revalidatePath(FIXED_ENTRIES_PATH);
+  revalidatePath("/");
+  revalidatePath("/operations");
   return { status: "success", message: "Poste fixe créé." };
 }
 
+/**
+ * R7: the single "Modifier" form covers both the label and the amount — a
+ * rename and an amount change are the same kind of edit (the version
+ * carries both), with the same current/next-month effective-date choice.
+ */
 export async function addFixedEntryVersionAction(
   _prevState: VariableEnvelopeActionState,
   formData: FormData,
@@ -109,7 +124,7 @@ export async function addFixedEntryVersionAction(
 
   const result = addFixedEntryVersion(
     parsed.data.fixedEntryId,
-    { effectiveFrom, amount },
+    { effectiveFrom, label: parsed.data.label, amount },
     currentMonth,
   );
   if (!result.ok) {
@@ -117,8 +132,13 @@ export async function addFixedEntryVersionAction(
   }
 
   await persistFixedEntryVersion(prisma, session.user.id, parsed.data.fixedEntryId, result.version);
+  if (isSameMonth(effectiveFrom, currentMonth)) {
+    await recalculateOpenMonthSnapshotForUser(prisma, session.user.id);
+  }
   revalidatePath(FIXED_ENTRIES_PATH);
-  return { status: "success", message: "Version ajoutée." };
+  revalidatePath("/");
+  revalidatePath("/operations");
+  return { status: "success", message: "Poste fixe modifié." };
 }
 
 export async function archiveFixedEntryAction(
@@ -148,7 +168,12 @@ export async function archiveFixedEntryAction(
   }
 
   await setFixedEntryArchivedFrom(prisma, session.user.id, parsed.data.fixedEntryId, effectiveFrom);
+  if (isSameMonth(effectiveFrom, currentMonth)) {
+    await recalculateOpenMonthSnapshotForUser(prisma, session.user.id);
+  }
   revalidatePath(FIXED_ENTRIES_PATH);
+  revalidatePath("/");
+  revalidatePath("/operations");
   return { status: "success", message: "Poste fixe archivé." };
 }
 

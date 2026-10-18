@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.4.0](https://github.com/NollieChtn6/budget-planner/compare/budget-planner-v0.3.0...budget-planner-v0.4.0) (2026-10-18)
+
+
+### Features
+
+* **pwa:** show logo while the home page loads ([0819476](https://github.com/NollieChtn6/budget-planner/commit/08194760fb516d5d7fd1a002608e0680fb59608d))
+
+
+### Bug Fixes
+
+* **auth:** cache session lookups to avoid redundant db round trips ([8f25a99](https://github.com/NollieChtn6/budget-planner/commit/8f25a99eacbf5f372141d4d6a6a4a1b154146cb5))
+* écran noir au lancement PWA et lenteur générale ([7549724](https://github.com/NollieChtn6/budget-planner/commit/754972428e6263f942e3d47e6eca8451207330e9))
+* **home:** parallelize provision ledger queries ([3ca16f9](https://github.com/NollieChtn6/budget-planner/commit/3ca16f9f662a0b489535870307b1832c7f151d79))
+
 ## [0.3.0](https://github.com/NollieChtn6/budget-planner/compare/budget-planner-v0.2.1...budget-planner-v0.3.0) (2026-10-18)
 
 

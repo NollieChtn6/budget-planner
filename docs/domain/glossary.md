@@ -66,6 +66,7 @@ Langage commun du projet. L'interface parle français, le code utilise les noms 
 | Réserve | `Provision.type = reserve` | Valeur d'énumération | Provision sans échéance, maintenue à un plafond et réalimentée après usage. Ex. : Imprévus, coussin vétérinaire. |
 | Objectif | `Provision.target` | Attribut | Montant à atteindre (échéance) ou plafond (réserve). |
 | Durée | `Provision.durationMonths` | Attribut | Nombre de mois de constitution d'une provision à échéance. |
+| Mois de début | `startMonth` | Attribut | Premier mois de constitution d'une provision à échéance (R17). Libellé affiché : « Début de la constitution ». |
 | Mensualité | `Provision.monthlyAmount` | Attribut | Montant mensuel choisi pour réalimenter une réserve. |
 | Mois d'échéance | `dueMonth` | Valeur dérivée | Dernier mois de constitution, qui est aussi le mois de la dépense prévue. |
 | Cible du mois | `monthlyTarget` | Valeur dérivée, figée | Montant à verser sur une provision pendant un mois ; calculée à l'ouverture et conservée dans `SnapshotProvisionTarget.target`. |

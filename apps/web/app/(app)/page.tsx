@@ -523,31 +523,56 @@ export default async function HomePage() {
               </p>
             </div>
           </div>
-          {carriedOver.cents > 0 ? (
-            <p className="mt-3 text-sm text-muted-foreground">
-              Dont {formatEuros(moneyToEuros(carriedOver))} reportés du mois précédent
-            </p>
-          ) : null}
-          {reimbursementsTotal.cents > 0 ? (
-            <p className="mt-3 text-sm text-muted-foreground">
-              Dont{" "}
-              <span className="text-positive">
-                +{formatEuros(moneyToEuros(reimbursementsTotal))}
-              </span>{" "}
-              de remboursements reçus
-            </p>
-          ) : null}
-          {extraIncomeTotal.cents > 0 ? (
-            <p className="mt-3 text-sm text-muted-foreground">
-              Dont{" "}
-              <span className="text-positive">+{formatEuros(moneyToEuros(extraIncomeTotal))}</span>{" "}
-              d'entrées exceptionnelles
-            </p>
-          ) : null}
-          {savingsTransfersTotal.cents > 0 ? (
-            <p className="mt-3 text-sm text-muted-foreground">
-              Après {formatEuros(moneyToEuros(savingsTransfersTotal))} transférés vers l'épargne
-            </p>
+          {carriedOver.cents > 0 ||
+          reimbursementsTotal.cents > 0 ||
+          extraIncomeTotal.cents > 0 ||
+          savingsTransfersTotal.cents > 0 ? (
+            <div className="mt-4 flex flex-wrap items-center gap-x-2 gap-y-1 border-t pt-3 text-sm text-muted-foreground">
+              {carriedOver.cents > 0 ||
+              reimbursementsTotal.cents > 0 ||
+              extraIncomeTotal.cents > 0 ? (
+                <span>Inclus :</span>
+              ) : null}
+              {carriedOver.cents > 0 ? (
+                <span>{formatEuros(moneyToEuros(carriedOver))} reportés</span>
+              ) : null}
+              {reimbursementsTotal.cents > 0 ? (
+                <>
+                  {carriedOver.cents > 0 ? <span aria-hidden="true">·</span> : null}
+                  <span>
+                    <span className="text-positive">
+                      +{formatEuros(moneyToEuros(reimbursementsTotal))}
+                    </span>{" "}
+                    remboursements
+                  </span>
+                </>
+              ) : null}
+              {extraIncomeTotal.cents > 0 ? (
+                <>
+                  {carriedOver.cents > 0 || reimbursementsTotal.cents > 0 ? (
+                    <span aria-hidden="true">·</span>
+                  ) : null}
+                  <span>
+                    <span className="text-positive">
+                      +{formatEuros(moneyToEuros(extraIncomeTotal))}
+                    </span>{" "}
+                    entrées exceptionnelles
+                  </span>
+                </>
+              ) : null}
+              {savingsTransfersTotal.cents > 0 ? (
+                <>
+                  {carriedOver.cents > 0 ||
+                  reimbursementsTotal.cents > 0 ||
+                  extraIncomeTotal.cents > 0 ? (
+                    <span aria-hidden="true" className="mx-1 h-4 w-px bg-border" />
+                  ) : null}
+                  <span>
+                    {formatEuros(moneyToEuros(savingsTransfersTotal))} transférés vers l'épargne
+                  </span>
+                </>
+              ) : null}
+            </div>
           ) : null}
         </Card>
 

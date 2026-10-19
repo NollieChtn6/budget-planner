@@ -108,7 +108,7 @@ export function ReimbursementRow({
           ) : null}
           {updateState.warning ? (
             <p
-              className={`rounded-md border border-l-4 border-l-alert-warning bg-card px-3 py-2 text-sm ${OPERATION_EDIT_FULL_WIDTH_CLASS}`}
+              className={`rounded-md border border-alert-warning/60 bg-card px-3 py-2 text-sm ${OPERATION_EDIT_FULL_WIDTH_CLASS}`}
             >
               {updateState.warning}
             </p>

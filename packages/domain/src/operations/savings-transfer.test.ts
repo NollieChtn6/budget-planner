@@ -1,11 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { parseCalendarDate } from "../calendar-date";
-import { moneyFromEuros } from "../money";
+import { moneyFromEuros, moneyToCents } from "../money";
 import { parseMonth } from "../month";
 import {
   type RecordSavingsTransferContext,
   type RecordSavingsTransferInput,
   recordSavingsTransfer,
+  summarizeConvertedUrges,
 } from "./savings-transfer";
 
 const context: RecordSavingsTransferContext = { currentMonth: parseMonth("2026-10") };
@@ -24,7 +25,11 @@ describe("recordSavingsTransfer", () => {
   it("accepts a transfer without label (E18)", () => {
     expect(recordSavingsTransfer(baseInput(), context)).toEqual({
       ok: true,
-      savingsTransfer: { date: parseCalendarDate("2026-10-12"), amount: moneyFromEuros(40) },
+      savingsTransfer: {
+        date: parseCalendarDate("2026-10-12"),
+        amount: moneyFromEuros(40),
+        kind: "free",
+      },
     });
   });
 
@@ -46,5 +51,61 @@ describe("recordSavingsTransfer", () => {
     expect(
       recordSavingsTransfer(baseInput({ date: parseCalendarDate("2026-11-01") }), context),
     ).toEqual({ ok: false, error: { type: "dateOutsideCurrentMonth" } });
+  });
+});
+
+describe("recordSavingsTransfer converted urge (R38)", () => {
+  it("accepts a converted urge with a label (E19)", () => {
+    expect(
+      recordSavingsTransfer(
+        baseInput({ kind: "convertedUrge", label: " Pull en solde " }),
+        context,
+      ),
+    ).toEqual({
+      ok: true,
+      savingsTransfer: {
+        date: parseCalendarDate("2026-10-12"),
+        amount: moneyFromEuros(40),
+        kind: "convertedUrge",
+        label: "Pull en solde",
+      },
+    });
+  });
+
+  it("requires a label for a converted urge", () => {
+    expect(recordSavingsTransfer(baseInput({ kind: "convertedUrge" }), context)).toEqual({
+      ok: false,
+      error: { type: "missingLabel" },
+    });
+    expect(
+      recordSavingsTransfer(baseInput({ kind: "convertedUrge", label: "  " }), context),
+    ).toEqual({ ok: false, error: { type: "missingLabel" } });
+  });
+
+  it("still applies the amount and month guards", () => {
+    expect(
+      recordSavingsTransfer(
+        baseInput({ kind: "convertedUrge", label: "Pull", amount: moneyFromEuros(0) }),
+        context,
+      ),
+    ).toEqual({ ok: false, error: { type: "invalidAmount" } });
+  });
+});
+
+describe("summarizeConvertedUrges", () => {
+  it("counts only converted urges, free transfers stay out (E19)", () => {
+    const summary = summarizeConvertedUrges([
+      { amount: moneyFromEuros(40), kind: "convertedUrge" },
+      { amount: moneyFromEuros(100), kind: "free" },
+      { amount: moneyFromEuros(15.5), kind: "convertedUrge" },
+    ]);
+    expect(moneyToCents(summary.total)).toBe(5550);
+    expect(summary.count).toBe(2);
+  });
+
+  it("is zero without any converted urge", () => {
+    const summary = summarizeConvertedUrges([{ amount: moneyFromEuros(100), kind: "free" }]);
+    expect(moneyToCents(summary.total)).toBe(0);
+    expect(summary.count).toBe(0);
   });
 });

@@ -23,7 +23,7 @@ function createTestUser(email: string) {
 }
 
 function transfer(date = "2026-10-12") {
-  return { date: parseCalendarDate(date), amount: moneyFromEuros(40) };
+  return { date: parseCalendarDate(date), amount: moneyFromEuros(40), kind: "free" as const };
 }
 
 beforeAll(cleanup);
@@ -45,6 +45,36 @@ describe("createSavingsTransfer", () => {
     expect(moneyToEuros(plain.amount)).toBe(40);
     expect("label" in plain).toBe(false);
     expect(labelled.label).toBe("Livret A");
+  });
+
+  it("round-trips a converted urge and defaults other transfers to free (R38)", async () => {
+    const user = await createTestUser(primaryEmail);
+
+    const free = await createSavingsTransfer(prisma, user.id, transfer());
+    const urge = await createSavingsTransfer(prisma, user.id, {
+      ...transfer(),
+      kind: "convertedUrge",
+      label: "Pull en solde",
+    });
+
+    expect(free.kind).toBe("free");
+    expect(urge.kind).toBe("convertedUrge");
+    expect(urge.label).toBe("Pull en solde");
+  });
+
+  it("rejects a converted urge without a label at the database level (R38)", async () => {
+    const user = await createTestUser(primaryEmail);
+
+    await expect(
+      createSavingsTransfer(prisma, user.id, { ...transfer(), kind: "convertedUrge" }),
+    ).rejects.toThrow();
+    await expect(
+      createSavingsTransfer(prisma, user.id, {
+        ...transfer(),
+        kind: "convertedUrge",
+        label: "   ",
+      }),
+    ).rejects.toThrow();
   });
 
   it("rejects a non-positive amount at the database level", async () => {
@@ -99,6 +129,20 @@ describe("updateSavingsTransfer", () => {
     const found = await findSavingsTransferById(prisma, user.id, created.id);
     expect(found && moneyToEuros(found.amount)).toBe(25);
     expect(found && "label" in found).toBe(false);
+  });
+
+  it("turns a free transfer into a converted urge (R38)", async () => {
+    const user = await createTestUser(primaryEmail);
+    const created = await createSavingsTransfer(prisma, user.id, transfer());
+
+    await updateSavingsTransfer(prisma, user.id, created.id, {
+      ...transfer(),
+      kind: "convertedUrge",
+      label: "Pull en solde",
+    });
+
+    const found = await findSavingsTransferById(prisma, user.id, created.id);
+    expect(found?.kind).toBe("convertedUrge");
   });
 
   it("cannot update another user's transfer", async () => {

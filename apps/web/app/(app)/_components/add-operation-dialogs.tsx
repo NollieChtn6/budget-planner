@@ -26,7 +26,7 @@ import { AddExtraIncomeForm } from "./add-extra-income-form";
 import { AddReimbursementForm } from "./add-reimbursement-form";
 import { AddSavingsTransferForm } from "./add-savings-transfer-form";
 
-type OperationType = "extra-income" | "savings-transfer" | "reimbursement";
+type OperationType = "extra-income" | "savings-transfer" | "converted-urge" | "reimbursement";
 
 const OPERATION_TYPES: { value: OperationType; label: string; description: string }[] = [
   {
@@ -38,6 +38,11 @@ const OPERATION_TYPES: { value: OperationType; label: string; description: strin
     value: "savings-transfer",
     label: "Transfert vers l'épargne",
     description: "Mettez de côté une somme du reste à vivre du mois.",
+  },
+  {
+    value: "converted-urge",
+    label: "Envie convertie",
+    description: "Renoncez à un achat et mettez la même somme de côté.",
   },
   {
     value: "reimbursement",
@@ -88,7 +93,7 @@ export function AddOperationDialogs({
   const availableOperations = OPERATION_TYPES.filter(
     ({ value }) =>
       (value === "extra-income" && canAddExtraIncome) ||
-      (value === "savings-transfer" && canAddSavingsTransfer) ||
+      ((value === "savings-transfer" || value === "converted-urge") && canAddSavingsTransfer) ||
       (value === "reimbursement" && canAddReimbursement),
   );
   const canAddOperation = availableOperations.length > 0;
@@ -241,6 +246,15 @@ export function AddOperationDialogs({
                 maxDate={maxDate}
                 defaultDate={defaultDate}
                 defaultAmountEuros={transferDefaultAmount}
+                onClose={() => setOperationOpen(false)}
+              />
+            ) : null}
+            {operationType === "converted-urge" ? (
+              <AddSavingsTransferForm
+                kind="convertedUrge"
+                minDate={minDate}
+                maxDate={maxDate}
+                defaultDate={defaultDate}
                 onClose={() => setOperationOpen(false)}
               />
             ) : null}

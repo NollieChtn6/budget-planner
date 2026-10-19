@@ -1,5 +1,6 @@
 "use client";
 
+import type { SavingsTransferKind } from "@budget/domain";
 import { useActionState } from "react";
 import { initialOperationActionState } from "@/actions/operation-state";
 import { createSavingsTransferAction } from "@/actions/savings-transfer";
@@ -12,12 +13,14 @@ export function AddSavingsTransferForm({
   maxDate,
   defaultDate,
   defaultAmountEuros,
+  kind = "free",
   onClose,
 }: {
   minDate: string;
   maxDate: string;
   defaultDate: string;
   defaultAmountEuros?: number;
+  kind?: SavingsTransferKind;
   onClose: () => void;
 }) {
   const [state, formAction, pending] = useActionState(
@@ -49,6 +52,7 @@ export function AddSavingsTransferForm({
           idPrefix="savings-transfer"
           minDate={minDate}
           maxDate={maxDate}
+          kind={kind}
           initial={{
             date: defaultDate,
             amountEuros: Number.isFinite(defaultAmountEuros) ? defaultAmountEuros : undefined,
@@ -56,7 +60,11 @@ export function AddSavingsTransferForm({
         />
         {state.status === "error" ? <FieldError>{state.message}</FieldError> : null}
         <Button type="submit" variant="accent" disabled={pending}>
-          {pending ? "Ajout..." : "Transférer vers l'épargne"}
+          {pending
+            ? "Ajout..."
+            : kind === "convertedUrge"
+              ? "Convertir l'envie en épargne"
+              : "Transférer vers l'épargne"}
         </Button>
       </FieldGroup>
     </form>

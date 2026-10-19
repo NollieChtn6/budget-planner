@@ -44,6 +44,7 @@ Au premier accès d'un mois non ouvert, l'app propose de l'ouvrir, à condition 
 - Elle **enregistre ses remboursements** (mutuelle…) à leur date de réception : ils s'ajoutent au reste à vivre du mois, sans modifier les budgets (R35). Catégorie obligatoire, dépense d'origine facultative.
 - Elle **enregistre ses entrées exceptionnelles** (chèque cadeau…) à leur date de réception : elles s'ajoutent au reste à vivre du mois, non attribuées (R36). Elle peut aussitôt en transférer une partie vers l'épargne ou une provision.
 - Elle **transfère de l'argent vers l'épargne** à tout moment du mois : le montant est retiré du reste à vivre (R37).
+- Elle **enregistre ses envies converties** : quand elle renonce à un achat, elle met le même montant de côté en indiquant à quoi elle renonce (libellé obligatoire). C'est un transfert vers l'épargne valorisé par l'app (R38).
 - Le dashboard affiche pour chaque enveloppe le budget, le consommé, le restant (éventuellement négatif) et un niveau d'alerte coloré accompagné d'un libellé (R16).
 
 ### Consommation d'une provision
@@ -61,8 +62,8 @@ En cas d'erreur découverte après coup, elle peut rouvrir le dernier mois clôt
 - **Connexion**, et gestion des moyens d'authentification.
 - **Navigation** : rubriques fixes, sans entrée par mois : Ce mois-ci, Opérations, Provisions, Historique, Paramètres.
 - **Ce mois-ci** : toujours le mois actif. Écran d'ouverture s'il n'est pas ouvert ; sinon le dashboard, avec un rappel de clôture quand le mois du calendrier a dépassé le mois actif.
-- **Dashboard du mois** : ce qu'il reste ce mois-ci, reste à vivre, remboursements reçus, entrées exceptionnelles, transferts vers l'épargne (lignes distinctes), marge prévisionnelle, enveloppes variables avec niveau d'alerte, provisions avec progression et statut, pointage.
-- **Historique** : mois clôturés groupés par année, avec totaux annuels ; chaque mois s'ouvre en lecture seule, et seul le dernier mois clôturé propose la réouverture (R29).
+- **Dashboard du mois** : ce qu'il reste ce mois-ci, reste à vivre, remboursements reçus, entrées exceptionnelles, transferts vers l'épargne (lignes distinctes, avec la part des envies converties et leur nombre, R38), marge prévisionnelle, enveloppes variables avec niveau d'alerte, provisions avec progression et statut, pointage.
+- **Historique** : mois clôturés groupés par année, avec totaux annuels, dont le total des envies converties (R38) ; chaque mois s'ouvre en lecture seule, et seul le dernier mois clôturé propose la réouverture (R29).
 - **Provisions** : une carte par provision, avec versement et dépense directs.
 - **Saisie rapide** : dépense, versement, remboursement, entrée exceptionnelle ou transfert vers l'épargne, optimisée pour le mobile.
 - **Paramètres** : postes fixes, enveloppes, provisions, catégories.
@@ -73,8 +74,8 @@ En cas d'erreur découverte après coup, elle peut rouvrir le dernier mois clôt
 
 | Version | Contenu |
 |---|---|
-| V1 | Tout ce qui précède, remboursements, entrées exceptionnelles et transferts compris |
-| V2 | Historique et dashboard multi-mois ; règles automatiques de report des reliquats ; « dépenses évitées » ; consommation rapportée au temps écoulé dans le mois |
+| V1 | Tout ce qui précède, remboursements, entrées exceptionnelles, transferts et envies converties compris (ex-« dépenses évitées » de la V2) |
+| V2 | Historique et dashboard multi-mois ; règles automatiques de report des reliquats ; consommation rapportée au temps écoulé dans le mois |
 | V3 | Import CSV bancaire ; notifications push ; analyse des tendances par IA |
 
 Hors périmètre : le compte commun (énergie, etc.), géré en dehors de l'app.

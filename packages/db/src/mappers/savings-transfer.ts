@@ -7,6 +7,7 @@ export function toDomainSavingsTransfer(row: PrismaSavingsTransfer): SavingsTran
     id: row.id,
     date: dateToCalendarDate(row.date),
     amount: moneyFromCents(row.amountCents),
+    kind: row.kind,
     ...(row.label ? { label: row.label } : {}),
   };
 }
@@ -14,11 +15,13 @@ export function toDomainSavingsTransfer(row: PrismaSavingsTransfer): SavingsTran
 export function toPrismaSavingsTransferData(savingsTransfer: Omit<SavingsTransfer, "id">): {
   date: Date;
   amountCents: number;
+  kind: SavingsTransfer["kind"];
   label: string | null;
 } {
   return {
     date: calendarDateToDate(savingsTransfer.date),
     amountCents: moneyToCents(savingsTransfer.amount),
+    kind: savingsTransfer.kind,
     label: savingsTransfer.label ?? null,
   };
 }

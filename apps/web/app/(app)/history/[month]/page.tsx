@@ -109,6 +109,16 @@ export default async function HistoryMonthPage({ params }: { params: Promise<{ m
         </div>
       </Card>
 
+      {summary.convertedUrges.count > 0 ? (
+        <p className="text-sm text-muted-foreground">
+          <span className="text-positive">
+            {formatEuros(moneyToEuros(summary.convertedUrges.total))}
+          </span>{" "}
+          d'envies converties ({summary.convertedUrges.count}) ce mois-là{" "}
+          <span aria-hidden>✨</span>
+        </p>
+      ) : null}
+
       {summary.savingsDraw.cents > 0 ? (
         <div className="rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
           {formatEuros(moneyToEuros(summary.savingsDraw))} ont été financés par l'épargne à la

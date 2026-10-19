@@ -52,6 +52,7 @@ import {
   previousMonth,
   subtractMoney,
   sumMoney,
+  summarizeConvertedUrges,
 } from "@budget/domain";
 import Link from "next/link";
 import { Meter } from "@/components/meter";
@@ -137,6 +138,7 @@ export default async function HomePage() {
   const reimbursementsTotal = sumMoney(reimbursements.map((r) => r.amount));
   const extraIncomeTotal = sumMoney(extraIncomes.map((e) => e.amount));
   const savingsTransfersTotal = sumMoney(savingsTransfers.map((t) => t.amount));
+  const convertedUrges = summarizeConvertedUrges(savingsTransfers);
   // R37: only the contributions entered by hand since R37 are taken from the disposable income.
   const deductedContributions = monthContributions.filter(
     (contribution) => contribution.origin === "disposableIncome",
@@ -569,6 +571,15 @@ export default async function HomePage() {
                   ) : null}
                   <span>
                     {formatEuros(moneyToEuros(savingsTransfersTotal))} transférés vers l'épargne
+                    {convertedUrges.count > 0 ? (
+                      <>
+                        , dont{" "}
+                        <span className="text-positive">
+                          {formatEuros(moneyToEuros(convertedUrges.total))}
+                        </span>{" "}
+                        d'envies converties ({convertedUrges.count}) <span aria-hidden>✨</span>
+                      </>
+                    ) : null}
                   </span>
                 </>
               ) : null}

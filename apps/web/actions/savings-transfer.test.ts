@@ -93,6 +93,45 @@ describe("createSavingsTransferForUser", () => {
   });
 });
 
+describe("createSavingsTransferForUser converted urge (R38)", () => {
+  it("records a converted urge that lowers the disposable income like any transfer (E19)", async () => {
+    const user = await createTestUser();
+    await openMonthForUser(prisma, user.id, 2800);
+
+    const result = await createSavingsTransferForUser(prisma, user.id, {
+      amountEuros: 40,
+      date: today,
+      kind: "convertedUrge",
+      label: "Pull en solde",
+    });
+
+    expect(result).toEqual({
+      status: "success",
+      message: expect.stringMatching(
+        /^✨ Bravo : .*40.* mis de côté en renonçant à Pull en solde\.$/,
+      ),
+    });
+    const saved = await findSavingsTransfersByUserAndMonth(prisma, user.id, currentMonth);
+    expect(saved).toHaveLength(1);
+    expect(saved[0]?.kind).toBe("convertedUrge");
+    expect(saved[0]?.label).toBe("Pull en solde");
+  });
+
+  it("rejects a converted urge without a label", async () => {
+    const user = await createTestUser();
+    await openMonthForUser(prisma, user.id, 2800);
+
+    const result = await createSavingsTransferForUser(prisma, user.id, {
+      amountEuros: 40,
+      date: today,
+      kind: "convertedUrge",
+    });
+
+    expect(result).toEqual({ status: "error", message: "Indique à quoi tu as renoncé." });
+    expect(await findSavingsTransfersByUserAndMonth(prisma, user.id, currentMonth)).toHaveLength(0);
+  });
+});
+
 describe("updateSavingsTransferForUser", () => {
   it("updates the user's transfer", async () => {
     const user = await createTestUser();
@@ -100,6 +139,7 @@ describe("updateSavingsTransferForUser", () => {
     const created = await createSavingsTransfer(prisma, user.id, {
       date: parseCalendarDate(today),
       amount: moneyFromEuros(40),
+      kind: "free",
     });
 
     const result = await updateSavingsTransferForUser(prisma, user.id, {
@@ -115,6 +155,28 @@ describe("updateSavingsTransferForUser", () => {
     expect(moneyToCents(saved[0]?.amount ?? moneyFromEuros(-1))).toBe(2500);
   });
 
+  it("turns a free transfer into a converted urge (R38)", async () => {
+    const user = await createTestUser();
+    await openMonthForUser(prisma, user.id, 2800);
+    const created = await createSavingsTransfer(prisma, user.id, {
+      date: parseCalendarDate(today),
+      amount: moneyFromEuros(40),
+      kind: "free",
+    });
+
+    const result = await updateSavingsTransferForUser(prisma, user.id, {
+      id: created.id,
+      amountEuros: 40,
+      date: today,
+      kind: "convertedUrge",
+      label: "Pull en solde",
+    });
+
+    expect(result.status).toBe("success");
+    const saved = await findSavingsTransfersByUserAndMonth(prisma, user.id, currentMonth);
+    expect(saved[0]?.kind).toBe("convertedUrge");
+  });
+
   it("cannot update another user's transfer", async () => {
     const owner = await createTestUser();
     const attacker = await createTestUser(otherEmail);
@@ -123,6 +185,7 @@ describe("updateSavingsTransferForUser", () => {
     const created = await createSavingsTransfer(prisma, owner.id, {
       date: parseCalendarDate(today),
       amount: moneyFromEuros(40),
+      kind: "free",
     });
 
     const result = await updateSavingsTransferForUser(prisma, attacker.id, {
@@ -144,6 +207,7 @@ describe("deleteSavingsTransferForUser", () => {
     const created = await createSavingsTransfer(prisma, user.id, {
       date: parseCalendarDate(today),
       amount: moneyFromEuros(40),
+      kind: "free",
     });
 
     const result = await deleteSavingsTransferForUser(prisma, user.id, created.id);
@@ -160,6 +224,7 @@ describe("deleteSavingsTransferForUser", () => {
     const created = await createSavingsTransfer(prisma, owner.id, {
       date: parseCalendarDate(today),
       amount: moneyFromEuros(40),
+      kind: "free",
     });
 
     const result = await deleteSavingsTransferForUser(prisma, attacker.id, created.id);

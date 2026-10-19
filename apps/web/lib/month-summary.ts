@@ -2,11 +2,13 @@ import {
   findContributionsByUserAndMonth,
   findExpensesByUserAndMonth,
   findLeftoverAllocationsByUserAndMonth,
+  findSavingsTransfersByUserAndMonth,
 } from "@budget/db";
 import {
   addMoney,
   type BudgetMonth,
   type ConsumptionLevel,
+  type ConvertedUrgesSummary,
   computeConsumptionLevel,
   computeLeftover,
   computeRemaining,
@@ -16,6 +18,7 @@ import {
   type Money,
   type SnapshotEnvelopeBudget,
   sumMoney,
+  summarizeConvertedUrges,
 } from "@budget/domain";
 import type { PrismaClient } from "@prisma/client";
 
@@ -31,6 +34,7 @@ export type MonthSummary = {
   saved: Money;
   leftover: Money;
   savingsDraw: Money;
+  convertedUrges: ConvertedUrgesSummary;
   envelopes: EnvelopeSummary[];
 };
 
@@ -45,10 +49,11 @@ export async function computeMonthSummary(
   userId: string,
   budgetMonth: BudgetMonth,
 ): Promise<MonthSummary> {
-  const [expenses, contributions, allocations] = await Promise.all([
+  const [expenses, contributions, allocations, savingsTransfers] = await Promise.all([
     findExpensesByUserAndMonth(prisma, userId, budgetMonth.month),
     findContributionsByUserAndMonth(prisma, userId, budgetMonth.month),
     findLeftoverAllocationsByUserAndMonth(prisma, userId, budgetMonth.month),
+    findSavingsTransfersByUserAndMonth(prisma, userId, budgetMonth.month),
   ]);
 
   const envelopes: EnvelopeSummary[] = budgetMonth.envelopeBudgets.map((entry) => {
@@ -84,5 +89,13 @@ export async function computeMonthSummary(
 
   const spent = sumMoney(expenses.map((e) => e.amount));
 
-  return { income: budgetMonth.income, spent, saved, leftover, savingsDraw, envelopes };
+  return {
+    income: budgetMonth.income,
+    spent,
+    saved,
+    leftover,
+    savingsDraw,
+    convertedUrges: summarizeConvertedUrges(savingsTransfers),
+    envelopes,
+  };
 }

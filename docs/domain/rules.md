@@ -106,6 +106,12 @@ Une réserve vidée ne déclenche aucune question : elle se réalimente selon R2
 - Un reste à vivre négatif après l'opération déclenche un avertissement, jamais un blocage.
 - Mêmes garde-fous que R36 : mois actif ouvert (ou réouverture, R29), date dans ce mois, aucun effet sur le reliquat (R24).
 
+**R38.** Une envie convertie est un transfert vers l'épargne (R37) de nature `SavingsTransfer.kind = convertedUrge` : l'utilisatrice renonce à un achat et met le même montant de côté. Le transfert libre (`kind = free`) reste la valeur par défaut.
+- Le libellé, qui dit à quoi elle renonce, est obligatoire pour une envie convertie ; il reste facultatif pour un transfert libre. Il n'y a ni catégorie, ni lien vers une enveloppe.
+- Il n'y a pas d'envie convertie sans argent mis de côté : le montant est toujours transféré, et prélevé sur le reste à vivre comme tout transfert (R37). Il ne consomme aucune enveloppe et ne modifie ni la base de répartition (R11) ni les budgets.
+- Les envies converties restent incluses dans le total des transferts vers l'épargne ; elles sont en plus valorisées par un total et un nombre par mois (`convertedUrgesTotal`, `convertedUrgesCount`), affichés sur le dashboard et dans l'historique (total annuel).
+- `kind` se modifie comme les autres champs ; suppression et modification suivent R37 (mois actif ouvert, ou réouverture R29).
+
 ## Clôture du mois
 
 **R24.** `reliquat = Σ restants des enveloppes variables`, restants négatifs compris.
@@ -159,3 +165,4 @@ Données de référence : revenu 2 800 € ; charges 1 400 € (loyer 1 000, int
 | E16 | R24, R30 | Clôture avec Sorties à −60 €, Plaisir à +20 €, Vie quotidienne à 0 € | Reliquat −40 € ; 40 € financés par l'épargne |
 | E17 | R9, R11, R14, R35 | Mutuelle : remboursement de 42 € reçu en cours de mois, enveloppes inchangées | Reste à vivre 1 042 € ; base de répartition 850 € ; budgets inchangés ; marge 408,33 + 42 = 450,33 € |
 | E18 | R9, R11, R14, R36, R37 | Chèque cadeau de 100 € reçu, 40 € transférés à l'épargne, 66,67 € versés sur Orthodontie (cible du mois 66,67 €) | Reste à vivre 1 000 + 100 − 40 − 66,67 = 993,33 € ; base de répartition 850 € ; budgets inchangés ; cible restante Orthodontie 0 € ; marge 468,33 € (408,33 + 100 − 40, le versement égal à la cible est neutre) |
+| E19 | R9, R11, R14, R37, R38 | Envie convertie : pull à 40 € auquel elle renonce (« Pull en solde »), transféré vers l'épargne | Reste à vivre 1 000 − 40 = 960 € ; base de répartition 850 € ; budgets inchangés ; marge 408,33 − 40 = 368,33 € ; total des transferts 40 € dont 40 € d'envies converties (1 envie convertie) |

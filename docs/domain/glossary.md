@@ -93,6 +93,10 @@ Langage commun du projet. L'interface parle français, le code utilise les noms 
 | Total des entrées exceptionnelles | `extraIncomeTotal` | Valeur dérivée | Σ des entrées exceptionnelles d'un mois. |
 | Total des transferts vers l'épargne | `savingsTransfersTotal` | Valeur dérivée | Σ des transferts vers l'épargne d'un mois. |
 | Transfert vers l'épargne | `SavingsTransfer` | Entité | Somme retirée du reste à vivre du mois pour être mise de côté hors de l'app. Libre : non liée à une entrée exceptionnelle précise. L'épargne n'a pas de solde dans l'app. |
+| Nature d'un transfert | `SavingsTransfer.kind` | Attribut | `free` (transfert libre, défaut) ou `convertedUrge` (envie convertie, R38). |
+| Envie convertie | `SavingsTransfer.kind = convertedUrge` | Valeur d'énumération | Transfert vers l'épargne qui correspond à un achat auquel l'utilisatrice a renoncé : même montant, libellé obligatoire (ce à quoi elle renonce). Valorisé sur le dashboard et dans l'historique (R38). Ne pas dire « renoncement d'achat », « refus d'achat » ni « dépense évitée ». |
+| Total des envies converties | `convertedUrgesTotal` | Valeur dérivée | Σ des envies converties d'un mois (inclus dans `savingsTransfersTotal`). |
+| Nombre d'envies converties | `convertedUrgesCount` | Valeur dérivée | Nombre d'envies converties d'un mois. |
 | Financé par l'épargne | `Expense.savingsDraw` / `savingsDraw` | Attribut / Valeur dérivée | Part d'une dépense sur provision qui excède son solde (attribut de la dépense), ou reliquat négatif d'un mois à sa clôture (valeur dérivée du mois). |
 | Répartition du reliquat | `LeftoverAllocation` | Entité | Affectation du reliquat, à la clôture, vers l'épargne, une provision, une enveloppe variable (bonus, voir Bonus d'enveloppe) ou sans destination (report, voir Report). |
 | Archiver | `archive()` | Action | Fixe la date d'archivage (`archivedFrom`) d'un poste fixe, d'une enveloppe variable ou d'une provision, sans effacer son historique (R8). |

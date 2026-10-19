@@ -3,6 +3,7 @@ import { moneyFromEuros, moneyToEuros } from "../money";
 import {
   computeContributionSurplus,
   computeProvisionBalance,
+  computeRemainingProvisionTarget,
   isProvisionDone,
 } from "./provision-ledger";
 
@@ -51,5 +52,26 @@ describe("isProvisionDone (R28)", () => {
 
   it("is not done while under target", () => {
     expect(isProvisionDone(moneyFromEuros(100), moneyFromEuros(99.99))).toBe(false);
+  });
+});
+
+describe("computeRemainingProvisionTarget (R14, R37)", () => {
+  it("is the target when nothing was deducted", () => {
+    const remaining = computeRemainingProvisionTarget(moneyFromEuros(66.67), moneyFromEuros(0));
+    expect(moneyToEuros(remaining)).toBe(66.67);
+  });
+
+  it("subtracts what was already deducted from the disposable income", () => {
+    const remaining = computeRemainingProvisionTarget(moneyFromEuros(66.67), moneyFromEuros(20));
+    expect(moneyToEuros(remaining)).toBe(46.67);
+  });
+
+  it("is 0 once the target is met (E18) and when there is a surplus, never negative", () => {
+    expect(
+      moneyToEuros(computeRemainingProvisionTarget(moneyFromEuros(66.67), moneyFromEuros(66.67))),
+    ).toBe(0);
+    expect(
+      moneyToEuros(computeRemainingProvisionTarget(moneyFromEuros(66.67), moneyFromEuros(100))),
+    ).toBe(0);
   });
 });

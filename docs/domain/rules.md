@@ -31,17 +31,17 @@ Chaque règle a un identifiant stable, référencé dans la spec, le code et les
 
 ## Reste à vivre et enveloppes variables
 
-**R9.** `reste à vivre = revenu du mois + report − Σ postes fixes`, charges et épargne programmée comprises. Les provisions ne sont pas déduites : leurs cibles sont des objectifs, financés par ce que l'utilisatrice parvient à mettre de côté. Le report (R32) est 0 si rien n'a été reporté le mois précédent.
+**R9.** `reste à vivre = revenu du mois + report + total des remboursements + total des entrées exceptionnelles − Σ postes fixes − total des transferts vers l'épargne − total des versements prélevés sur le reste à vivre`, charges et épargne programmée comprises. Les cibles des provisions ne sont pas déduites : ce sont des objectifs, financés par ce que l'utilisatrice met de côté, et seuls les versements effectivement prélevés (R37) réduisent le reste à vivre. Le report (R32), les remboursements (R35), les entrées exceptionnelles (R36), les transferts et les versements prélevés (R37) valent 0 si rien n'a été enregistré.
 
 **R10.** Une enveloppe en mode montant reçoit sa valeur telle quelle.
 
-**R11.** `base de répartition = reste à vivre − Σ enveloppes en mode montant`.
+**R11.** `base de répartition = (reste à vivre − total des remboursements − total des entrées exceptionnelles + total des transferts vers l'épargne + total des versements prélevés sur le reste à vivre) − Σ enveloppes en mode montant`. Ces opérations en cours de mois (R35, R36, R37) n'entrent pas dans la base : elles ne modifient jamais les budgets des enveloppes en pourcentage.
 
 **R12.** Une enveloppe en mode pourcentage reçoit `base de répartition × pourcentage`. La somme des pourcentages ne peut pas dépasser 100 %. La part restante est affichée comme non attribuée.
 
 **R13.** Si la base de répartition est négative, les enveloppes en pourcentage valent 0 et l'écart est signalé.
 
-**R14.** `marge prévisionnelle = reste à vivre − Σ budgets des enveloppes variables − Σ cibles des provisions`. Purement indicative : une marge négative déclenche un avertissement, jamais un blocage.
+**R14.** `marge prévisionnelle = reste à vivre − Σ budgets des enveloppes variables − Σ cibles restantes des provisions`, où la cible restante d'une provision est `max(0, cible − versements du mois prélevés sur le reste à vivre)` (R37), pour ne pas compter deux fois un versement déjà déduit du reste à vivre. Purement indicative : une marge négative déclenche un avertissement, jamais un blocage.
 
 ## Consommation des enveloppes variables
 
@@ -85,6 +85,32 @@ Chaque niveau s'affiche avec un libellé ou une icône, jamais par la couleur se
 - **Conserver** : la provision reste active avec un solde à 0, et son provisionnement reprend à l'ouverture suivante (R18, ou R20 si l'échéance est passée).
 
 Une réserve vidée ne déclenche aucune question : elle se réalimente selon R21.
+
+## Remboursements
+
+**R35.** Un remboursement (mutuelle, Sécu…) est une entrée d'argent rattachée au mois de sa **date de réception** (R3), pas à celui de la dépense qu'il rembourse. Il s'ajoute au reste à vivre (R9) et à la marge prévisionnelle (R14), mais ni à la base de répartition (R11), ni aux budgets des enveloppes, ni au reliquat (R24) : l'argent reste non attribué. Il ne modifie jamais la dépense d'origine ni le mois de celle-ci (R6). Il n'est pas un revenu (R4).
+- Il porte une catégorie obligatoire, sans effet sur les calculs.
+- Il peut renvoyer à une seule dépense d'origine, facultative, y compris d'un mois clôturé ; le lien est informatif. Si la somme des remboursements liés à une dépense dépasse son montant, un avertissement s'affiche sans bloquer.
+- Comme une dépense, il n'est saisi, modifié ou supprimé que dans le mois actif ouvert (ou lors d'une réouverture, R29), sa date devant tomber dans ce mois.
+
+## Entrées exceptionnelles, transferts et versements
+
+**R36.** Une entrée exceptionnelle (chèque cadeau, prime ponctuelle…) est une entrée d'argent rattachée au mois de sa **date de réception** (R3). Elle s'ajoute au reste à vivre (R9) et à la marge prévisionnelle (R14), mais ni à la base de répartition (R11), ni aux budgets des enveloppes, ni au reliquat (R24) : l'argent reste non attribué. Elle n'est pas un revenu (R4) ni un remboursement (R35).
+- Elle porte un libellé, sans catégorie ni lien vers une dépense.
+- Comme une dépense, elle n'est saisie, modifiée ou supprimée que dans le mois actif ouvert (ou lors d'une réouverture, R29), sa date devant tomber dans ce mois.
+
+**R37.** Un transfert vers l'épargne et un versement sur provision saisi en cours de mois sont **prélevés sur le reste à vivre** (R9) : ils le diminuent de leur montant.
+- Le transfert vers l'épargne est libre (non lié à une entrée exceptionnelle) ; l'épargne n'a pas de solde dans l'app. Il est distinct de la répartition du reliquat vers l'épargne (R25), qui n'a aucun effet sur le reste à vivre.
+- Un versement saisi à la main est toujours prélevé sur le reste à vivre (`Contribution.origin = disposableIncome`). Les versements antérieurs (`manual`) et ceux de la clôture (`closing`, R25) ne le modifient pas.
+- Ni l'un ni l'autre ne modifient la base de répartition (R11) ni les budgets. Un versement ne compte qu'une fois dans la marge (R14).
+- Un reste à vivre négatif après l'opération déclenche un avertissement, jamais un blocage.
+- Mêmes garde-fous que R36 : mois actif ouvert (ou réouverture, R29), date dans ce mois, aucun effet sur le reliquat (R24).
+
+**R38.** Une envie convertie est un transfert vers l'épargne (R37) de nature `SavingsTransfer.kind = convertedUrge` : l'utilisatrice renonce à un achat et met le même montant de côté. Le transfert libre (`kind = free`) reste la valeur par défaut.
+- Le libellé, qui dit à quoi elle renonce, est obligatoire pour une envie convertie ; il reste facultatif pour un transfert libre. Il n'y a ni catégorie, ni lien vers une enveloppe.
+- Il n'y a pas d'envie convertie sans argent mis de côté : le montant est toujours transféré, et prélevé sur le reste à vivre comme tout transfert (R37). Il ne consomme aucune enveloppe et ne modifie ni la base de répartition (R11) ni les budgets.
+- Les envies converties restent incluses dans le total des transferts vers l'épargne ; elles sont en plus valorisées par un total et un nombre par mois (`convertedUrgesTotal`, `convertedUrgesCount`), affichés sur le dashboard et dans l'historique (total annuel).
+- `kind` se modifie comme les autres champs ; suppression et modification suivent R37 (mois actif ouvert, ou réouverture R29).
 
 ## Clôture du mois
 
@@ -137,3 +163,6 @@ Données de référence : revenu 2 800 € ; charges 1 400 € (loyer 1 000, int
 | E14 | R7 | Vie quotidienne passe à 180 € avec effet au mois suivant | Mois en cours inchangé ; mois suivant à 180 € |
 | E15 | R29 | Octobre rouvert, novembre ouvert ; ajout d'un versement oublié de 30 € sur Vacances en octobre | Solde Vacances +30 € ; cible de novembre inchangée ; cible de décembre recalculée avec ce solde |
 | E16 | R24, R30 | Clôture avec Sorties à −60 €, Plaisir à +20 €, Vie quotidienne à 0 € | Reliquat −40 € ; 40 € financés par l'épargne |
+| E17 | R9, R11, R14, R35 | Mutuelle : remboursement de 42 € reçu en cours de mois, enveloppes inchangées | Reste à vivre 1 042 € ; base de répartition 850 € ; budgets inchangés ; marge 408,33 + 42 = 450,33 € |
+| E18 | R9, R11, R14, R36, R37 | Chèque cadeau de 100 € reçu, 40 € transférés à l'épargne, 66,67 € versés sur Orthodontie (cible du mois 66,67 €) | Reste à vivre 1 000 + 100 − 40 − 66,67 = 993,33 € ; base de répartition 850 € ; budgets inchangés ; cible restante Orthodontie 0 € ; marge 468,33 € (408,33 + 100 − 40, le versement égal à la cible est neutre) |
+| E19 | R9, R11, R14, R37, R38 | Envie convertie : pull à 40 € auquel elle renonce (« Pull en solde »), transféré vers l'épargne | Reste à vivre 1 000 − 40 = 960 € ; base de répartition 850 € ; budgets inchangés ; marge 408,33 − 40 = 368,33 € ; total des transferts 40 € dont 40 € d'envies converties (1 envie convertie) |

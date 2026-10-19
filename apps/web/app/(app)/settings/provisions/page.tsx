@@ -1,11 +1,13 @@
 import { findProvisionsByUser, prisma } from "@budget/db";
 import { dueMonth, formatMonth, moneyToEuros } from "@budget/domain";
+import { resolveActiveMonth } from "@/lib/current-month";
 import { requireSession } from "@/lib/session";
 import { type ProvisionRowData, ProvisionTable } from "./provision-table";
 
 export default async function ProvisionsSettingsPage() {
   const session = await requireSession();
   const provisions = await findProvisionsByUser(prisma, session.user.id);
+  const activeMonth = formatMonth(await resolveActiveMonth(prisma, session.user.id));
 
   const rows: ProvisionRowData[] = provisions.map((provision) => ({
     id: provision.id,
@@ -22,7 +24,7 @@ export default async function ProvisionsSettingsPage() {
   return (
     <div className="flex flex-col gap-2">
       <h2 className="font-heading text-xl">Provisions</h2>
-      <ProvisionTable rows={rows} />
+      <ProvisionTable rows={rows} activeMonth={activeMonth} />
     </div>
   );
 }

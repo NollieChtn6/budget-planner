@@ -22,8 +22,16 @@ export {
   findExpensesByUserAndProvision,
   findKnownPlacesByUser,
   findLastUsedCategoryIdByUser,
+  findRecentExpensesByUser,
   updateExpense,
 } from "./repositories/expense";
+export {
+  createExtraIncome,
+  deleteExtraIncome,
+  findExtraIncomeById,
+  findExtraIncomesByUserAndMonth,
+  updateExtraIncome,
+} from "./repositories/extra-income";
 export {
   createFixedEntry,
   findFixedEntriesByUser,
@@ -56,6 +64,21 @@ export {
   type UpdateProvisionGoalInput,
   updateProvisionGoal,
 } from "./repositories/provision";
+export {
+  createReimbursement,
+  deleteReimbursement,
+  findReimbursementById,
+  findReimbursementsByUserAndExpense,
+  findReimbursementsByUserAndMonth,
+  updateReimbursement,
+} from "./repositories/reimbursement";
+export {
+  createSavingsTransfer,
+  deleteSavingsTransfer,
+  findSavingsTransferById,
+  findSavingsTransfersByUserAndMonth,
+  updateSavingsTransfer,
+} from "./repositories/savings-transfer";
 export {
   addVariableEnvelopeVersion,
   createVariableEnvelope,

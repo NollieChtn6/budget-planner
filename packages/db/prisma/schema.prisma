@@ -34,6 +34,9 @@ model User {
   categories        Category[]
   expenses          Expense[]
   contributions     Contribution[]
+  reimbursements    Reimbursement[]
+  extraIncomes      ExtraIncome[]
+  savingsTransfers  SavingsTransfer[]
 
   @@map("users")
 }
@@ -247,6 +250,7 @@ model Category {
   user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   defaultEnvelope VariableEnvelope? @relation(fields: [defaultEnvelopeId], references: [id], onDelete: SetNull)
   expenses        Expense[]
+  reimbursements  Reimbursement[]
 
   @@index([userId])
   @@map("categories")
@@ -394,6 +398,8 @@ model Expense {
   provision Provision?        @relation(fields: [provisionId], references: [id], onDelete: Restrict)
   category  Category          @relation(fields: [categoryId], references: [id], onDelete: Restrict)
 
+  reimbursements Reimbursement[]
+
   @@index([userId])
   @@index([envelopeId])
   @@index([provisionId])
@@ -403,9 +409,12 @@ model Expense {
 
 // R19/R22/R28 : versements vers une provision (docs/domain/model.md).
 
+// disposableIncome (R37) : versement saisi à la main, prélevé sur le reste à
+// vivre. manual : versement antérieur à R37, sans effet sur le reste à vivre.
 enum ContributionOrigin {
   manual
   closing
+  disposableIncome
 
   @@map("contribution_origin")
 }
@@ -425,4 +434,72 @@ model Contribution {
   @@index([userId])
   @@index([provisionId])
   @@map("contributions")
+}
+
+// R35 : somme reçue en retour d'une dépense, rattachée au mois de sa date de
+// réception. Le lien vers la dépense d'origine est informatif et facultatif :
+// supprimer la dépense le détache (SetNull) sans effacer le remboursement.
+
+model Reimbursement {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  categoryId  String   @map("category_id") @db.Uuid
+  expenseId   String?  @map("expense_id") @db.Uuid
+  date        DateTime @db.Date
+  amountCents Int      @map("amount_cents")
+  label       String
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  expense  Expense? @relation(fields: [expenseId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([categoryId])
+  @@index([expenseId])
+  @@map("reimbursements")
+}
+
+// R36 : somme reçue qui n'est ni le salaire ni un remboursement (chèque
+// cadeau…), rattachée au mois de sa date de réception.
+
+model ExtraIncome {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  date        DateTime @db.Date
+  amountCents Int      @map("amount_cents")
+  label       String
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("extra_incomes")
+}
+
+// R37 : somme retirée du reste à vivre pour être mise de côté hors de l'app.
+// L'épargne n'a pas de solde : seul ce retrait est enregistré.
+
+// convertedUrge (R38) : achat auquel l'utilisatrice a renoncé, avec le même
+// montant mis de côté ; son libellé est obligatoire (contrainte en base).
+enum SavingsTransferKind {
+  free
+  convertedUrge
+
+  @@map("savings_transfer_kind")
+}
+
+model SavingsTransfer {
+  id          String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId      String              @map("user_id") @db.Uuid
+  date        DateTime            @db.Date
+  amountCents Int                 @map("amount_cents")
+  kind        SavingsTransferKind @default(free)
+  label       String?
+  createdAt   DateTime            @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("savings_transfers")
 }

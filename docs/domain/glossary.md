@@ -40,7 +40,7 @@ Langage commun du projet. L'interface parle français, le code utilise les noms 
 | Charge | `FixedEntry.type = charge` | Valeur d'énumération | Poste fixe de dépense : loyer, abonnements, mutuelle, assurance. |
 | Épargne programmée | `FixedEntry.type = scheduledSaving` | Valeur d'énumération | Poste fixe de versement vers l'épargne : assurance vie, livret. |
 | Pointage | `SnapshotFixedEntry.status` | Attribut | État d'un poste fixe dans un mois : programmé (`planned`) ou effectué (`done`). Pour une provision, le pointage est dérivé de ses versements (R28). |
-| Reste à vivre | `disposableIncome` | Valeur dérivée | Ce qui reste du revenu une fois les postes fixes déduits. |
+| Reste à vivre | `disposableIncome` | Valeur dérivée | Ce qui reste du revenu une fois les postes fixes déduits, en tenant compte des entrées d'argent et des sommes mises de côté en cours de mois (R9). |
 
 ## Enveloppes variables
 
@@ -66,6 +66,7 @@ Langage commun du projet. L'interface parle français, le code utilise les noms 
 | Réserve | `Provision.type = reserve` | Valeur d'énumération | Provision sans échéance, maintenue à un plafond et réalimentée après usage. Ex. : Imprévus, coussin vétérinaire. |
 | Objectif | `Provision.target` | Attribut | Montant à atteindre (échéance) ou plafond (réserve). |
 | Durée | `Provision.durationMonths` | Attribut | Nombre de mois de constitution d'une provision à échéance. |
+| Mois de début | `startMonth` | Attribut | Premier mois de constitution d'une provision à échéance (R17). Libellé affiché : « Début de la constitution ». |
 | Mensualité | `Provision.monthlyAmount` | Attribut | Montant mensuel choisi pour réalimenter une réserve. |
 | Mois d'échéance | `dueMonth` | Valeur dérivée | Dernier mois de constitution, qui est aussi le mois de la dépense prévue. |
 | Cible du mois | `monthlyTarget` | Valeur dérivée, figée | Montant à verser sur une provision pendant un mois ; calculée à l'ouverture et conservée dans `SnapshotProvisionTarget.target`. |
@@ -85,7 +86,17 @@ Langage commun du projet. L'interface parle français, le code utilise les noms 
 | Couleur | `Category.color` | Attribut | Code hexadécimal (`#RRGGBB`) qui identifie visuellement une catégorie ; toujours affiché avec son libellé. |
 | Enveloppe par défaut | `Category.defaultEnvelopeId` | Attribut | Enveloppe proposée automatiquement pour une catégorie. |
 | Catégorie archivée | `Category.archived` | Attribut | Catégorie retirée de la saisie de nouvelles dépenses ; sans date d'effet, contrairement à `archivedFrom` (R7/R8 ne s'appliquent pas à `Category`). |
-| Versement | `Contribution` | Entité | Somme mise de côté dans une provision. |
+| Versement | `Contribution` | Entité | Somme mise de côté dans une provision. Un versement saisi à la main est prélevé sur le reste à vivre (`Contribution.origin = disposableIncome`, R37) ; `manual` désigne les versements historiques, sans effet sur le reste à vivre. |
+| Remboursement | `Reimbursement` | Entité | Somme reçue en retour d'une dépense déjà payée (ex. : mutuelle). Rattaché au mois de sa date de réception (pas à celui de la dépense), il s'ajoute au reste à vivre de ce mois sans modifier les budgets des enveloppes. N'est pas un revenu (`BudgetMonth.income`). Porte une catégorie et peut renvoyer à la dépense d'origine. |
+| Total des remboursements | `reimbursementsTotal` | Valeur dérivée | Σ des remboursements d'un mois. |
+| Entrée exceptionnelle | `ExtraIncome` | Entité | Somme reçue qui n'est ni le salaire (`BudgetMonth.income`) ni un remboursement : chèque cadeau, prime ponctuelle. Rattachée au mois de sa date de réception, elle s'ajoute au reste à vivre de ce mois sans modifier les budgets des enveloppes. Porte un libellé, pas de catégorie ni de dépense d'origine. |
+| Total des entrées exceptionnelles | `extraIncomeTotal` | Valeur dérivée | Σ des entrées exceptionnelles d'un mois. |
+| Total des transferts vers l'épargne | `savingsTransfersTotal` | Valeur dérivée | Σ des transferts vers l'épargne d'un mois. |
+| Transfert vers l'épargne | `SavingsTransfer` | Entité | Somme retirée du reste à vivre du mois pour être mise de côté hors de l'app. Libre : non liée à une entrée exceptionnelle précise. L'épargne n'a pas de solde dans l'app. |
+| Nature d'un transfert | `SavingsTransfer.kind` | Attribut | `free` (transfert libre, défaut) ou `convertedUrge` (envie convertie, R38). |
+| Envie convertie | `SavingsTransfer.kind = convertedUrge` | Valeur d'énumération | Transfert vers l'épargne qui correspond à un achat auquel l'utilisatrice a renoncé : même montant, libellé obligatoire (ce à quoi elle renonce). Valorisé sur le dashboard et dans l'historique (R38). Ne pas dire « renoncement d'achat », « refus d'achat » ni « dépense évitée ». |
+| Total des envies converties | `convertedUrgesTotal` | Valeur dérivée | Σ des envies converties d'un mois (inclus dans `savingsTransfersTotal`). |
+| Nombre d'envies converties | `convertedUrgesCount` | Valeur dérivée | Nombre d'envies converties d'un mois. |
 | Financé par l'épargne | `Expense.savingsDraw` / `savingsDraw` | Attribut / Valeur dérivée | Part d'une dépense sur provision qui excède son solde (attribut de la dépense), ou reliquat négatif d'un mois à sa clôture (valeur dérivée du mois). |
 | Répartition du reliquat | `LeftoverAllocation` | Entité | Affectation du reliquat, à la clôture, vers l'épargne, une provision, une enveloppe variable (bonus, voir Bonus d'enveloppe) ou sans destination (report, voir Report). |
 | Archiver | `archive()` | Action | Fixe la date d'archivage (`archivedFrom`) d'un poste fixe, d'une enveloppe variable ou d'une provision, sans effacer son historique (R8). |

@@ -75,9 +75,20 @@ Les libellés sont copiés volontairement : renommer un élément ne modifie pas
 - `source` : `{ type: envelope, envelopeId }` | `{ type: provision, provisionId }`
 - `savingsDraw` : montant financé par l'épargne, 0 si aucun
 
+**Reimbursement**
+- `id`, `date`, `amount`, `label`, `categoryId`
+- `expenseId?` : dépense d'origine, lien informatif (R35)
+
+**ExtraIncome**
+- `id`, `date`, `amount`, `label` (R36)
+
+**SavingsTransfer**
+- `id`, `date`, `amount`, `label?` (R37)
+- `kind` : `free` (défaut) | `convertedUrge` (R38) ; `label` obligatoire si `convertedUrge`
+
 **Contribution**
 - `id`, `date`, `amount`, `provisionId`
-- `origin` : `manual` | `closing`
+- `origin` : `manual` (historique, sans effet sur le reste à vivre) | `closing` | `disposableIncome` (prélevé sur le reste à vivre, R37)
 
 ## Relations
 
@@ -96,6 +107,8 @@ erDiagram
     Provision ||--o{ Expense : "est consommée par"
     Provision ||--o{ Contribution : "est alimentée par"
     Category ||--o{ Expense : classe
+    Category ||--o{ Reimbursement : classe
+    Expense |o--o{ Reimbursement : "est remboursée par"
     Category }o--o| VariableEnvelope : "propose par défaut"
     Provision |o--o| Provision : renouvelle
 ```
@@ -109,6 +122,11 @@ Ces valeurs sont toujours calculées, jamais stockées, pour éviter toute déri
 - montant financé par l'épargne d'un mois clôturé : l'opposé du reliquat s'il est négatif, 0 sinon ;
 - report d'un mois : somme des `LeftoverAllocation` du mois précédent dont `destination = report` (R32) ;
 - bonus d'une enveloppe sur un mois : somme des `LeftoverAllocation` du mois précédent dont `destination = envelope` pour cette enveloppe (R31) ;
+- total des remboursements d'un mois : Σ `Reimbursement.amount` dont la date tombe dans le mois (R35) ;
+- total des entrées exceptionnelles d'un mois : Σ `ExtraIncome.amount` dont la date tombe dans le mois (R36) ;
+- total des transferts vers l'épargne d'un mois : Σ `SavingsTransfer.amount` dont la date tombe dans le mois (R37) ;
+- total et nombre des envies converties d'un mois : Σ et nombre de `SavingsTransfer` de `kind = convertedUrge` dont la date tombe dans le mois (R38) ; total annuel dans l'historique ;
+- total des versements prélevés d'un mois : Σ `Contribution.amount` d'origine `disposableIncome` dont la date tombe dans le mois (R37) ;
 - places connues et dernière catégorie utilisée (à partir des dépenses).
 
 ## Cycles de vie

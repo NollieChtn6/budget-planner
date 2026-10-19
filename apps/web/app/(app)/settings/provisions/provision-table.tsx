@@ -25,7 +25,13 @@ export type ProvisionRowData = {
   monthlyAmountEuros: number | null;
 };
 
-export function ProvisionTable({ rows }: { rows: ProvisionRowData[] }) {
+export function ProvisionTable({
+  rows,
+  activeMonth,
+}: {
+  rows: ProvisionRowData[];
+  activeMonth: string;
+}) {
   const [adding, setAdding] = useState<"deadline" | "reserve" | null>(null);
 
   return (
@@ -45,7 +51,13 @@ export function ProvisionTable({ rows }: { rows: ProvisionRowData[] }) {
           {rows.map((row) => (
             <ProvisionRow key={row.id} provision={row} />
           ))}
-          {adding ? <NewProvisionRow type={adding} onDone={() => setAdding(null)} /> : null}
+          {adding ? (
+            <NewProvisionRow
+              type={adding}
+              activeMonth={activeMonth}
+              onDone={() => setAdding(null)}
+            />
+          ) : null}
           {rows.length === 0 && !adding ? (
             <TableRow>
               <TableCell colSpan={6} className="whitespace-normal text-muted-foreground">

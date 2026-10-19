@@ -109,6 +109,16 @@ export default async function HistoryMonthPage({ params }: { params: Promise<{ m
         </div>
       </Card>
 
+      {summary.convertedUrges.count > 0 ? (
+        <p className="text-sm text-muted-foreground">
+          <span className="text-positive">
+            {formatEuros(moneyToEuros(summary.convertedUrges.total))}
+          </span>{" "}
+          d'envies converties ({summary.convertedUrges.count}) ce mois-là{" "}
+          <span aria-hidden>✨</span>
+        </p>
+      ) : null}
+
       {summary.savingsDraw.cents > 0 ? (
         <div className="rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
           {formatEuros(moneyToEuros(summary.savingsDraw))} ont été financés par l'épargne à la
@@ -141,7 +151,11 @@ export default async function HistoryMonthPage({ params }: { params: Promise<{ m
                       {formatEuros(moneyToEuros(entry.remaining))}
                     </p>
                   </div>
-                  <Meter percent={pct} className={CONSUMPTION_LEVEL_BG_CLASSES[entry.level]} />
+                  <Meter
+                    percent={pct}
+                    label={`Consommation de ${entry.label}`}
+                    className={CONSUMPTION_LEVEL_BG_CLASSES[entry.level]}
+                  />
                   <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
                     <span className={CONSUMPTION_LEVEL_TEXT_CLASSES[entry.level]}>
                       {CONSUMPTION_LEVEL_LABELS[entry.level]}

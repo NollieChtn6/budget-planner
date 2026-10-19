@@ -1,16 +1,11 @@
 "use client";
 
-import {
-  type CalendarDate,
-  type Expense,
-  type ExpenseSource,
-  formatCalendarDate,
-  moneyToEuros,
-} from "@budget/domain";
+import { type Expense, type ExpenseSource, formatCalendarDate, moneyToEuros } from "@budget/domain";
 import { useActionState, useEffect, useState } from "react";
 import { deleteExpenseAction, updateExpenseAction } from "@/actions/expense";
 import { initialExpenseActionState } from "@/actions/expense-state";
 import { initialVariableEnvelopeActionState } from "@/actions/variable-envelope-state";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -23,12 +18,20 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { TableCell, TableRow } from "@/components/ui/table";
 import { formatEuros } from "@/lib/format-money";
+import {
+  AmountCell,
+  CategoryTag,
+  formatDay,
+  OPERATION_COLUMN_COUNT,
+  OPERATION_EDIT_FULL_WIDTH_CLASS,
+  OPERATION_EDIT_GRID_CLASS,
+  OperationActions,
+  OperationEditRow,
+  ProvisionTarget,
+} from "./operation-table-parts";
 import { ProvisionExhaustionPrompt } from "./provision-exhaustion-prompt";
-
-function formatDay(date: CalendarDate): string {
-  return `${date.day.toString().padStart(2, "0")}/${date.month.toString().padStart(2, "0")}`;
-}
 
 function targetValue(source: ExpenseSource): string {
   return source.type === "envelope"
@@ -38,7 +41,7 @@ function targetValue(source: ExpenseSource): string {
 
 export function ExpenseRow({
   expense,
-  categoryLabel,
+  category,
   targetLabel,
   envelopes,
   provisions,
@@ -48,7 +51,7 @@ export function ExpenseRow({
   editable,
 }: {
   expense: Expense;
-  categoryLabel: string;
+  category: { label: string; color: string } | undefined;
   targetLabel: string;
   envelopes: { id: string; label: string }[];
   provisions: { id: string; label: string }[];
@@ -79,59 +82,63 @@ export function ExpenseRow({
 
   if (updateState.provisionExhausted && !exhaustionResolved) {
     return (
-      <li>
-        <ProvisionExhaustionPrompt
-          provisionId={updateState.provisionExhausted.provisionId}
-          label={updateState.provisionExhausted.label}
-          onResolved={() => setExhaustionResolved(true)}
-        />
-      </li>
+      <TableRow className="hover:bg-transparent">
+        <TableCell colSpan={OPERATION_COLUMN_COUNT} className="whitespace-normal">
+          <ProvisionExhaustionPrompt
+            provisionId={updateState.provisionExhausted.provisionId}
+            label={updateState.provisionExhausted.label}
+            onResolved={() => setExhaustionResolved(true)}
+          />
+        </TableCell>
+      </TableRow>
     );
   }
 
   if (!isEditing) {
     return (
-      <li className="flex flex-col gap-1 border-b pb-2 last:border-b-0 last:pb-0">
-        <div className="flex justify-between gap-2 text-sm">
-          <span className="text-muted-foreground">{formatDay(expense.date)}</span>
-          <span className="flex-1">
-            {expense.place ? `${expense.place} · ` : ""}
-            {expense.description ?? categoryLabel}
-            <span className="text-muted-foreground"> · {targetLabel}</span>
-            {expense.savingsDraw ? (
-              <span className="text-destructive">
-                {" "}
-                · {formatEuros(moneyToEuros(expense.savingsDraw))} financés par l'épargne
-              </span>
-            ) : null}
-          </span>
-          <span>{formatEuros(moneyToEuros(expense.amount))}</span>
-        </div>
+      <TableRow>
+        <TableCell className="tabular-nums">{formatDay(expense.date)}</TableCell>
+        <TableCell>{expense.place ?? ""}</TableCell>
+        <TableCell className="min-w-40 whitespace-normal">
+          {expense.description ?? ""}
+          {expense.savingsDraw ? (
+            <>
+              {" "}
+              <Badge variant="negative">
+                {formatEuros(moneyToEuros(expense.savingsDraw))} via l'épargne
+              </Badge>
+            </>
+          ) : null}
+        </TableCell>
+        <TableCell>{category ? <CategoryTag {...category} /> : null}</TableCell>
+        <TableCell>
+          {expense.source.type === "provision" ? (
+            <ProvisionTarget label={targetLabel} />
+          ) : (
+            targetLabel
+          )}
+        </TableCell>
+        <AmountCell incoming={false}>{formatEuros(moneyToEuros(expense.amount))}</AmountCell>
         {editable ? (
-          <div className="flex gap-2">
-            <Button type="button" variant="outline" size="sm" onClick={() => setIsEditing(true)}>
-              Modifier
-            </Button>
-            <form action={deleteAction}>
-              <input type="hidden" name="id" value={expense.id} />
-              <Button type="submit" variant="destructive" size="sm" disabled={deletePending}>
-                {deletePending ? "Suppression..." : "Supprimer"}
-              </Button>
-            </form>
-          </div>
+          <OperationActions
+            id={expense.id}
+            onEdit={() => setIsEditing(true)}
+            deleteAction={deleteAction}
+            deletePending={deletePending}
+            error={deleteState.status === "error" ? deleteState.message : undefined}
+          />
         ) : null}
-        {deleteState.status === "error" ? <FieldError>{deleteState.message}</FieldError> : null}
-      </li>
+      </TableRow>
     );
   }
 
   const defaultTarget = targetValue(expense.source);
 
   return (
-    <li className="border-b pb-3 last:border-b-0 last:pb-0">
+    <OperationEditRow>
       <form action={updateAction}>
         <input type="hidden" name="id" value={expense.id} />
-        <FieldGroup>
+        <FieldGroup className={OPERATION_EDIT_GRID_CLASS}>
           <Field>
             <FieldLabel htmlFor={`edit-amountEuros-${expense.id}`}>Montant (€)</FieldLabel>
             <Input
@@ -167,9 +174,9 @@ export function ExpenseRow({
                 <SelectValue placeholder="Catégorie" />
               </SelectTrigger>
               <SelectContent>
-                {categories.map((category) => (
-                  <SelectItem key={category.id} value={category.id}>
-                    {category.label}
+                {categories.map((option) => (
+                  <SelectItem key={option.id} value={option.id}>
+                    {option.label}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -217,8 +224,12 @@ export function ExpenseRow({
               defaultValue={formatCalendarDate(expense.date)}
             />
           </Field>
-          {updateState.status === "error" ? <FieldError>{updateState.message}</FieldError> : null}
-          <div className="flex gap-2">
+          {updateState.status === "error" ? (
+            <FieldError className={OPERATION_EDIT_FULL_WIDTH_CLASS}>
+              {updateState.message}
+            </FieldError>
+          ) : null}
+          <div className={`flex gap-2 ${OPERATION_EDIT_FULL_WIDTH_CLASS}`}>
             <Button type="submit" size="sm" disabled={updatePending}>
               {updatePending ? "Enregistrement..." : "Enregistrer"}
             </Button>
@@ -228,6 +239,6 @@ export function ExpenseRow({
           </div>
         </FieldGroup>
       </form>
-    </li>
+    </OperationEditRow>
   );
 }

@@ -1,14 +1,19 @@
 import {
   findBudgetMonthByMonth,
   findCategoriesByUser,
+  findContributionsByUserAndMonth,
   findContributionsByUserAndProvision,
   findExpensesByUserAndMonth,
   findExpensesByUserAndProvision,
+  findExtraIncomesByUserAndMonth,
   findFixedEntriesByUser,
   findKnownPlacesByUser,
   findLastUsedCategoryIdByUser,
   findLeftoverAllocationsByUserAndMonth,
   findProvisionsByUser,
+  findRecentExpensesByUser,
+  findReimbursementsByUserAndMonth,
+  findSavingsTransfersByUserAndMonth,
   findVariableEnvelopesByUser,
   prisma,
 } from "@budget/db";
@@ -28,6 +33,7 @@ import {
   computeLeftover,
   computeProvisionBalance,
   computeRemaining,
+  computeRemainingProvisionTarget,
   computeSavingsFundedAmount,
   computeSpent,
   type Expense,
@@ -46,10 +52,13 @@ import {
   previousMonth,
   subtractMoney,
   sumMoney,
+  summarizeConvertedUrges,
 } from "@budget/domain";
 import Link from "next/link";
+import { Fragment, type ReactNode } from "react";
 import { Meter } from "@/components/meter";
 import { ProvisionStatusBadge } from "@/components/provision-status-badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { envelopeLabelAt } from "@/lib/active-envelopes";
 import {
@@ -58,6 +67,7 @@ import {
   CONSUMPTION_LEVEL_TEXT_CLASSES,
 } from "@/lib/alert-level";
 import { resolveActiveMonth, resolveCurrentMonth } from "@/lib/current-month";
+import { toExpenseLinkOptions } from "@/lib/expense-link-options";
 import { formatEuros } from "@/lib/format-money";
 import { formatMonthLabel } from "@/lib/format-month-label";
 import { requireSession } from "@/lib/session";
@@ -71,6 +81,9 @@ const FIXED_ENTRY_TYPE_LABELS: Record<FixedEntryType, string> = {
   charge: "Charges",
   scheduledSaving: "Épargne programmée",
 };
+
+/** How many of the latest expenses a reimbursement's "Dépense d'origine" proposes (R35). */
+const RECENT_EXPENSE_LINK_LIMIT = 50;
 
 export default async function HomePage() {
   const session = await requireSession();
@@ -107,11 +120,38 @@ export default async function HomePage() {
     );
   }
 
-  const [previousMonthAllocations, allEnvelopes, nextMonthRow] = await Promise.all([
+  const [
+    previousMonthAllocations,
+    allEnvelopes,
+    nextMonthRow,
+    reimbursements,
+    extraIncomes,
+    savingsTransfers,
+    monthContributions,
+  ] = await Promise.all([
     findLeftoverAllocationsByUserAndMonth(prisma, session.user.id, previousMonth(activeMonth)),
     findVariableEnvelopesByUser(prisma, session.user.id),
     findBudgetMonthByMonth(prisma, session.user.id, nextMonth(activeMonth)),
+    findReimbursementsByUserAndMonth(prisma, session.user.id, activeMonth),
+    findExtraIncomesByUserAndMonth(prisma, session.user.id, activeMonth),
+    findSavingsTransfersByUserAndMonth(prisma, session.user.id, activeMonth),
+    findContributionsByUserAndMonth(prisma, session.user.id, activeMonth),
   ]);
+  const reimbursementsTotal = sumMoney(reimbursements.map((r) => r.amount));
+  const extraIncomeTotal = sumMoney(extraIncomes.map((e) => e.amount));
+  const savingsTransfersTotal = sumMoney(savingsTransfers.map((t) => t.amount));
+  const convertedUrges = summarizeConvertedUrges(savingsTransfers);
+  // R37: only the contributions entered by hand since R37 are taken from the disposable income.
+  const deductedContributions = monthContributions.filter(
+    (contribution) => contribution.origin === "disposableIncome",
+  );
+  // R9, R11: reimbursements and extra incomes move the disposable income but not the allocation
+  // base; so do savings transfers and the contributions taken from it.
+  const oneOffInflowAmounts = [...reimbursements, ...extraIncomes].map((inflow) => inflow.amount);
+  const withdrawalAmounts = [
+    ...savingsTransfers.map((transfer) => transfer.amount),
+    ...deductedContributions.map((contribution) => contribution.amount),
+  ];
   const carriedOver = computeCarriedOver(previousMonthAllocations);
   const envelopeBonuses = new Map(
     budgetMonth.envelopeBudgets.map((entry) => [
@@ -131,26 +171,44 @@ export default async function HomePage() {
     budgetMonth.income,
     carriedOver,
     fixedEntryAmounts,
+    oneOffInflowAmounts,
+    withdrawalAmounts,
   );
 
   const amountModeValues = budgetMonth.envelopeBudgets
     .filter((entry) => entry.mode === "amount")
     .map((entry) => entry.value);
-  const allocationBase = computeAllocationBase(disposableIncome, amountModeValues);
+  const allocationBase = computeAllocationBase(
+    disposableIncome,
+    amountModeValues,
+    oneOffInflowAmounts,
+    withdrawalAmounts,
+  );
 
   const forecastMargin = computeForecastMargin(
     disposableIncome,
     budgetMonth.envelopeBudgets.map((entry) => entry.budget),
-    budgetMonth.provisionTargets.map((entry) => entry.target),
+    budgetMonth.provisionTargets.map((entry) =>
+      computeRemainingProvisionTarget(
+        entry.target,
+        sumMoney(
+          deductedContributions
+            .filter((contribution) => contribution.provisionId === entry.provisionId)
+            .map((contribution) => contribution.amount),
+        ),
+      ),
+    ),
   );
 
-  const [expenses, categories, provisions, knownPlaces, lastUsedCategoryId] = await Promise.all([
-    findExpensesByUserAndMonth(prisma, session.user.id, activeMonth),
-    findCategoriesByUser(prisma, session.user.id),
-    findProvisionsByUser(prisma, session.user.id),
-    findKnownPlacesByUser(prisma, session.user.id),
-    findLastUsedCategoryIdByUser(prisma, session.user.id),
-  ]);
+  const [expenses, categories, provisions, knownPlaces, lastUsedCategoryId, recentExpenses] =
+    await Promise.all([
+      findExpensesByUserAndMonth(prisma, session.user.id, activeMonth),
+      findCategoriesByUser(prisma, session.user.id),
+      findProvisionsByUser(prisma, session.user.id),
+      findKnownPlacesByUser(prisma, session.user.id),
+      findLastUsedCategoryIdByUser(prisma, session.user.id),
+      findRecentExpensesByUser(prisma, session.user.id, RECENT_EXPENSE_LINK_LIMIT),
+    ]);
   const activeCategories = categories.filter((category) => !category.archived);
   const provisionsById = new Map<string, Provision>(provisions.map((p) => [p.id, p]));
   const provisionLabels = new Map(
@@ -256,8 +314,15 @@ export default async function HomePage() {
     Array.from(envelopeConsumption.values()).map((entry) => entry.spent),
   );
   const totalEnvelopeBudget = sumMoney(budgetMonth.envelopeBudgets.map((entry) => entry.budget));
-  const totalContributed = sumMoney(contributionsThisMonth.map((c) => c.amount));
-  const left = subtractMoney(subtractMoney(disposableIncome, totalEnvelopeSpent), totalContributed);
+  // Contributions taken from the disposable income are already out of it (R37): only the others
+  // are still to set aside here.
+  const totalNotYetDeducted = sumMoney(
+    contributionsThisMonth.filter((c) => c.origin !== "disposableIncome").map((c) => c.amount),
+  );
+  const left = subtractMoney(
+    subtractMoney(disposableIncome, totalEnvelopeSpent),
+    totalNotYetDeducted,
+  );
   const toSpend = sumMoney(
     Array.from(envelopeConsumption.values()).map((entry) =>
       entry.remaining.cents > 0 ? entry.remaining : moneyFromCents(0),
@@ -276,10 +341,41 @@ export default async function HomePage() {
   const today = resolveCurrentMonth();
   const closureDue = budgetMonth.status === "open" && isMonthAfter(today, activeMonth);
 
+  const includedInflows: { key: string; content: ReactNode }[] = [];
+  if (carriedOver.cents > 0) {
+    includedInflows.push({
+      key: "carried-over",
+      content: `${formatEuros(moneyToEuros(carriedOver))} reportés`,
+    });
+  }
+  if (reimbursementsTotal.cents > 0) {
+    includedInflows.push({
+      key: "reimbursements",
+      content: (
+        <>
+          <span className="text-positive">+{formatEuros(moneyToEuros(reimbursementsTotal))}</span>{" "}
+          remboursements
+        </>
+      ),
+    });
+  }
+  if (extraIncomeTotal.cents > 0) {
+    includedInflows.push({
+      key: "extra-income",
+      content: (
+        <>
+          <span className="text-positive">+{formatEuros(moneyToEuros(extraIncomeTotal))}</span>{" "}
+          entrées exceptionnelles
+        </>
+      ),
+    });
+  }
+
   const canAddExpense =
     activeCategories.length > 0 &&
     (budgetMonth.envelopeBudgets.length > 0 || activeProvisions.length > 0);
   const canAddContribution = activeProvisions.length > 0;
+  const canAddReimbursement = activeCategories.length > 0;
 
   return (
     <div className="flex flex-col gap-7">
@@ -298,6 +394,10 @@ export default async function HomePage() {
           <AddOperationDialogs
             canAddExpense={canAddExpense}
             canAddContribution={canAddContribution}
+            canAddReimbursement={canAddReimbursement}
+            canAddExtraIncome
+            canAddSavingsTransfer
+            expenseOptions={toExpenseLinkOptions(recentExpenses)}
             envelopes={budgetMonth.envelopeBudgets.map((entry) => ({
               id: entry.envelopeId,
               label: entry.label,
@@ -321,7 +421,11 @@ export default async function HomePage() {
 
       {budgetMonth.status === "open" && !canAddExpense ? (
         <p className="text-sm text-muted-foreground">
-          Crée d'abord une catégorie dans les paramètres pour pouvoir saisir une dépense.
+          Crée d'abord une catégorie dans les{" "}
+          <Link href="/settings/categories" className="underline underline-offset-4">
+            paramètres
+          </Link>{" "}
+          pour pouvoir saisir une dépense.
         </p>
       ) : null}
 
@@ -331,6 +435,9 @@ export default async function HomePage() {
             <strong>{formatMonthLabel(today)} a commencé.</strong> Clôture{" "}
             {formatMonthLabel(activeMonth)} pour ouvrir le mois suivant.
           </span>
+          <Button render={<a href="#cloture" />} variant="outline" size="sm">
+            Aller à la clôture
+          </Button>
         </div>
       ) : null}
 
@@ -367,15 +474,22 @@ export default async function HomePage() {
 
       <div className="grid grid-cols-12 gap-5">
         {free.cents < 0 ? (
-          <div className="col-span-12 rounded-md border border-l-4 border-l-alert-warning bg-card px-4 py-2.5 text-sm">
+          <div
+            role="status"
+            className="col-span-12 rounded-md border border-alert-warning/60 bg-card px-4 py-2.5 text-sm"
+          >
             Tes enveloppes et provisions dépassent de{" "}
             {formatEuros(moneyToEuros(moneyFromCents(Math.abs(free.cents))))} ce que le mois permet.
             C'est un indicateur : rien n'est bloqué.
           </div>
         ) : null}
         {allocationBase.cents < 0 ? (
-          <div className="col-span-12 rounded-md border border-l-4 border-l-alert-warning bg-card px-4 py-2.5 text-sm">
-            Les postes fixes et enveloppes en montant dépassent le reste à vivre.
+          <div
+            role="status"
+            className="col-span-12 rounded-md border border-alert-warning/60 bg-card px-4 py-2.5 text-sm"
+          >
+            Les postes fixes et enveloppes en montant dépassent le reste à vivre : les enveloppes en
+            pourcentage sont à 0 €.
           </div>
         ) : null}
 
@@ -384,7 +498,7 @@ export default async function HomePage() {
             <div>
               <p className="text-sm text-muted-foreground">Il te reste ce mois-ci</p>
               <p
-                className={`mt-1 mb-4 font-heading text-[40px] leading-none ${left.cents < 0 ? "text-destructive" : ""}`}
+                className={`mt-1 mb-4 font-heading text-[40px] leading-none ${left.cents < 0 ? "text-alert-warning-text" : ""}`}
               >
                 {formatEuros(moneyToEuros(left))}
               </p>
@@ -423,7 +537,7 @@ export default async function HomePage() {
               <div className="flex items-center gap-2.5">
                 <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-muted-foreground/40" />
                 <dt className="flex-1">Libre, non engagé</dt>
-                <dd className={free.cents < 0 ? "text-destructive" : ""}>
+                <dd className={free.cents < 0 ? "text-alert-warning-text" : ""}>
                   {formatEuros(moneyToEuros(free))}
                 </dd>
               </div>
@@ -451,16 +565,43 @@ export default async function HomePage() {
             <div>
               Marge prévisionnelle
               <p
-                className={`font-heading text-[17px] ${forecastMargin.cents < 0 ? "text-destructive" : "text-foreground"}`}
+                className={`font-heading text-[17px] ${forecastMargin.cents < 0 ? "text-alert-warning-text" : "text-foreground"}`}
               >
                 {formatEuros(moneyToEuros(forecastMargin))}
               </p>
             </div>
           </div>
-          {carriedOver.cents > 0 ? (
-            <p className="mt-3 text-sm text-muted-foreground">
-              Dont {formatEuros(moneyToEuros(carriedOver))} reportés du mois précédent
-            </p>
+          {includedInflows.length > 0 || savingsTransfersTotal.cents > 0 ? (
+            <div className="mt-4 flex flex-col gap-1 border-t pt-3 text-sm text-muted-foreground">
+              {includedInflows.length > 0 ? (
+                <p>
+                  Inclus :{" "}
+                  {includedInflows.map((item, index) => (
+                    <Fragment key={item.key}>
+                      {index > 0 ? <span aria-hidden="true"> · </span> : null}
+                      {item.content}
+                    </Fragment>
+                  ))}
+                </p>
+              ) : null}
+              {savingsTransfersTotal.cents > 0 ? (
+                <p>
+                  {formatEuros(moneyToEuros(savingsTransfersTotal))} transférés vers l'épargne
+                  {convertedUrges.count > 0 ? (
+                    <>
+                      , dont{" "}
+                      <span className="text-positive">
+                        {formatEuros(moneyToEuros(convertedUrges.total))}
+                      </span>{" "}
+                      d'envies{" "}
+                      <span className="whitespace-nowrap">
+                        converties ({convertedUrges.count}) <span aria-hidden>✨</span>
+                      </span>
+                    </>
+                  ) : null}
+                </p>
+              ) : null}
+            </div>
           ) : null}
         </Card>
 
@@ -499,6 +640,7 @@ export default async function HomePage() {
                       {consumption ? (
                         <Meter
                           percent={pct}
+                          label={`Consommation de ${entry.label}`}
                           className={CONSUMPTION_LEVEL_BG_CLASSES[consumption.level]}
                         />
                       ) : null}
@@ -510,14 +652,16 @@ export default async function HomePage() {
                       ) : null}
                       {consumption ? (
                         <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
-                          <span className="flex items-center gap-1.5">
-                            <span
-                              className={`h-1.5 w-1.5 shrink-0 rounded-full ${CONSUMPTION_LEVEL_BG_CLASSES[consumption.level]}`}
-                            />
-                            <span className={CONSUMPTION_LEVEL_TEXT_CLASSES[consumption.level]}>
-                              {CONSUMPTION_LEVEL_LABELS[consumption.level]}
+                          {consumption.level !== "ok" ? (
+                            <span className="flex items-center gap-1.5">
+                              <span
+                                className={`h-1.5 w-1.5 shrink-0 rounded-full ${CONSUMPTION_LEVEL_BG_CLASSES[consumption.level]}`}
+                              />
+                              <span className={CONSUMPTION_LEVEL_TEXT_CLASSES[consumption.level]}>
+                                {CONSUMPTION_LEVEL_LABELS[consumption.level]}
+                              </span>
                             </span>
-                          </span>
+                          ) : null}
                           <span>
                             {formatEuros(moneyToEuros(consumption.spent))} dépensés sur{" "}
                             {formatEuros(moneyToEuros(entry.budget))}
@@ -577,7 +721,13 @@ export default async function HomePage() {
                           paidThisMonth={ledger?.paidThisMonth ?? moneyFromCents(0)}
                         />
                       </div>
-                      {ledger ? <Meter percent={pct} className="bg-accent" /> : null}
+                      {ledger ? (
+                        <Meter
+                          percent={pct}
+                          label={`Progression de ${entry.label}`}
+                          className="bg-accent"
+                        />
+                      ) : null}
                       {ledger ? (
                         <p className="text-xs text-muted-foreground">
                           {formatEuros(moneyToEuros(ledger.balance))} sur{" "}
@@ -607,7 +757,9 @@ export default async function HomePage() {
           </CardHeader>
           <CardContent className="grid grid-cols-1 gap-6 sm:grid-cols-2">
             {(["charge", "scheduledSaving"] as const).flatMap((type) => {
-              const entries = budgetMonth.fixedEntries.filter((entry) => entry.type === type);
+              const entries = budgetMonth.fixedEntries
+                .filter((entry) => entry.type === type)
+                .sort((a, b) => Number(a.status === "done") - Number(b.status === "done"));
               if (entries.length === 0) return [];
               return [
                 <div key={type} className="flex flex-col gap-1.5">

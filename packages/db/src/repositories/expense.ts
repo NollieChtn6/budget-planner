@@ -165,3 +165,17 @@ export async function deleteExpense(
     throw new Error("Expense not found for this user");
   }
 }
+
+/** Candidates for the optional link of a reimbursement (R35): the user's latest expenses, any month. */
+export async function findRecentExpensesByUser(
+  prisma: PrismaClient,
+  userId: string,
+  limit: number,
+): Promise<Expense[]> {
+  const rows = await prisma.expense.findMany({
+    where: { userId },
+    orderBy: [{ date: "desc" }, { createdAt: "desc" }],
+    take: limit,
+  });
+  return rows.map(toDomainExpense);
+}

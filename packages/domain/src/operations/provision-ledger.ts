@@ -32,3 +32,15 @@ export function computeContributionSurplus(target: Money, paidThisMonth: Money):
 export function isProvisionDone(target: Money, paidThisMonth: Money): boolean {
   return moneyToCents(paidThisMonth) >= moneyToCents(target);
 }
+
+/**
+ * R14: what is still to be put aside for the month once the contributions
+ * already deducted from disposableIncome (R37) are counted, so they aren't
+ * subtracted twice from the forecast margin. A surplus leaves 0, not a
+ * negative amount.
+ */
+export function computeRemainingProvisionTarget(target: Money, deductedThisMonth: Money): Money {
+  return moneyToCents(deductedThisMonth) >= moneyToCents(target)
+    ? moneyFromCents(0)
+    : subtractMoney(target, deductedThisMonth);
+}

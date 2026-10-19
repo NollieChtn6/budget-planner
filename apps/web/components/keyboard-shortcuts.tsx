@@ -46,6 +46,16 @@ export function KeyboardShortcuts() {
         return;
       }
 
+      if (event.key === "e" && pathname === "/") {
+        window.dispatchEvent(new Event("pecule:open-add-extra-income"));
+        return;
+      }
+
+      if (event.key === "t" && pathname === "/") {
+        window.dispatchEvent(new Event("pecule:open-add-savings-transfer"));
+        return;
+      }
+
       if (event.key === "/" && pathname === "/operations") {
         event.preventDefault();
         focusAndScrollTo("operations-search");

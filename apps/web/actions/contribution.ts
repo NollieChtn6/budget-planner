@@ -19,8 +19,10 @@ import {
 } from "@budget/domain";
 import type { PrismaClient } from "@prisma/client";
 import { revalidatePath } from "next/cache";
+import type { OperationActionState } from "@/actions/operation-state";
 import type { VariableEnvelopeActionState } from "@/actions/variable-envelope-state";
 import { resolveActiveMonth } from "@/lib/current-month";
+import { successWithDisposableIncomeWarning } from "@/lib/disposable-income";
 import { requireSession } from "@/lib/session";
 import {
   createContributionSchema,
@@ -54,7 +56,7 @@ export async function createContributionForUser(
   prismaClient: PrismaClient,
   userId: string,
   input: CreateContributionInput,
-): Promise<VariableEnvelopeActionState> {
+): Promise<OperationActionState> {
   let amount: ReturnType<typeof moneyFromEuros>;
   try {
     amount = moneyFromEuros(input.amountEuros);
@@ -88,13 +90,18 @@ export async function createContributionForUser(
   }
 
   await createContribution(prismaClient, userId, result.contribution);
-  return { status: "success", message: "Versement enregistré." };
+  return successWithDisposableIncomeWarning(
+    prismaClient,
+    userId,
+    budgetMonth,
+    "Versement enregistré.",
+  );
 }
 
 export async function createContributionAction(
-  _prevState: VariableEnvelopeActionState,
+  _prevState: OperationActionState,
   formData: FormData,
-): Promise<VariableEnvelopeActionState> {
+): Promise<OperationActionState> {
   const session = await requireSession();
   const parsed = createContributionSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) {
@@ -117,7 +124,7 @@ export async function updateContributionForUser(
   prismaClient: PrismaClient,
   userId: string,
   input: UpdateContributionInput,
-): Promise<VariableEnvelopeActionState> {
+): Promise<OperationActionState> {
   let amount: ReturnType<typeof moneyFromEuros>;
   try {
     amount = moneyFromEuros(input.amountEuros);
@@ -161,14 +168,24 @@ export async function updateContributionForUser(
     return { status: "error", message: describeRecordContributionFailure(result.error) };
   }
 
-  await updateContribution(prismaClient, userId, input.id, result.contribution);
-  return { status: "success", message: "Versement modifié." };
+  // A legacy `manual` contribution keeps its origin: editing it mustn't start
+  // deducting it from the disposable income retroactively (R37).
+  await updateContribution(prismaClient, userId, input.id, {
+    ...result.contribution,
+    origin: existing.origin,
+  });
+  return successWithDisposableIncomeWarning(
+    prismaClient,
+    userId,
+    budgetMonth,
+    "Versement modifié.",
+  );
 }
 
 export async function updateContributionAction(
-  _prevState: VariableEnvelopeActionState,
+  _prevState: OperationActionState,
   formData: FormData,
-): Promise<VariableEnvelopeActionState> {
+): Promise<OperationActionState> {
   const session = await requireSession();
   const parsed = updateContributionSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) {

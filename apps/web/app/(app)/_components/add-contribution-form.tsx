@@ -2,7 +2,7 @@
 
 import { useActionState, useEffect } from "react";
 import { createContributionAction } from "@/actions/contribution";
-import { initialVariableEnvelopeActionState } from "@/actions/variable-envelope-state";
+import { initialOperationActionState } from "@/actions/operation-state";
 import { Button } from "@/components/ui/button";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -29,13 +29,14 @@ export function AddContributionForm({
 }) {
   const [state, formAction, pending] = useActionState(
     createContributionAction,
-    initialVariableEnvelopeActionState,
+    initialOperationActionState,
   );
+  // A warning (R37) must stay readable, so the dialog only closes on its own for a clean success.
   useEffect(() => {
-    if (state.status === "success") {
+    if (state.status === "success" && !state.warning) {
       onSuccess?.();
     }
-  }, [state.status, onSuccess]);
+  }, [state.status, state.warning, onSuccess]);
 
   return (
     <form action={formAction}>
@@ -53,7 +54,7 @@ export function AddContributionForm({
           />
         </Field>
         <Field>
-          <FieldLabel htmlFor="provisionId">Provision</FieldLabel>
+          <FieldLabel htmlFor="provisionId">Provision (prélevé sur le reste à vivre)</FieldLabel>
           <Select name="provisionId" defaultValue={provisions[0]?.id}>
             <SelectTrigger id="provisionId">
               <SelectValue placeholder="Provision" />
@@ -83,9 +84,20 @@ export function AddContributionForm({
         {state.status === "success" ? (
           <p className="text-sm text-muted-foreground">{state.message}</p>
         ) : null}
-        <Button type="submit" variant="accent" disabled={pending}>
-          {pending ? "Ajout..." : "Ajouter le versement"}
-        </Button>
+        {state.warning ? (
+          <p className="rounded-md border border-l-4 border-l-alert-warning bg-card px-3 py-2 text-sm">
+            {state.warning}
+          </p>
+        ) : null}
+        {state.warning ? (
+          <Button type="button" variant="outline" onClick={() => onSuccess?.()}>
+            Fermer
+          </Button>
+        ) : (
+          <Button type="submit" variant="accent" disabled={pending}>
+            {pending ? "Ajout..." : "Ajouter le versement"}
+          </Button>
+        )}
       </FieldGroup>
     </form>
   );

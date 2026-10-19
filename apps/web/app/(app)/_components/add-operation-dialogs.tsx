@@ -10,13 +10,17 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Kbd } from "@/components/ui/kbd";
+import type { ExpenseLinkOption } from "@/lib/expense-link-options";
 import { AddContributionForm } from "./add-contribution-form";
 import { AddExpenseForm } from "./add-expense-form";
+import { AddReimbursementForm } from "./add-reimbursement-form";
 
 /** Header actions for "Ce mois-ci" (docs/ui/pecule_maquettes_v_02.html, headActions): dialogs opened either by click or by the N/V shortcuts from keyboard-shortcuts.tsx. */
 export function AddOperationDialogs({
   canAddExpense,
   canAddContribution,
+  canAddReimbursement,
+  expenseOptions,
   envelopes,
   provisions,
   categories,
@@ -28,6 +32,8 @@ export function AddOperationDialogs({
 }: {
   canAddExpense: boolean;
   canAddContribution: boolean;
+  canAddReimbursement: boolean;
+  expenseOptions: ExpenseLinkOption[];
   envelopes: { id: string; label: string }[];
   provisions: { id: string; label: string }[];
   categories: { id: string; label: string }[];
@@ -39,6 +45,7 @@ export function AddOperationDialogs({
 }) {
   const [expenseOpen, setExpenseOpen] = useState(false);
   const [contributionOpen, setContributionOpen] = useState(false);
+  const [reimbursementOpen, setReimbursementOpen] = useState(false);
 
   useEffect(() => {
     function openExpense() {
@@ -47,13 +54,18 @@ export function AddOperationDialogs({
     function openContribution() {
       if (canAddContribution) setContributionOpen(true);
     }
+    function openReimbursement() {
+      if (canAddReimbursement) setReimbursementOpen(true);
+    }
     window.addEventListener("pecule:open-add-expense", openExpense);
+    window.addEventListener("pecule:open-add-reimbursement", openReimbursement);
     window.addEventListener("pecule:open-add-contribution", openContribution);
     return () => {
       window.removeEventListener("pecule:open-add-expense", openExpense);
+      window.removeEventListener("pecule:open-add-reimbursement", openReimbursement);
       window.removeEventListener("pecule:open-add-contribution", openContribution);
     };
-  }, [canAddExpense, canAddContribution]);
+  }, [canAddExpense, canAddContribution, canAddReimbursement]);
 
   return (
     <div className="flex gap-2">
@@ -75,6 +87,28 @@ export function AddOperationDialogs({
               maxDate={maxDate}
               defaultDate={defaultDate}
               onSuccess={() => setContributionOpen(false)}
+            />
+          </DialogContent>
+        </Dialog>
+      ) : null}
+      {canAddReimbursement ? (
+        <Dialog open={reimbursementOpen} onOpenChange={setReimbursementOpen}>
+          <DialogTrigger render={<Button type="button" variant="outline" />}>
+            Nouveau remboursement
+            <Kbd>R</Kbd>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Nouveau remboursement</DialogTitle>
+            </DialogHeader>
+            <AddReimbursementForm
+              categories={categories}
+              expenseOptions={expenseOptions}
+              lastUsedCategoryId={lastUsedCategoryId}
+              minDate={minDate}
+              maxDate={maxDate}
+              defaultDate={defaultDate}
+              onSuccess={() => setReimbursementOpen(false)}
             />
           </DialogContent>
         </Dialog>

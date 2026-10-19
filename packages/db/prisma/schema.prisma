@@ -34,6 +34,7 @@ model User {
   categories        Category[]
   expenses          Expense[]
   contributions     Contribution[]
+  reimbursements    Reimbursement[]
 
   @@map("users")
 }
@@ -247,6 +248,7 @@ model Category {
   user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   defaultEnvelope VariableEnvelope? @relation(fields: [defaultEnvelopeId], references: [id], onDelete: SetNull)
   expenses        Expense[]
+  reimbursements  Reimbursement[]
 
   @@index([userId])
   @@map("categories")
@@ -394,6 +396,8 @@ model Expense {
   provision Provision?        @relation(fields: [provisionId], references: [id], onDelete: Restrict)
   category  Category          @relation(fields: [categoryId], references: [id], onDelete: Restrict)
 
+  reimbursements Reimbursement[]
+
   @@index([userId])
   @@index([envelopeId])
   @@index([provisionId])
@@ -425,4 +429,28 @@ model Contribution {
   @@index([userId])
   @@index([provisionId])
   @@map("contributions")
+}
+
+// R35 : somme reçue en retour d'une dépense, rattachée au mois de sa date de
+// réception. Le lien vers la dépense d'origine est informatif et facultatif :
+// supprimer la dépense le détache (SetNull) sans effacer le remboursement.
+
+model Reimbursement {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  categoryId  String   @map("category_id") @db.Uuid
+  expenseId   String?  @map("expense_id") @db.Uuid
+  date        DateTime @db.Date
+  amountCents Int      @map("amount_cents")
+  label       String
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  expense  Expense? @relation(fields: [expenseId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([categoryId])
+  @@index([expenseId])
+  @@map("reimbursements")
 }

@@ -31,7 +31,28 @@ describe("computeDisposableIncome", () => {
   });
 });
 
+describe("computeDisposableIncome with reimbursements (R9, R35)", () => {
+  it("adds the reimbursements received (E17: 1 000€ + 42€ -> 1 042€)", () => {
+    const disposableIncome = computeDisposableIncome(
+      moneyFromEuros(2800),
+      moneyFromEuros(0),
+      [moneyFromEuros(1400), moneyFromEuros(400)],
+      [moneyFromEuros(42)],
+    );
+    expect(moneyToCents(disposableIncome)).toBe(moneyToCents(moneyFromEuros(1042)));
+  });
+});
+
 describe("computeAllocationBase", () => {
+  it("leaves reimbursements out of the base (E17: 1 042€ - 42€ - 150€ -> 850€)", () => {
+    const allocationBase = computeAllocationBase(
+      moneyFromEuros(1042),
+      [moneyFromEuros(150)],
+      [moneyFromEuros(42)],
+    );
+    expect(moneyToCents(allocationBase)).toBe(moneyToCents(moneyFromEuros(850)));
+  });
+
   it("deducts amount-mode envelopes from disposable income (E2: 1 000€ - 150€ -> 850€)", () => {
     const allocationBase = computeAllocationBase(moneyFromEuros(1000), [moneyFromEuros(150)]);
     expect(moneyToCents(allocationBase)).toBe(moneyToCents(moneyFromEuros(850)));

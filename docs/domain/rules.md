@@ -31,11 +31,11 @@ Chaque règle a un identifiant stable, référencé dans la spec, le code et les
 
 ## Reste à vivre et enveloppes variables
 
-**R9.** `reste à vivre = revenu du mois + report − Σ postes fixes`, charges et épargne programmée comprises. Les provisions ne sont pas déduites : leurs cibles sont des objectifs, financés par ce que l'utilisatrice parvient à mettre de côté. Le report (R32) est 0 si rien n'a été reporté le mois précédent.
+**R9.** `reste à vivre = revenu du mois + report + total des remboursements − Σ postes fixes`, charges et épargne programmée comprises. Les provisions ne sont pas déduites : leurs cibles sont des objectifs, financés par ce que l'utilisatrice parvient à mettre de côté. Le report (R32) est 0 si rien n'a été reporté le mois précédent ; le total des remboursements (R35) est 0 si aucun n'a été reçu ce mois-ci.
 
 **R10.** Une enveloppe en mode montant reçoit sa valeur telle quelle.
 
-**R11.** `base de répartition = reste à vivre − Σ enveloppes en mode montant`.
+**R11.** `base de répartition = (reste à vivre − total des remboursements) − Σ enveloppes en mode montant`. Les remboursements n'entrent pas dans la base : ils n'augmentent pas les budgets des enveloppes en pourcentage (R35).
 
 **R12.** Une enveloppe en mode pourcentage reçoit `base de répartition × pourcentage`. La somme des pourcentages ne peut pas dépasser 100 %. La part restante est affichée comme non attribuée.
 
@@ -85,6 +85,13 @@ Chaque niveau s'affiche avec un libellé ou une icône, jamais par la couleur se
 - **Conserver** : la provision reste active avec un solde à 0, et son provisionnement reprend à l'ouverture suivante (R18, ou R20 si l'échéance est passée).
 
 Une réserve vidée ne déclenche aucune question : elle se réalimente selon R21.
+
+## Remboursements
+
+**R35.** Un remboursement (mutuelle, Sécu…) est une entrée d'argent rattachée au mois de sa **date de réception** (R3), pas à celui de la dépense qu'il rembourse. Il s'ajoute au reste à vivre (R9) et à la marge prévisionnelle (R14), mais ni à la base de répartition (R11), ni aux budgets des enveloppes, ni au reliquat (R24) : l'argent reste non attribué. Il ne modifie jamais la dépense d'origine ni le mois de celle-ci (R6). Il n'est pas un revenu (R4).
+- Il porte une catégorie obligatoire, sans effet sur les calculs.
+- Il peut renvoyer à une seule dépense d'origine, facultative, y compris d'un mois clôturé ; le lien est informatif. Si la somme des remboursements liés à une dépense dépasse son montant, un avertissement s'affiche sans bloquer.
+- Comme une dépense, il n'est saisi, modifié ou supprimé que dans le mois actif ouvert (ou lors d'une réouverture, R29), sa date devant tomber dans ce mois.
 
 ## Clôture du mois
 
@@ -137,3 +144,4 @@ Données de référence : revenu 2 800 € ; charges 1 400 € (loyer 1 000, int
 | E14 | R7 | Vie quotidienne passe à 180 € avec effet au mois suivant | Mois en cours inchangé ; mois suivant à 180 € |
 | E15 | R29 | Octobre rouvert, novembre ouvert ; ajout d'un versement oublié de 30 € sur Vacances en octobre | Solde Vacances +30 € ; cible de novembre inchangée ; cible de décembre recalculée avec ce solde |
 | E16 | R24, R30 | Clôture avec Sorties à −60 €, Plaisir à +20 €, Vie quotidienne à 0 € | Reliquat −40 € ; 40 € financés par l'épargne |
+| E17 | R9, R11, R14, R35 | Mutuelle : remboursement de 42 € reçu en cours de mois, enveloppes inchangées | Reste à vivre 1 042 € ; base de répartition 850 € ; budgets inchangés ; marge 408,33 + 42 = 450,33 € |

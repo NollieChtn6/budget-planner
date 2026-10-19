@@ -22,6 +22,7 @@ export {
   findExpensesByUserAndProvision,
   findKnownPlacesByUser,
   findLastUsedCategoryIdByUser,
+  findRecentExpensesByUser,
   updateExpense,
 } from "./repositories/expense";
 export {
@@ -56,6 +57,14 @@ export {
   type UpdateProvisionGoalInput,
   updateProvisionGoal,
 } from "./repositories/provision";
+export {
+  createReimbursement,
+  deleteReimbursement,
+  findReimbursementById,
+  findReimbursementsByUserAndExpense,
+  findReimbursementsByUserAndMonth,
+  updateReimbursement,
+} from "./repositories/reimbursement";
 export {
   addVariableEnvelopeVersion,
   createVariableEnvelope,

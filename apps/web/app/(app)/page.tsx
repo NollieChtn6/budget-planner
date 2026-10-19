@@ -9,6 +9,8 @@ import {
   findLastUsedCategoryIdByUser,
   findLeftoverAllocationsByUserAndMonth,
   findProvisionsByUser,
+  findRecentExpensesByUser,
+  findReimbursementsByUserAndMonth,
   findVariableEnvelopesByUser,
   prisma,
 } from "@budget/db";
@@ -58,6 +60,7 @@ import {
   CONSUMPTION_LEVEL_TEXT_CLASSES,
 } from "@/lib/alert-level";
 import { resolveActiveMonth, resolveCurrentMonth } from "@/lib/current-month";
+import { toExpenseLinkOptions } from "@/lib/expense-link-options";
 import { formatEuros } from "@/lib/format-money";
 import { formatMonthLabel } from "@/lib/format-month-label";
 import { requireSession } from "@/lib/session";
@@ -71,6 +74,9 @@ const FIXED_ENTRY_TYPE_LABELS: Record<FixedEntryType, string> = {
   charge: "Charges",
   scheduledSaving: "Épargne programmée",
 };
+
+/** How many of the latest expenses a reimbursement's "Dépense d'origine" proposes (R35). */
+const RECENT_EXPENSE_LINK_LIMIT = 50;
 
 export default async function HomePage() {
   const session = await requireSession();
@@ -107,11 +113,14 @@ export default async function HomePage() {
     );
   }
 
-  const [previousMonthAllocations, allEnvelopes, nextMonthRow] = await Promise.all([
+  const [previousMonthAllocations, allEnvelopes, nextMonthRow, reimbursements] = await Promise.all([
     findLeftoverAllocationsByUserAndMonth(prisma, session.user.id, previousMonth(activeMonth)),
     findVariableEnvelopesByUser(prisma, session.user.id),
     findBudgetMonthByMonth(prisma, session.user.id, nextMonth(activeMonth)),
+    findReimbursementsByUserAndMonth(prisma, session.user.id, activeMonth),
   ]);
+  const reimbursementAmounts = reimbursements.map((reimbursement) => reimbursement.amount);
+  const reimbursementsTotal = sumMoney(reimbursementAmounts);
   const carriedOver = computeCarriedOver(previousMonthAllocations);
   const envelopeBonuses = new Map(
     budgetMonth.envelopeBudgets.map((entry) => [
@@ -131,12 +140,17 @@ export default async function HomePage() {
     budgetMonth.income,
     carriedOver,
     fixedEntryAmounts,
+    reimbursementAmounts,
   );
 
   const amountModeValues = budgetMonth.envelopeBudgets
     .filter((entry) => entry.mode === "amount")
     .map((entry) => entry.value);
-  const allocationBase = computeAllocationBase(disposableIncome, amountModeValues);
+  const allocationBase = computeAllocationBase(
+    disposableIncome,
+    amountModeValues,
+    reimbursementAmounts,
+  );
 
   const forecastMargin = computeForecastMargin(
     disposableIncome,
@@ -144,13 +158,15 @@ export default async function HomePage() {
     budgetMonth.provisionTargets.map((entry) => entry.target),
   );
 
-  const [expenses, categories, provisions, knownPlaces, lastUsedCategoryId] = await Promise.all([
-    findExpensesByUserAndMonth(prisma, session.user.id, activeMonth),
-    findCategoriesByUser(prisma, session.user.id),
-    findProvisionsByUser(prisma, session.user.id),
-    findKnownPlacesByUser(prisma, session.user.id),
-    findLastUsedCategoryIdByUser(prisma, session.user.id),
-  ]);
+  const [expenses, categories, provisions, knownPlaces, lastUsedCategoryId, recentExpenses] =
+    await Promise.all([
+      findExpensesByUserAndMonth(prisma, session.user.id, activeMonth),
+      findCategoriesByUser(prisma, session.user.id),
+      findProvisionsByUser(prisma, session.user.id),
+      findKnownPlacesByUser(prisma, session.user.id),
+      findLastUsedCategoryIdByUser(prisma, session.user.id),
+      findRecentExpensesByUser(prisma, session.user.id, RECENT_EXPENSE_LINK_LIMIT),
+    ]);
   const activeCategories = categories.filter((category) => !category.archived);
   const provisionsById = new Map<string, Provision>(provisions.map((p) => [p.id, p]));
   const provisionLabels = new Map(
@@ -280,6 +296,7 @@ export default async function HomePage() {
     activeCategories.length > 0 &&
     (budgetMonth.envelopeBudgets.length > 0 || activeProvisions.length > 0);
   const canAddContribution = activeProvisions.length > 0;
+  const canAddReimbursement = activeCategories.length > 0;
 
   return (
     <div className="flex flex-col gap-7">
@@ -298,6 +315,8 @@ export default async function HomePage() {
           <AddOperationDialogs
             canAddExpense={canAddExpense}
             canAddContribution={canAddContribution}
+            canAddReimbursement={canAddReimbursement}
+            expenseOptions={toExpenseLinkOptions(recentExpenses)}
             envelopes={budgetMonth.envelopeBudgets.map((entry) => ({
               id: entry.envelopeId,
               label: entry.label,
@@ -460,6 +479,15 @@ export default async function HomePage() {
           {carriedOver.cents > 0 ? (
             <p className="mt-3 text-sm text-muted-foreground">
               Dont {formatEuros(moneyToEuros(carriedOver))} reportés du mois précédent
+            </p>
+          ) : null}
+          {reimbursementsTotal.cents > 0 ? (
+            <p className="mt-3 text-sm text-muted-foreground">
+              Dont{" "}
+              <span className="text-positive">
+                +{formatEuros(moneyToEuros(reimbursementsTotal))}
+              </span>{" "}
+              de remboursements reçus
             </p>
           ) : null}
         </Card>

@@ -27,7 +27,7 @@ export function PointageCheckbox({
   return (
     <form ref={formRef} action={action} className="flex flex-col gap-0.5">
       <input type="hidden" name="fixedEntryId" value={fixedEntryId} />
-      <Label className="flex items-center justify-between gap-2 text-sm">
+      <Label className="flex min-h-11 items-center justify-between gap-2 text-sm md:min-h-0">
         <span className="flex items-center gap-2">
           <Checkbox
             name="done"

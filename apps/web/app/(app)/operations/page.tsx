@@ -5,6 +5,8 @@ import {
   findContributionsByUserAndMonth,
   findExpensesByUserAndMonth,
   findOpenBudgetMonthByUser,
+  findRecentExpensesByUser,
+  findReimbursementsByUserAndMonth,
   prisma,
 } from "@budget/db";
 import {
@@ -23,11 +25,16 @@ import {
 import { MonthNav } from "@/components/month-nav";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { resolveActiveMonth } from "@/lib/current-month";
+import { toExpenseLinkOptions } from "@/lib/expense-link-options";
 import { formatEuros } from "@/lib/format-money";
 import { requireSession } from "@/lib/session";
 import { ContributionRow } from "../_components/contribution-row";
 import { ExpenseRow } from "../_components/expense-row";
+import { ReimbursementRow } from "../_components/reimbursement-row";
 import { OperationsFilters } from "./operations-filters";
+
+/** How many of the latest expenses a reimbursement's "Dépense d'origine" proposes (R35). */
+const RECENT_EXPENSE_LINK_LIMIT = 50;
 
 function clampMonth(month: Month, min: Month, max: Month): Month {
   if (isMonthBefore(month, min)) return min;
@@ -82,9 +89,11 @@ export default async function OperationsPage({
     );
   }
 
-  const [expenses, contributions, categories] = await Promise.all([
+  const [expenses, contributions, reimbursements, recentExpenses, categories] = await Promise.all([
     findExpensesByUserAndMonth(prisma, session.user.id, viewedMonth),
     findContributionsByUserAndMonth(prisma, session.user.id, viewedMonth),
+    findReimbursementsByUserAndMonth(prisma, session.user.id, viewedMonth),
+    findRecentExpensesByUser(prisma, session.user.id, RECENT_EXPENSE_LINK_LIMIT),
     findCategoriesByUser(prisma, session.user.id),
   ]);
 
@@ -108,6 +117,13 @@ export default async function OperationsPage({
       .includes(qLower);
   });
 
+  const filteredReimbursements = reimbursements.filter((reimbursement) => {
+    if (categoryId && reimbursement.categoryId !== categoryId) return false;
+    if (!qLower) return true;
+    const categoryLabel = categoryLabels.get(reimbursement.categoryId) ?? "";
+    return `${reimbursement.label} ${categoryLabel}`.toLowerCase().includes(qLower);
+  });
+
   const editable = isSameMonth(viewedMonth, activeMonth) && budgetMonth.status === "open";
   const minDate = formatCalendarDate(firstDayOfMonth(viewedMonth));
   const maxDate = formatCalendarDate(lastDayOfMonth(viewedMonth));
@@ -122,6 +138,11 @@ export default async function OperationsPage({
 
   const totalSpent = formatEuros(moneyToEuros(sumMoney(expenses.map((e) => e.amount))));
   const totalContributed = formatEuros(moneyToEuros(sumMoney(contributions.map((c) => c.amount))));
+  const totalReimbursed = formatEuros(moneyToEuros(sumMoney(reimbursements.map((r) => r.amount))));
+  const activeCategories = categories
+    .filter((category) => !category.archived)
+    .map((category) => ({ id: category.id, label: category.label }));
+  const expenseOptions = toExpenseLinkOptions(recentExpenses);
 
   return (
     <div className="flex flex-col gap-6">
@@ -133,6 +154,10 @@ export default async function OperationsPage({
         <span>
           Mis de côté{" "}
           <strong className="font-heading text-base text-foreground">{totalContributed}</strong>
+        </span>
+        <span>
+          Remboursé{" "}
+          <strong className="font-heading text-base text-positive">+{totalReimbursed}</strong>
         </span>
       </div>
       <OperationsFilters
@@ -202,6 +227,36 @@ export default async function OperationsPage({
             </ul>
           ) : (
             <p className="text-sm text-muted-foreground">Aucun versement ce mois-là.</p>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Remboursements</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {filteredReimbursements.length > 0 ? (
+            <ul className="flex flex-col gap-2">
+              {filteredReimbursements.map((reimbursement) => (
+                <ReimbursementRow
+                  key={reimbursement.id}
+                  reimbursement={reimbursement}
+                  categoryLabel={categoryLabels.get(reimbursement.categoryId) ?? ""}
+                  categories={activeCategories}
+                  expenseOptions={expenseOptions}
+                  minDate={minDate}
+                  maxDate={maxDate}
+                  editable={editable}
+                />
+              ))}
+            </ul>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              {reimbursements.length > 0
+                ? "Aucun remboursement ne correspond à ta recherche."
+                : "Aucun remboursement ce mois-là."}
+            </p>
           )}
         </CardContent>
       </Card>

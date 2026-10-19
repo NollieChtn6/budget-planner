@@ -41,6 +41,11 @@ export function KeyboardShortcuts() {
         return;
       }
 
+      if (event.key === "r" && pathname === "/") {
+        window.dispatchEvent(new Event("pecule:open-add-reimbursement"));
+        return;
+      }
+
       if (event.key === "/" && pathname === "/operations") {
         event.preventDefault();
         focusAndScrollTo("operations-search");

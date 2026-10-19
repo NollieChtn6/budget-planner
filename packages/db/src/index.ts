@@ -26,6 +26,13 @@ export {
   updateExpense,
 } from "./repositories/expense";
 export {
+  createExtraIncome,
+  deleteExtraIncome,
+  findExtraIncomeById,
+  findExtraIncomesByUserAndMonth,
+  updateExtraIncome,
+} from "./repositories/extra-income";
+export {
   createFixedEntry,
   findFixedEntriesByUser,
   findFixedEntryById,
@@ -65,6 +72,13 @@ export {
   findReimbursementsByUserAndMonth,
   updateReimbursement,
 } from "./repositories/reimbursement";
+export {
+  createSavingsTransfer,
+  deleteSavingsTransfer,
+  findSavingsTransferById,
+  findSavingsTransfersByUserAndMonth,
+  updateSavingsTransfer,
+} from "./repositories/savings-transfer";
 export {
   addVariableEnvelopeVersion,
   createVariableEnvelope,

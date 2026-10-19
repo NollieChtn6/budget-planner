@@ -35,6 +35,8 @@ model User {
   expenses          Expense[]
   contributions     Contribution[]
   reimbursements    Reimbursement[]
+  extraIncomes      ExtraIncome[]
+  savingsTransfers  SavingsTransfer[]
 
   @@map("users")
 }
@@ -407,9 +409,12 @@ model Expense {
 
 // R19/R22/R28 : versements vers une provision (docs/domain/model.md).
 
+// disposableIncome (R37) : versement saisi à la main, prélevé sur le reste à
+// vivre. manual : versement antérieur à R37, sans effet sur le reste à vivre.
 enum ContributionOrigin {
   manual
   closing
+  disposableIncome
 
   @@map("contribution_origin")
 }
@@ -453,4 +458,38 @@ model Reimbursement {
   @@index([categoryId])
   @@index([expenseId])
   @@map("reimbursements")
+}
+
+// R36 : somme reçue qui n'est ni le salaire ni un remboursement (chèque
+// cadeau…), rattachée au mois de sa date de réception.
+
+model ExtraIncome {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  date        DateTime @db.Date
+  amountCents Int      @map("amount_cents")
+  label       String
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("extra_incomes")
+}
+
+// R37 : somme retirée du reste à vivre pour être mise de côté hors de l'app.
+// L'épargne n'a pas de solde : seul ce retrait est enregistré.
+
+model SavingsTransfer {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  date        DateTime @db.Date
+  amountCents Int      @map("amount_cents")
+  label       String?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("savings_transfers")
 }

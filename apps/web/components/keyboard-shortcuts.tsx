@@ -46,6 +46,11 @@ export function KeyboardShortcuts() {
         return;
       }
 
+      if (event.key === "o" && hasOperationDialogs(pathname)) {
+        window.dispatchEvent(new Event("pecule:open-add-operation"));
+        return;
+      }
+
       if (event.key === "r" && hasOperationDialogs(pathname)) {
         window.dispatchEvent(new Event("pecule:open-add-reimbursement"));
         return;

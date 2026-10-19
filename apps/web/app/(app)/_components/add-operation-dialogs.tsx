@@ -5,17 +5,46 @@ import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { Field, FieldLabel } from "@/components/ui/field";
 import { Kbd } from "@/components/ui/kbd";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import type { ExpenseLinkOption } from "@/lib/expense-link-options";
 import { AddContributionForm } from "./add-contribution-form";
 import { AddExpenseForm } from "./add-expense-form";
 import { AddExtraIncomeForm } from "./add-extra-income-form";
 import { AddReimbursementForm } from "./add-reimbursement-form";
 import { AddSavingsTransferForm } from "./add-savings-transfer-form";
+
+type OperationType = "extra-income" | "savings-transfer" | "reimbursement";
+
+const OPERATION_TYPES: { value: OperationType; label: string; description: string }[] = [
+  {
+    value: "extra-income",
+    label: "Entrée exceptionnelle",
+    description: "Ajoutez une rentrée d'argent exceptionnelle.",
+  },
+  {
+    value: "savings-transfer",
+    label: "Transfert vers l'épargne",
+    description: "Mettez de côté une somme du reste à vivre du mois.",
+  },
+  {
+    value: "reimbursement",
+    label: "Remboursement",
+    description: "Enregistrez une somme reçue en retour d'une dépense déjà payée.",
+  },
+];
 
 /** Header actions for "Ce mois-ci" (docs/ui/pecule_maquettes_v_02.html, headActions): dialogs opened either by click or by the N/V shortcuts from keyboard-shortcuts.tsx. */
 export function AddOperationDialogs({
@@ -51,11 +80,19 @@ export function AddOperationDialogs({
 }) {
   const [expenseOpen, setExpenseOpen] = useState(false);
   const [contributionOpen, setContributionOpen] = useState(false);
-  const [reimbursementOpen, setReimbursementOpen] = useState(false);
-  const [extraIncomeOpen, setExtraIncomeOpen] = useState(false);
-  const [savingsTransferOpen, setSavingsTransferOpen] = useState(false);
+  const [operationOpen, setOperationOpen] = useState(false);
+  const [operationType, setOperationType] = useState<OperationType>("extra-income");
   // Set when the transfer dialog is opened from a just-saved extra income, to pre-fill its amount (R36, R37).
   const [transferDefaultAmount, setTransferDefaultAmount] = useState<number | undefined>();
+
+  const availableOperations = OPERATION_TYPES.filter(
+    ({ value }) =>
+      (value === "extra-income" && canAddExtraIncome) ||
+      (value === "savings-transfer" && canAddSavingsTransfer) ||
+      (value === "reimbursement" && canAddReimbursement),
+  );
+  const canAddOperation = availableOperations.length > 0;
+  const selectedOperation = OPERATION_TYPES.find(({ value }) => value === operationType);
 
   useEffect(() => {
     function openExpense() {
@@ -64,23 +101,28 @@ export function AddOperationDialogs({
     function openContribution() {
       if (canAddContribution) setContributionOpen(true);
     }
-    function openReimbursement() {
-      if (canAddReimbursement) setReimbursementOpen(true);
-    }
-    function openExtraIncome() {
-      if (canAddExtraIncome) setExtraIncomeOpen(true);
-    }
-    function openSavingsTransfer() {
-      if (!canAddSavingsTransfer) return;
+    function openOperation(type: OperationType, allowed: boolean) {
+      if (!allowed) return;
       setTransferDefaultAmount(undefined);
-      setSavingsTransferOpen(true);
+      setOperationType(type);
+      setOperationOpen(true);
     }
+    function openOperationDialog() {
+      if (!canAddOperation) return;
+      setTransferDefaultAmount(undefined);
+      setOperationOpen(true);
+    }
+    const openReimbursement = () => openOperation("reimbursement", canAddReimbursement);
+    const openExtraIncome = () => openOperation("extra-income", canAddExtraIncome);
+    const openSavingsTransfer = () => openOperation("savings-transfer", canAddSavingsTransfer);
+    window.addEventListener("pecule:open-add-operation", openOperationDialog);
     window.addEventListener("pecule:open-add-extra-income", openExtraIncome);
     window.addEventListener("pecule:open-add-savings-transfer", openSavingsTransfer);
     window.addEventListener("pecule:open-add-expense", openExpense);
     window.addEventListener("pecule:open-add-reimbursement", openReimbursement);
     window.addEventListener("pecule:open-add-contribution", openContribution);
     return () => {
+      window.removeEventListener("pecule:open-add-operation", openOperationDialog);
       window.removeEventListener("pecule:open-add-extra-income", openExtraIncome);
       window.removeEventListener("pecule:open-add-savings-transfer", openSavingsTransfer);
       window.removeEventListener("pecule:open-add-expense", openExpense);
@@ -88,6 +130,7 @@ export function AddOperationDialogs({
       window.removeEventListener("pecule:open-add-contribution", openContribution);
     };
   }, [
+    canAddOperation,
     canAddExpense,
     canAddContribution,
     canAddReimbursement,
@@ -97,59 +140,6 @@ export function AddOperationDialogs({
 
   return (
     <div className="flex flex-wrap gap-2">
-      {canAddExtraIncome ? (
-        <Dialog open={extraIncomeOpen} onOpenChange={setExtraIncomeOpen}>
-          <DialogTrigger render={<Button type="button" variant="outline" />}>
-            Nouvelle entrée
-            <Kbd>E</Kbd>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>Nouvelle entrée exceptionnelle</DialogTitle>
-            </DialogHeader>
-            <AddExtraIncomeForm
-              minDate={minDate}
-              maxDate={maxDate}
-              defaultDate={defaultDate}
-              onTransfer={(amountEuros) => {
-                setExtraIncomeOpen(false);
-                setTransferDefaultAmount(amountEuros);
-                setSavingsTransferOpen(true);
-              }}
-              onClose={() => setExtraIncomeOpen(false)}
-            />
-          </DialogContent>
-        </Dialog>
-      ) : null}
-      {canAddSavingsTransfer ? (
-        <Dialog open={savingsTransferOpen} onOpenChange={setSavingsTransferOpen}>
-          <DialogTrigger
-            render={
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setTransferDefaultAmount(undefined)}
-              />
-            }
-          >
-            Transfert épargne
-            <Kbd>T</Kbd>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>Transfert vers l'épargne</DialogTitle>
-            </DialogHeader>
-            <AddSavingsTransferForm
-              key={transferDefaultAmount ?? "blank"}
-              minDate={minDate}
-              maxDate={maxDate}
-              defaultDate={defaultDate}
-              defaultAmountEuros={transferDefaultAmount}
-              onClose={() => setSavingsTransferOpen(false)}
-            />
-          </DialogContent>
-        </Dialog>
-      ) : null}
       {canAddContribution ? (
         <Dialog open={contributionOpen} onOpenChange={setContributionOpen}>
           <DialogTrigger render={<Button type="button" variant="accent" />}>
@@ -168,28 +158,6 @@ export function AddOperationDialogs({
               maxDate={maxDate}
               defaultDate={defaultDate}
               onSuccess={() => setContributionOpen(false)}
-            />
-          </DialogContent>
-        </Dialog>
-      ) : null}
-      {canAddReimbursement ? (
-        <Dialog open={reimbursementOpen} onOpenChange={setReimbursementOpen}>
-          <DialogTrigger render={<Button type="button" variant="outline" />}>
-            Nouveau remboursement
-            <Kbd>R</Kbd>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>Nouveau remboursement</DialogTitle>
-            </DialogHeader>
-            <AddReimbursementForm
-              categories={categories}
-              expenseOptions={expenseOptions}
-              lastUsedCategoryId={lastUsedCategoryId}
-              minDate={minDate}
-              maxDate={maxDate}
-              defaultDate={defaultDate}
-              onSuccess={() => setReimbursementOpen(false)}
             />
           </DialogContent>
         </Dialog>
@@ -217,6 +185,76 @@ export function AddOperationDialogs({
               lastUsedCategoryId={lastUsedCategoryId}
               onSuccess={() => setExpenseOpen(false)}
             />
+          </DialogContent>
+        </Dialog>
+      ) : null}
+      {canAddOperation ? (
+        <Dialog open={operationOpen} onOpenChange={setOperationOpen}>
+          <DialogTrigger render={<Button type="button" variant="outline" />}>
+            Nouvelle opération
+            <Kbd>O</Kbd>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Nouvelle opération</DialogTitle>
+              <DialogDescription>{selectedOperation?.description}</DialogDescription>
+            </DialogHeader>
+            <Field>
+              <FieldLabel htmlFor="operation-type">Type d'opération</FieldLabel>
+              <Select
+                value={operationType}
+                onValueChange={(value) => {
+                  if (value) {
+                    setTransferDefaultAmount(undefined);
+                    setOperationType(value as OperationType);
+                  }
+                }}
+              >
+                <SelectTrigger id="operation-type">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableOperations.map((type) => (
+                    <SelectItem key={type.value} value={type.value}>
+                      {type.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+            {operationType === "extra-income" ? (
+              <AddExtraIncomeForm
+                minDate={minDate}
+                maxDate={maxDate}
+                defaultDate={defaultDate}
+                onTransfer={(amountEuros) => {
+                  setTransferDefaultAmount(amountEuros);
+                  setOperationType("savings-transfer");
+                }}
+                onClose={() => setOperationOpen(false)}
+              />
+            ) : null}
+            {operationType === "savings-transfer" ? (
+              <AddSavingsTransferForm
+                key={transferDefaultAmount ?? "blank"}
+                minDate={minDate}
+                maxDate={maxDate}
+                defaultDate={defaultDate}
+                defaultAmountEuros={transferDefaultAmount}
+                onClose={() => setOperationOpen(false)}
+              />
+            ) : null}
+            {operationType === "reimbursement" ? (
+              <AddReimbursementForm
+                categories={categories}
+                expenseOptions={expenseOptions}
+                lastUsedCategoryId={lastUsedCategoryId}
+                minDate={minDate}
+                maxDate={maxDate}
+                defaultDate={defaultDate}
+                onSuccess={() => setOperationOpen(false)}
+              />
+            ) : null}
           </DialogContent>
         </Dialog>
       ) : null}

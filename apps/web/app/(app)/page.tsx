@@ -55,8 +55,10 @@ import {
   summarizeConvertedUrges,
 } from "@budget/domain";
 import Link from "next/link";
+import { Fragment, type ReactNode } from "react";
 import { Meter } from "@/components/meter";
 import { ProvisionStatusBadge } from "@/components/provision-status-badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { envelopeLabelAt } from "@/lib/active-envelopes";
 import {
@@ -339,6 +341,36 @@ export default async function HomePage() {
   const today = resolveCurrentMonth();
   const closureDue = budgetMonth.status === "open" && isMonthAfter(today, activeMonth);
 
+  const includedInflows: { key: string; content: ReactNode }[] = [];
+  if (carriedOver.cents > 0) {
+    includedInflows.push({
+      key: "carried-over",
+      content: `${formatEuros(moneyToEuros(carriedOver))} reportés`,
+    });
+  }
+  if (reimbursementsTotal.cents > 0) {
+    includedInflows.push({
+      key: "reimbursements",
+      content: (
+        <>
+          <span className="text-positive">+{formatEuros(moneyToEuros(reimbursementsTotal))}</span>{" "}
+          remboursements
+        </>
+      ),
+    });
+  }
+  if (extraIncomeTotal.cents > 0) {
+    includedInflows.push({
+      key: "extra-income",
+      content: (
+        <>
+          <span className="text-positive">+{formatEuros(moneyToEuros(extraIncomeTotal))}</span>{" "}
+          entrées exceptionnelles
+        </>
+      ),
+    });
+  }
+
   const canAddExpense =
     activeCategories.length > 0 &&
     (budgetMonth.envelopeBudgets.length > 0 || activeProvisions.length > 0);
@@ -389,7 +421,11 @@ export default async function HomePage() {
 
       {budgetMonth.status === "open" && !canAddExpense ? (
         <p className="text-sm text-muted-foreground">
-          Crée d'abord une catégorie dans les paramètres pour pouvoir saisir une dépense.
+          Crée d'abord une catégorie dans les{" "}
+          <Link href="/settings/categories" className="underline underline-offset-4">
+            paramètres
+          </Link>{" "}
+          pour pouvoir saisir une dépense.
         </p>
       ) : null}
 
@@ -399,6 +435,9 @@ export default async function HomePage() {
             <strong>{formatMonthLabel(today)} a commencé.</strong> Clôture{" "}
             {formatMonthLabel(activeMonth)} pour ouvrir le mois suivant.
           </span>
+          <Button render={<a href="#cloture" />} variant="outline" size="sm">
+            Aller à la clôture
+          </Button>
         </div>
       ) : null}
 
@@ -435,15 +474,22 @@ export default async function HomePage() {
 
       <div className="grid grid-cols-12 gap-5">
         {free.cents < 0 ? (
-          <div className="col-span-12 rounded-md border border-l-4 border-l-alert-warning bg-card px-4 py-2.5 text-sm">
+          <div
+            role="status"
+            className="col-span-12 rounded-md border border-alert-warning/60 bg-card px-4 py-2.5 text-sm"
+          >
             Tes enveloppes et provisions dépassent de{" "}
             {formatEuros(moneyToEuros(moneyFromCents(Math.abs(free.cents))))} ce que le mois permet.
             C'est un indicateur : rien n'est bloqué.
           </div>
         ) : null}
         {allocationBase.cents < 0 ? (
-          <div className="col-span-12 rounded-md border border-l-4 border-l-alert-warning bg-card px-4 py-2.5 text-sm">
-            Les postes fixes et enveloppes en montant dépassent le reste à vivre.
+          <div
+            role="status"
+            className="col-span-12 rounded-md border border-alert-warning/60 bg-card px-4 py-2.5 text-sm"
+          >
+            Les postes fixes et enveloppes en montant dépassent le reste à vivre : les enveloppes en
+            pourcentage sont à 0 €.
           </div>
         ) : null}
 
@@ -452,7 +498,7 @@ export default async function HomePage() {
             <div>
               <p className="text-sm text-muted-foreground">Il te reste ce mois-ci</p>
               <p
-                className={`mt-1 mb-4 font-heading text-[40px] leading-none ${left.cents < 0 ? "text-destructive" : ""}`}
+                className={`mt-1 mb-4 font-heading text-[40px] leading-none ${left.cents < 0 ? "text-alert-warning-text" : ""}`}
               >
                 {formatEuros(moneyToEuros(left))}
               </p>
@@ -491,7 +537,7 @@ export default async function HomePage() {
               <div className="flex items-center gap-2.5">
                 <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-muted-foreground/40" />
                 <dt className="flex-1">Libre, non engagé</dt>
-                <dd className={free.cents < 0 ? "text-destructive" : ""}>
+                <dd className={free.cents < 0 ? "text-alert-warning-text" : ""}>
                   {formatEuros(moneyToEuros(free))}
                 </dd>
               </div>
@@ -519,69 +565,41 @@ export default async function HomePage() {
             <div>
               Marge prévisionnelle
               <p
-                className={`font-heading text-[17px] ${forecastMargin.cents < 0 ? "text-destructive" : "text-foreground"}`}
+                className={`font-heading text-[17px] ${forecastMargin.cents < 0 ? "text-alert-warning-text" : "text-foreground"}`}
               >
                 {formatEuros(moneyToEuros(forecastMargin))}
               </p>
             </div>
           </div>
-          {carriedOver.cents > 0 ||
-          reimbursementsTotal.cents > 0 ||
-          extraIncomeTotal.cents > 0 ||
-          savingsTransfersTotal.cents > 0 ? (
-            <div className="mt-4 flex flex-wrap items-center gap-x-2 gap-y-1 border-t pt-3 text-sm text-muted-foreground">
-              {carriedOver.cents > 0 ||
-              reimbursementsTotal.cents > 0 ||
-              extraIncomeTotal.cents > 0 ? (
-                <span>Inclus :</span>
-              ) : null}
-              {carriedOver.cents > 0 ? (
-                <span>{formatEuros(moneyToEuros(carriedOver))} reportés</span>
-              ) : null}
-              {reimbursementsTotal.cents > 0 ? (
-                <>
-                  {carriedOver.cents > 0 ? <span aria-hidden="true">·</span> : null}
-                  <span>
-                    <span className="text-positive">
-                      +{formatEuros(moneyToEuros(reimbursementsTotal))}
-                    </span>{" "}
-                    remboursements
-                  </span>
-                </>
-              ) : null}
-              {extraIncomeTotal.cents > 0 ? (
-                <>
-                  {carriedOver.cents > 0 || reimbursementsTotal.cents > 0 ? (
-                    <span aria-hidden="true">·</span>
-                  ) : null}
-                  <span>
-                    <span className="text-positive">
-                      +{formatEuros(moneyToEuros(extraIncomeTotal))}
-                    </span>{" "}
-                    entrées exceptionnelles
-                  </span>
-                </>
+          {includedInflows.length > 0 || savingsTransfersTotal.cents > 0 ? (
+            <div className="mt-4 flex flex-col gap-1 border-t pt-3 text-sm text-muted-foreground">
+              {includedInflows.length > 0 ? (
+                <p>
+                  Inclus :{" "}
+                  {includedInflows.map((item, index) => (
+                    <Fragment key={item.key}>
+                      {index > 0 ? <span aria-hidden="true"> · </span> : null}
+                      {item.content}
+                    </Fragment>
+                  ))}
+                </p>
               ) : null}
               {savingsTransfersTotal.cents > 0 ? (
-                <>
-                  {carriedOver.cents > 0 ||
-                  reimbursementsTotal.cents > 0 ||
-                  extraIncomeTotal.cents > 0 ? (
-                    <span aria-hidden="true" className="mx-1 h-4 w-px bg-border" />
+                <p>
+                  {formatEuros(moneyToEuros(savingsTransfersTotal))} transférés vers l'épargne
+                  {convertedUrges.count > 0 ? (
+                    <>
+                      , dont{" "}
+                      <span className="text-positive">
+                        {formatEuros(moneyToEuros(convertedUrges.total))}
+                      </span>{" "}
+                      d'envies{" "}
+                      <span className="whitespace-nowrap">
+                        converties ({convertedUrges.count}) <span aria-hidden>✨</span>
+                      </span>
+                    </>
                   ) : null}
-                  <span>
-                    {formatEuros(moneyToEuros(savingsTransfersTotal))} transférés vers l'épargne
-                    {convertedUrges.count > 0 ? (
-                      <>
-                        , dont{" "}
-                        <span className="text-positive">
-                          {formatEuros(moneyToEuros(convertedUrges.total))}
-                        </span>{" "}
-                        d'envies converties ({convertedUrges.count}) <span aria-hidden>✨</span>
-                      </>
-                    ) : null}
-                  </span>
-                </>
+                </p>
               ) : null}
             </div>
           ) : null}
@@ -622,6 +640,7 @@ export default async function HomePage() {
                       {consumption ? (
                         <Meter
                           percent={pct}
+                          label={`Consommation de ${entry.label}`}
                           className={CONSUMPTION_LEVEL_BG_CLASSES[consumption.level]}
                         />
                       ) : null}
@@ -633,14 +652,16 @@ export default async function HomePage() {
                       ) : null}
                       {consumption ? (
                         <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
-                          <span className="flex items-center gap-1.5">
-                            <span
-                              className={`h-1.5 w-1.5 shrink-0 rounded-full ${CONSUMPTION_LEVEL_BG_CLASSES[consumption.level]}`}
-                            />
-                            <span className={CONSUMPTION_LEVEL_TEXT_CLASSES[consumption.level]}>
-                              {CONSUMPTION_LEVEL_LABELS[consumption.level]}
+                          {consumption.level !== "ok" ? (
+                            <span className="flex items-center gap-1.5">
+                              <span
+                                className={`h-1.5 w-1.5 shrink-0 rounded-full ${CONSUMPTION_LEVEL_BG_CLASSES[consumption.level]}`}
+                              />
+                              <span className={CONSUMPTION_LEVEL_TEXT_CLASSES[consumption.level]}>
+                                {CONSUMPTION_LEVEL_LABELS[consumption.level]}
+                              </span>
                             </span>
-                          </span>
+                          ) : null}
                           <span>
                             {formatEuros(moneyToEuros(consumption.spent))} dépensés sur{" "}
                             {formatEuros(moneyToEuros(entry.budget))}
@@ -700,7 +721,13 @@ export default async function HomePage() {
                           paidThisMonth={ledger?.paidThisMonth ?? moneyFromCents(0)}
                         />
                       </div>
-                      {ledger ? <Meter percent={pct} className="bg-accent" /> : null}
+                      {ledger ? (
+                        <Meter
+                          percent={pct}
+                          label={`Progression de ${entry.label}`}
+                          className="bg-accent"
+                        />
+                      ) : null}
                       {ledger ? (
                         <p className="text-xs text-muted-foreground">
                           {formatEuros(moneyToEuros(ledger.balance))} sur{" "}
@@ -730,7 +757,9 @@ export default async function HomePage() {
           </CardHeader>
           <CardContent className="grid grid-cols-1 gap-6 sm:grid-cols-2">
             {(["charge", "scheduledSaving"] as const).flatMap((type) => {
-              const entries = budgetMonth.fixedEntries.filter((entry) => entry.type === type);
+              const entries = budgetMonth.fixedEntries
+                .filter((entry) => entry.type === type)
+                .sort((a, b) => Number(a.status === "done") - Number(b.status === "done"));
               if (entries.length === 0) return [];
               return [
                 <div key={type} className="flex flex-col gap-1.5">

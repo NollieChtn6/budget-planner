@@ -151,7 +151,11 @@ export default async function HistoryMonthPage({ params }: { params: Promise<{ m
                       {formatEuros(moneyToEuros(entry.remaining))}
                     </p>
                   </div>
-                  <Meter percent={pct} className={CONSUMPTION_LEVEL_BG_CLASSES[entry.level]} />
+                  <Meter
+                    percent={pct}
+                    label={`Consommation de ${entry.label}`}
+                    className={CONSUMPTION_LEVEL_BG_CLASSES[entry.level]}
+                  />
                   <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
                     <span className={CONSUMPTION_LEVEL_TEXT_CLASSES[entry.level]}>
                       {CONSUMPTION_LEVEL_LABELS[entry.level]}

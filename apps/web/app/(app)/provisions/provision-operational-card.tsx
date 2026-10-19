@@ -60,7 +60,7 @@ export function ProvisionOperationalCard({
             sur {formatEuros(moneyToEuros(provision.target))}
           </span>
         </p>
-        <Meter percent={pct} className="bg-accent" />
+        <Meter percent={pct} label={`Progression de ${provision.label}`} className="bg-accent" />
         <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
           {provision.type === "reserve" ? (
             <>

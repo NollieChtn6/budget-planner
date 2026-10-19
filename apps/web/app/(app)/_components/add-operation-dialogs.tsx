@@ -144,10 +144,10 @@ export function AddOperationDialogs({
   ]);
 
   return (
-    <div className="flex flex-wrap gap-2">
+    <div className="grid w-full grid-cols-2 gap-2 md:flex md:w-auto md:flex-wrap">
       {canAddContribution ? (
         <Dialog open={contributionOpen} onOpenChange={setContributionOpen}>
-          <DialogTrigger render={<Button type="button" variant="accent" />}>
+          <DialogTrigger render={<Button type="button" variant="accent" className="h-11 md:h-8" />}>
             Nouveau versement
             <Kbd className="border-accent-foreground/40 bg-transparent text-accent-foreground/70">
               V
@@ -169,7 +169,14 @@ export function AddOperationDialogs({
       ) : null}
       {canAddExpense ? (
         <Dialog open={expenseOpen} onOpenChange={setExpenseOpen}>
-          <DialogTrigger render={<Button type="button" />}>
+          <DialogTrigger
+            render={
+              <Button
+                type="button"
+                className="order-first col-span-2 h-11 md:order-none md:col-span-1 md:h-8"
+              />
+            }
+          >
             Nouvelle dépense
             <Kbd className="border-primary-foreground/40 bg-transparent text-primary-foreground/70">
               N
@@ -195,7 +202,9 @@ export function AddOperationDialogs({
       ) : null}
       {canAddOperation ? (
         <Dialog open={operationOpen} onOpenChange={setOperationOpen}>
-          <DialogTrigger render={<Button type="button" variant="outline" />}>
+          <DialogTrigger
+            render={<Button type="button" variant="outline" className="h-11 md:h-8" />}
+          >
             Nouvelle opération
             <Kbd>O</Kbd>
           </DialogTrigger>

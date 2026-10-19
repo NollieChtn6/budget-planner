@@ -9,22 +9,36 @@ import {
 
 /**
  * R9: what's left of the income, plus whatever was carried over from last
- * month's closing (R32), once every fixed entry is deducted.
+ * month's closing (R32) and the month's reimbursements (R35), once every
+ * fixed entry is deducted. The month snapshot (R5) is computed without
+ * reimbursements, which only arrive once the month is open.
  */
 export function computeDisposableIncome(
   income: Money,
   carriedOver: Money,
   fixedEntryAmounts: Money[],
+  reimbursementAmounts: Money[] = [],
 ): Money {
-  return subtractMoney(addMoney(income, carriedOver), sumMoney(fixedEntryAmounts));
+  return subtractMoney(
+    addMoney(addMoney(income, carriedOver), sumMoney(reimbursementAmounts)),
+    sumMoney(fixedEntryAmounts),
+  );
 }
 
-/** R11: the amount percentage-mode envelopes apply their share to. Can be negative (R13). */
+/**
+ * R11: the amount percentage-mode envelopes apply their share to. Can be
+ * negative (R13). Reimbursements (R35) are part of `disposableIncome` but
+ * never of the base, so they leave the envelope budgets untouched.
+ */
 export function computeAllocationBase(
   disposableIncome: Money,
   amountModeEnvelopeValues: Money[],
+  reimbursementAmounts: Money[] = [],
 ): Money {
-  return subtractMoney(disposableIncome, sumMoney(amountModeEnvelopeValues));
+  return subtractMoney(
+    subtractMoney(disposableIncome, sumMoney(reimbursementAmounts)),
+    sumMoney(amountModeEnvelopeValues),
+  );
 }
 
 /**

@@ -140,6 +140,15 @@ export {
   isProvisionDone,
 } from "./operations/provision-ledger";
 export {
+  exceedsExpenseAmount,
+  type RecordReimbursementContext,
+  type RecordReimbursementFailure,
+  type RecordReimbursementInput,
+  type RecordReimbursementResult,
+  type Reimbursement,
+  recordReimbursement,
+} from "./operations/reimbursement";
+export {
   type ArchiveProvisionFailure,
   type ArchiveProvisionInput,
   type ArchiveProvisionResult,

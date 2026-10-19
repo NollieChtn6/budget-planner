@@ -33,7 +33,10 @@ export function CloseMonthTeaser({
   nextMonthIsOpen: boolean;
 }) {
   return (
-    <Card className="col-span-12 flex flex-row flex-wrap items-center justify-between gap-3 p-4">
+    <Card
+      id="cloture"
+      className="col-span-12 flex flex-row flex-wrap items-center justify-between gap-3 p-4"
+    >
       <div>
         <p className="font-medium">Fin du mois ?</p>
         <p className="text-sm text-muted-foreground">

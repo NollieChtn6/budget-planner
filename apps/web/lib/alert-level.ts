@@ -11,10 +11,10 @@ export const CONSUMPTION_LEVEL_LABELS: Record<ConsumptionLevel, string> = {
 };
 
 export const CONSUMPTION_LEVEL_TEXT_CLASSES: Record<ConsumptionLevel, string> = {
-  ok: "text-alert-ok",
-  watch: "text-alert-watch",
-  caution: "text-alert-caution",
-  warning: "text-alert-warning",
+  ok: "text-alert-ok-text",
+  watch: "text-alert-watch-text",
+  caution: "text-alert-caution-text",
+  warning: "text-alert-warning-text",
   critical: "text-alert-critical",
   exceeded: "text-alert-exceeded",
 };

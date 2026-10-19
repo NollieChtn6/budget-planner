@@ -48,6 +48,10 @@
   --color-alert-warning: var(--alert-warning);
   --color-alert-critical: var(--alert-critical);
   --color-alert-exceeded: var(--alert-exceeded);
+  --color-alert-ok-text: var(--alert-ok-text);
+  --color-alert-watch-text: var(--alert-watch-text);
+  --color-alert-caution-text: var(--alert-caution-text);
+  --color-alert-warning-text: var(--alert-warning-text);
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -100,6 +104,11 @@
   --alert-warning: #c0622a;
   --alert-critical: #b8392f;
   --alert-exceeded: #6e4a9e;
+  /* Variantes texte des niveaux : les teintes de remplissage ci-dessus restent sous 4,5:1 en petit corps sur le thème clair. */
+  --alert-ok-text: #3a7550;
+  --alert-watch-text: #5c721c;
+  --alert-caution-text: #82660e;
+  --alert-warning-text: #a45424;
 
   --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   color-scheme: light;
@@ -147,6 +156,10 @@
     --alert-warning: #e08a4f;
     --alert-critical: #e8665c;
     --alert-exceeded: #a98bdb;
+    --alert-ok-text: var(--alert-ok);
+    --alert-watch-text: var(--alert-watch);
+    --alert-caution-text: var(--alert-caution);
+    --alert-warning-text: var(--alert-warning);
     color-scheme: dark;
   }
 }
@@ -192,6 +205,10 @@
   --alert-warning: #e08a4f;
   --alert-critical: #e8665c;
   --alert-exceeded: #a98bdb;
+  --alert-ok-text: var(--alert-ok);
+  --alert-watch-text: var(--alert-watch);
+  --alert-caution-text: var(--alert-caution);
+  --alert-warning-text: var(--alert-warning);
   color-scheme: dark;
 }
 

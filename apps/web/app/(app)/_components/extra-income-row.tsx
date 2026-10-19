@@ -1,22 +1,23 @@
 "use client";
 
-import {
-  type CalendarDate,
-  type ExtraIncome,
-  formatCalendarDate,
-  moneyToEuros,
-} from "@budget/domain";
+import { type ExtraIncome, formatCalendarDate, moneyToEuros } from "@budget/domain";
 import { useActionState, useEffect, useState } from "react";
 import { deleteExtraIncomeAction, updateExtraIncomeAction } from "@/actions/extra-income";
 import { initialOperationActionState } from "@/actions/operation-state";
 import { Button } from "@/components/ui/button";
 import { FieldError, FieldGroup } from "@/components/ui/field";
+import { TableCell, TableRow } from "@/components/ui/table";
 import { formatEuros } from "@/lib/format-money";
 import { ExtraIncomeFields } from "./extra-income-fields";
-
-function formatDay(date: CalendarDate): string {
-  return `${date.day.toString().padStart(2, "0")}/${date.month.toString().padStart(2, "0")}`;
-}
+import {
+  AmountCell,
+  formatDay,
+  MutedText,
+  OPERATION_EDIT_FULL_WIDTH_CLASS,
+  OPERATION_EDIT_GRID_CLASS,
+  OperationActions,
+  OperationEditRow,
+} from "./operation-table-parts";
 
 export function ExtraIncomeRow({
   extraIncome,
@@ -47,35 +48,35 @@ export function ExtraIncomeRow({
 
   if (!isEditing) {
     return (
-      <li className="flex flex-col gap-1 border-b pb-2 last:border-b-0 last:pb-0">
-        <div className="flex justify-between gap-2 text-sm">
-          <span className="text-muted-foreground">{formatDay(extraIncome.date)}</span>
-          <span className="flex-1">{extraIncome.label}</span>
-          <span className="text-positive">+{formatEuros(moneyToEuros(extraIncome.amount))}</span>
-        </div>
+      <TableRow>
+        <TableCell className="tabular-nums">{formatDay(extraIncome.date)}</TableCell>
+        <TableCell>
+          <MutedText>Entrée exceptionnelle</MutedText>
+        </TableCell>
+        <TableCell className="min-w-40 whitespace-normal">{extraIncome.label}</TableCell>
+        <TableCell />
+        <TableCell>
+          <MutedText>Reste à vivre</MutedText>
+        </TableCell>
+        <AmountCell incoming>{formatEuros(moneyToEuros(extraIncome.amount))}</AmountCell>
         {editable ? (
-          <div className="flex gap-2">
-            <Button type="button" variant="outline" size="sm" onClick={() => setIsEditing(true)}>
-              Modifier
-            </Button>
-            <form action={deleteAction}>
-              <input type="hidden" name="id" value={extraIncome.id} />
-              <Button type="submit" variant="destructive" size="sm" disabled={deletePending}>
-                {deletePending ? "Suppression..." : "Supprimer"}
-              </Button>
-            </form>
-          </div>
+          <OperationActions
+            id={extraIncome.id}
+            onEdit={() => setIsEditing(true)}
+            deleteAction={deleteAction}
+            deletePending={deletePending}
+            error={deleteState.status === "error" ? deleteState.message : undefined}
+          />
         ) : null}
-        {deleteState.status === "error" ? <FieldError>{deleteState.message}</FieldError> : null}
-      </li>
+      </TableRow>
     );
   }
 
   return (
-    <li className="border-b pb-3 last:border-b-0 last:pb-0">
+    <OperationEditRow>
       <form action={updateAction}>
         <input type="hidden" name="id" value={extraIncome.id} />
-        <FieldGroup>
+        <FieldGroup className={OPERATION_EDIT_GRID_CLASS}>
           <ExtraIncomeFields
             idPrefix={`edit-extra-income-${extraIncome.id}`}
             minDate={minDate}
@@ -86,8 +87,12 @@ export function ExtraIncomeRow({
               date: formatCalendarDate(extraIncome.date),
             }}
           />
-          {updateState.status === "error" ? <FieldError>{updateState.message}</FieldError> : null}
-          <div className="flex gap-2">
+          {updateState.status === "error" ? (
+            <FieldError className={OPERATION_EDIT_FULL_WIDTH_CLASS}>
+              {updateState.message}
+            </FieldError>
+          ) : null}
+          <div className={`flex gap-2 ${OPERATION_EDIT_FULL_WIDTH_CLASS}`}>
             <Button type="submit" size="sm" disabled={updatePending}>
               {updatePending ? "Enregistrement..." : "Enregistrer"}
             </Button>
@@ -97,6 +102,6 @@ export function ExtraIncomeRow({
           </div>
         </FieldGroup>
       </form>
-    </li>
+    </OperationEditRow>
   );
 }

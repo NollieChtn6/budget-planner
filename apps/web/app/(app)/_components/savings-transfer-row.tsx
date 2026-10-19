@@ -1,6 +1,11 @@
 "use client";
 
-import { formatCalendarDate, moneyToEuros, type SavingsTransfer } from "@budget/domain";
+import {
+  formatCalendarDate,
+  moneyToEuros,
+  type SavingsTransfer,
+  type SavingsTransferKind,
+} from "@budget/domain";
 import { useActionState, useEffect, useState } from "react";
 import { initialOperationActionState } from "@/actions/operation-state";
 import {
@@ -34,6 +39,7 @@ export function SavingsTransferRow({
   editable: boolean;
 }) {
   const [isEditing, setIsEditing] = useState(false);
+  const [kind, setKind] = useState<SavingsTransferKind>(savingsTransfer.kind);
   const [updateState, updateAction, updatePending] = useActionState(
     updateSavingsTransferAction,
     initialOperationActionState,
@@ -55,7 +61,14 @@ export function SavingsTransferRow({
       <TableRow>
         <TableCell className="tabular-nums">{formatDay(savingsTransfer.date)}</TableCell>
         <TableCell>
-          <MutedText>Transfert</MutedText>
+          {savingsTransfer.kind === "convertedUrge" ? (
+            <span className="text-positive">
+              <span aria-hidden>✨ </span>
+              Envie convertie
+            </span>
+          ) : (
+            <MutedText>Transfert</MutedText>
+          )}
         </TableCell>
         <TableCell className="min-w-40 whitespace-normal">{savingsTransfer.label ?? ""}</TableCell>
         <TableCell />
@@ -85,6 +98,8 @@ export function SavingsTransferRow({
             idPrefix={`edit-savings-transfer-${savingsTransfer.id}`}
             minDate={minDate}
             maxDate={maxDate}
+            kind={kind}
+            onKindChange={setKind}
             initial={{
               amountEuros: moneyToEuros(savingsTransfer.amount),
               label: savingsTransfer.label,
@@ -107,7 +122,15 @@ export function SavingsTransferRow({
             <Button type="submit" size="sm" disabled={updatePending}>
               {updatePending ? "Enregistrement..." : "Enregistrer"}
             </Button>
-            <Button type="button" variant="outline" size="sm" onClick={() => setIsEditing(false)}>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setKind(savingsTransfer.kind);
+                setIsEditing(false);
+              }}
+            >
               {updateState.warning ? "Fermer" : "Annuler"}
             </Button>
           </div>

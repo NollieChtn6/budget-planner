@@ -64,8 +64,17 @@ export default async function HistoryPage({
       spent: addMoney(acc.spent, s.spent),
       saved: addMoney(acc.saved, s.saved),
       leftover: addMoney(acc.leftover, s.leftover),
+      convertedUrges: addMoney(acc.convertedUrges, s.convertedUrges.total),
+      convertedUrgesCount: acc.convertedUrgesCount + s.convertedUrges.count,
     }),
-    { income: zero, spent: zero, saved: zero, leftover: zero },
+    {
+      income: zero,
+      spent: zero,
+      saved: zero,
+      leftover: zero,
+      convertedUrges: zero,
+      convertedUrgesCount: 0,
+    },
   );
 
   return (
@@ -103,6 +112,22 @@ export default async function HistoryPage({
         <StatTile label="Mis de côté" value={totals.saved} />
         <StatTile label="Reliquats cumulés" value={totals.leftover} />
       </div>
+
+      {totals.convertedUrgesCount > 0 ? (
+        <Card className="gap-1 p-4">
+          <p className="text-sm text-muted-foreground">
+            <span aria-hidden>✨ </span>
+            Envies converties {selectedYear}
+          </p>
+          <p className="font-heading text-xl text-positive">
+            {formatEuros(moneyToEuros(totals.convertedUrges))}
+          </p>
+          <p className="text-sm text-muted-foreground">
+            {totals.convertedUrgesCount} achat{totals.convertedUrgesCount > 1 ? "s" : ""} transformé
+            {totals.convertedUrgesCount > 1 ? "s" : ""} en épargne
+          </p>
+        </Card>
+      ) : null}
 
       <Card className="p-0">
         <div className="overflow-x-auto">

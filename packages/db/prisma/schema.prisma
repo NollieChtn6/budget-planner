@@ -480,13 +480,23 @@ model ExtraIncome {
 // R37 : somme retirée du reste à vivre pour être mise de côté hors de l'app.
 // L'épargne n'a pas de solde : seul ce retrait est enregistré.
 
+// convertedUrge (R38) : achat auquel l'utilisatrice a renoncé, avec le même
+// montant mis de côté ; son libellé est obligatoire (contrainte en base).
+enum SavingsTransferKind {
+  free
+  convertedUrge
+
+  @@map("savings_transfer_kind")
+}
+
 model SavingsTransfer {
-  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  userId      String   @map("user_id") @db.Uuid
-  date        DateTime @db.Date
-  amountCents Int      @map("amount_cents")
+  id          String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId      String              @map("user_id") @db.Uuid
+  date        DateTime            @db.Date
+  amountCents Int                 @map("amount_cents")
+  kind        SavingsTransferKind @default(free)
   label       String?
-  createdAt   DateTime @default(now()) @map("created_at")
+  createdAt   DateTime            @default(now()) @map("created_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 

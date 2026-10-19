@@ -84,6 +84,7 @@ Les libellés sont copiés volontairement : renommer un élément ne modifie pas
 
 **SavingsTransfer**
 - `id`, `date`, `amount`, `label?` (R37)
+- `kind` : `free` (défaut) | `convertedUrge` (R38) ; `label` obligatoire si `convertedUrge`
 
 **Contribution**
 - `id`, `date`, `amount`, `provisionId`
@@ -124,6 +125,7 @@ Ces valeurs sont toujours calculées, jamais stockées, pour éviter toute déri
 - total des remboursements d'un mois : Σ `Reimbursement.amount` dont la date tombe dans le mois (R35) ;
 - total des entrées exceptionnelles d'un mois : Σ `ExtraIncome.amount` dont la date tombe dans le mois (R36) ;
 - total des transferts vers l'épargne d'un mois : Σ `SavingsTransfer.amount` dont la date tombe dans le mois (R37) ;
+- total et nombre des envies converties d'un mois : Σ et nombre de `SavingsTransfer` de `kind = convertedUrge` dont la date tombe dans le mois (R38) ; total annuel dans l'historique ;
 - total des versements prélevés d'un mois : Σ `Contribution.amount` d'origine `disposableIncome` dont la date tombe dans le mois (R37) ;
 - places connues et dernière catégorie utilisée (à partir des dépenses).
 

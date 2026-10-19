@@ -10,15 +10,19 @@ import {
 } from "@budget/db";
 import {
   isSameMonth,
+  type Money,
+  moneyToEuros,
   monthOfCalendarDate,
   type RecordSavingsTransferFailure,
   recordSavingsTransfer,
+  type SavingsTransferKind,
 } from "@budget/domain";
 import type { PrismaClient } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import type { OperationActionState } from "@/actions/operation-state";
 import { resolveActiveMonth } from "@/lib/current-month";
 import { successWithDisposableIncomeWarning } from "@/lib/disposable-income";
+import { formatEuros } from "@/lib/format-money";
 import { parseAmountAndDate } from "@/lib/parse-operation-input";
 import { requireSession } from "@/lib/session";
 import {
@@ -33,12 +37,24 @@ function describeRecordSavingsTransferFailure(error: RecordSavingsTransferFailur
       return "Saisis un montant supérieur à 0.";
     case "dateOutsideCurrentMonth":
       return "Choisis une date dans le mois en cours.";
+    case "missingLabel":
+      return "Indique à quoi tu as renoncé.";
   }
+}
+
+/** R38: a converted urge is celebrated at saving time; a free transfer keeps the neutral message. */
+function describeSavedTransfer(
+  savingsTransfer: { kind: SavingsTransferKind; amount: Money; label?: string },
+  freeMessage: string,
+): string {
+  if (savingsTransfer.kind !== "convertedUrge") return freeMessage;
+  return `✨ Bravo : ${formatEuros(moneyToEuros(savingsTransfer.amount))} mis de côté en renonçant à ${savingsTransfer.label}.`;
 }
 
 export type CreateSavingsTransferInput = {
   amountEuros: number;
   date: string;
+  kind?: SavingsTransferKind;
   label?: string;
 };
 
@@ -60,7 +76,7 @@ async function validateSavingsTransfer(
   }
 
   const result = recordSavingsTransfer(
-    { date: parsed.date, amount: parsed.amount, label: input.label },
+    { date: parsed.date, amount: parsed.amount, kind: input.kind, label: input.label },
     { currentMonth: activeMonth },
   );
   if (!result.ok) {
@@ -88,7 +104,7 @@ export async function createSavingsTransferForUser(
     prismaClient,
     userId,
     validated.budgetMonth,
-    "Transfert enregistré.",
+    describeSavedTransfer(validated.savingsTransfer, "Transfert enregistré."),
   );
 }
 
@@ -134,7 +150,7 @@ export async function updateSavingsTransferForUser(
     prismaClient,
     userId,
     validated.budgetMonth,
-    "Transfert modifié.",
+    describeSavedTransfer(validated.savingsTransfer, "Transfert modifié."),
   );
 }
 

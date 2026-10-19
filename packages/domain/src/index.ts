@@ -158,12 +158,15 @@ export {
   recordReimbursement,
 } from "./operations/reimbursement";
 export {
+  type ConvertedUrgesSummary,
   type RecordSavingsTransferContext,
   type RecordSavingsTransferFailure,
   type RecordSavingsTransferInput,
   type RecordSavingsTransferResult,
   recordSavingsTransfer,
   type SavingsTransfer,
+  type SavingsTransferKind,
+  summarizeConvertedUrges,
 } from "./operations/savings-transfer";
 export {
   type ArchiveProvisionFailure,

@@ -1,28 +1,30 @@
 "use client";
 
-import {
-  type CalendarDate,
-  formatCalendarDate,
-  moneyToEuros,
-  type Reimbursement,
-} from "@budget/domain";
+import { formatCalendarDate, moneyToEuros, type Reimbursement } from "@budget/domain";
 import { useActionState, useEffect, useState } from "react";
 import { deleteReimbursementAction, updateReimbursementAction } from "@/actions/reimbursement";
 import { initialReimbursementActionState } from "@/actions/reimbursement-state";
 import { initialVariableEnvelopeActionState } from "@/actions/variable-envelope-state";
 import { Button } from "@/components/ui/button";
 import { FieldError, FieldGroup } from "@/components/ui/field";
+import { TableCell, TableRow } from "@/components/ui/table";
 import type { ExpenseLinkOption } from "@/lib/expense-link-options";
 import { formatEuros } from "@/lib/format-money";
+import {
+  AmountCell,
+  CategoryTag,
+  formatDay,
+  MutedText,
+  OPERATION_EDIT_FULL_WIDTH_CLASS,
+  OPERATION_EDIT_GRID_CLASS,
+  OperationActions,
+  OperationEditRow,
+} from "./operation-table-parts";
 import { ReimbursementFields } from "./reimbursement-fields";
-
-function formatDay(date: CalendarDate): string {
-  return `${date.day.toString().padStart(2, "0")}/${date.month.toString().padStart(2, "0")}`;
-}
 
 export function ReimbursementRow({
   reimbursement,
-  categoryLabel,
+  category,
   categories,
   expenseOptions,
   minDate,
@@ -30,7 +32,7 @@ export function ReimbursementRow({
   editable,
 }: {
   reimbursement: Reimbursement;
-  categoryLabel: string;
+  category: { label: string; color: string } | undefined;
   categories: { id: string; label: string }[];
   expenseOptions: ExpenseLinkOption[];
   minDate: string;
@@ -56,38 +58,35 @@ export function ReimbursementRow({
 
   if (!isEditing) {
     return (
-      <li className="flex flex-col gap-1 border-b pb-2 last:border-b-0 last:pb-0">
-        <div className="flex justify-between gap-2 text-sm">
-          <span className="text-muted-foreground">{formatDay(reimbursement.date)}</span>
-          <span className="flex-1">
-            {reimbursement.label}
-            <span className="text-muted-foreground"> · {categoryLabel}</span>
-          </span>
-          <span className="text-positive">+{formatEuros(moneyToEuros(reimbursement.amount))}</span>
-        </div>
+      <TableRow>
+        <TableCell className="tabular-nums">{formatDay(reimbursement.date)}</TableCell>
+        <TableCell>
+          <MutedText>Remboursement</MutedText>
+        </TableCell>
+        <TableCell className="min-w-40 whitespace-normal">{reimbursement.label}</TableCell>
+        <TableCell>{category ? <CategoryTag {...category} /> : null}</TableCell>
+        <TableCell>
+          <MutedText>Reste à vivre</MutedText>
+        </TableCell>
+        <AmountCell incoming>{formatEuros(moneyToEuros(reimbursement.amount))}</AmountCell>
         {editable ? (
-          <div className="flex gap-2">
-            <Button type="button" variant="outline" size="sm" onClick={() => setIsEditing(true)}>
-              Modifier
-            </Button>
-            <form action={deleteAction}>
-              <input type="hidden" name="id" value={reimbursement.id} />
-              <Button type="submit" variant="destructive" size="sm" disabled={deletePending}>
-                {deletePending ? "Suppression..." : "Supprimer"}
-              </Button>
-            </form>
-          </div>
+          <OperationActions
+            id={reimbursement.id}
+            onEdit={() => setIsEditing(true)}
+            deleteAction={deleteAction}
+            deletePending={deletePending}
+            error={deleteState.status === "error" ? deleteState.message : undefined}
+          />
         ) : null}
-        {deleteState.status === "error" ? <FieldError>{deleteState.message}</FieldError> : null}
-      </li>
+      </TableRow>
     );
   }
 
   return (
-    <li className="border-b pb-3 last:border-b-0 last:pb-0">
+    <OperationEditRow>
       <form action={updateAction}>
         <input type="hidden" name="id" value={reimbursement.id} />
-        <FieldGroup>
+        <FieldGroup className={OPERATION_EDIT_GRID_CLASS}>
           <ReimbursementFields
             idPrefix={`edit-reimbursement-${reimbursement.id}`}
             categories={categories}
@@ -102,13 +101,19 @@ export function ReimbursementRow({
               expenseId: reimbursement.expenseId,
             }}
           />
-          {updateState.status === "error" ? <FieldError>{updateState.message}</FieldError> : null}
+          {updateState.status === "error" ? (
+            <FieldError className={OPERATION_EDIT_FULL_WIDTH_CLASS}>
+              {updateState.message}
+            </FieldError>
+          ) : null}
           {updateState.warning ? (
-            <p className="rounded-md border border-l-4 border-l-alert-warning bg-card px-3 py-2 text-sm">
+            <p
+              className={`rounded-md border border-l-4 border-l-alert-warning bg-card px-3 py-2 text-sm ${OPERATION_EDIT_FULL_WIDTH_CLASS}`}
+            >
               {updateState.warning}
             </p>
           ) : null}
-          <div className="flex gap-2">
+          <div className={`flex gap-2 ${OPERATION_EDIT_FULL_WIDTH_CLASS}`}>
             <Button type="submit" size="sm" disabled={updatePending}>
               {updatePending ? "Enregistrement..." : "Enregistrer"}
             </Button>
@@ -118,6 +123,6 @@ export function ReimbursementRow({
           </div>
         </FieldGroup>
       </form>
-    </li>
+    </OperationEditRow>
   );
 }

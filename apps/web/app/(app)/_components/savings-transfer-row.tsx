@@ -1,11 +1,6 @@
 "use client";
 
-import {
-  type CalendarDate,
-  formatCalendarDate,
-  moneyToEuros,
-  type SavingsTransfer,
-} from "@budget/domain";
+import { formatCalendarDate, moneyToEuros, type SavingsTransfer } from "@budget/domain";
 import { useActionState, useEffect, useState } from "react";
 import { initialOperationActionState } from "@/actions/operation-state";
 import {
@@ -14,12 +9,18 @@ import {
 } from "@/actions/savings-transfer";
 import { Button } from "@/components/ui/button";
 import { FieldError, FieldGroup } from "@/components/ui/field";
+import { TableCell, TableRow } from "@/components/ui/table";
 import { formatEuros } from "@/lib/format-money";
+import {
+  AmountCell,
+  formatDay,
+  MutedText,
+  OPERATION_EDIT_FULL_WIDTH_CLASS,
+  OPERATION_EDIT_GRID_CLASS,
+  OperationActions,
+  OperationEditRow,
+} from "./operation-table-parts";
 import { SavingsTransferFields } from "./savings-transfer-fields";
-
-function formatDay(date: CalendarDate): string {
-  return `${date.day.toString().padStart(2, "0")}/${date.month.toString().padStart(2, "0")}`;
-}
 
 export function SavingsTransferRow({
   savingsTransfer,
@@ -51,35 +52,35 @@ export function SavingsTransferRow({
 
   if (!isEditing) {
     return (
-      <li className="flex flex-col gap-1 border-b pb-2 last:border-b-0 last:pb-0">
-        <div className="flex justify-between gap-2 text-sm">
-          <span className="text-muted-foreground">{formatDay(savingsTransfer.date)}</span>
-          <span className="flex-1">{savingsTransfer.label ?? "Épargne"}</span>
-          <span>{formatEuros(moneyToEuros(savingsTransfer.amount))}</span>
-        </div>
+      <TableRow>
+        <TableCell className="tabular-nums">{formatDay(savingsTransfer.date)}</TableCell>
+        <TableCell>
+          <MutedText>Transfert</MutedText>
+        </TableCell>
+        <TableCell className="min-w-40 whitespace-normal">{savingsTransfer.label ?? ""}</TableCell>
+        <TableCell />
+        <TableCell>Épargne</TableCell>
+        <AmountCell incoming={false}>
+          {formatEuros(moneyToEuros(savingsTransfer.amount))}
+        </AmountCell>
         {editable ? (
-          <div className="flex gap-2">
-            <Button type="button" variant="outline" size="sm" onClick={() => setIsEditing(true)}>
-              Modifier
-            </Button>
-            <form action={deleteAction}>
-              <input type="hidden" name="id" value={savingsTransfer.id} />
-              <Button type="submit" variant="destructive" size="sm" disabled={deletePending}>
-                {deletePending ? "Suppression..." : "Supprimer"}
-              </Button>
-            </form>
-          </div>
+          <OperationActions
+            id={savingsTransfer.id}
+            onEdit={() => setIsEditing(true)}
+            deleteAction={deleteAction}
+            deletePending={deletePending}
+            error={deleteState.status === "error" ? deleteState.message : undefined}
+          />
         ) : null}
-        {deleteState.status === "error" ? <FieldError>{deleteState.message}</FieldError> : null}
-      </li>
+      </TableRow>
     );
   }
 
   return (
-    <li className="border-b pb-3 last:border-b-0 last:pb-0">
+    <OperationEditRow>
       <form action={updateAction}>
         <input type="hidden" name="id" value={savingsTransfer.id} />
-        <FieldGroup>
+        <FieldGroup className={OPERATION_EDIT_GRID_CLASS}>
           <SavingsTransferFields
             idPrefix={`edit-savings-transfer-${savingsTransfer.id}`}
             minDate={minDate}
@@ -90,13 +91,19 @@ export function SavingsTransferRow({
               date: formatCalendarDate(savingsTransfer.date),
             }}
           />
-          {updateState.status === "error" ? <FieldError>{updateState.message}</FieldError> : null}
+          {updateState.status === "error" ? (
+            <FieldError className={OPERATION_EDIT_FULL_WIDTH_CLASS}>
+              {updateState.message}
+            </FieldError>
+          ) : null}
           {updateState.warning ? (
-            <p className="rounded-md border border-l-4 border-l-alert-warning bg-card px-3 py-2 text-sm">
+            <p
+              className={`rounded-md border border-l-4 border-l-alert-warning bg-card px-3 py-2 text-sm ${OPERATION_EDIT_FULL_WIDTH_CLASS}`}
+            >
               {updateState.warning}
             </p>
           ) : null}
-          <div className="flex gap-2">
+          <div className={`flex gap-2 ${OPERATION_EDIT_FULL_WIDTH_CLASS}`}>
             <Button type="submit" size="sm" disabled={updatePending}>
               {updatePending ? "Enregistrement..." : "Enregistrer"}
             </Button>
@@ -106,6 +113,6 @@ export function SavingsTransferRow({
           </div>
         </FieldGroup>
       </form>
-    </li>
+    </OperationEditRow>
   );
 }

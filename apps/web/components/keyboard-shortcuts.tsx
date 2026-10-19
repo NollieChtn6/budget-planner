@@ -9,6 +9,11 @@ function isTypingTarget(target: EventTarget | null): boolean {
   return target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName);
 }
 
+/** The pages that host the "new operation" dialogs (AddOperationDialogs). */
+function hasOperationDialogs(pathname: string): boolean {
+  return pathname === "/" || pathname === "/operations";
+}
+
 function focusAndScrollTo(id: string): void {
   const element = document.getElementById(id);
   element?.scrollIntoView({ block: "center" });
@@ -31,27 +36,27 @@ export function KeyboardShortcuts() {
         return;
       }
 
-      if (event.key === "n" && pathname === "/") {
+      if (event.key === "n" && hasOperationDialogs(pathname)) {
         window.dispatchEvent(new Event("pecule:open-add-expense"));
         return;
       }
 
-      if (event.key === "v" && pathname === "/") {
+      if (event.key === "v" && hasOperationDialogs(pathname)) {
         window.dispatchEvent(new Event("pecule:open-add-contribution"));
         return;
       }
 
-      if (event.key === "r" && pathname === "/") {
+      if (event.key === "r" && hasOperationDialogs(pathname)) {
         window.dispatchEvent(new Event("pecule:open-add-reimbursement"));
         return;
       }
 
-      if (event.key === "e" && pathname === "/") {
+      if (event.key === "e" && hasOperationDialogs(pathname)) {
         window.dispatchEvent(new Event("pecule:open-add-extra-income"));
         return;
       }
 
-      if (event.key === "t" && pathname === "/") {
+      if (event.key === "t" && hasOperationDialogs(pathname)) {
         window.dispatchEvent(new Event("pecule:open-add-savings-transfer"));
         return;
       }

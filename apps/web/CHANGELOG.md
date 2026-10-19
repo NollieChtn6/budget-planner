@@ -1,5 +1,30 @@
 # Changelog
 
+## [0.5.0](https://github.com/NollieChtn6/budget-planner/compare/budget-planner-v0.4.0...budget-planner-v0.5.0) (2026-10-19)
+
+
+### Features
+
+* **dashboard:** enlarge touch targets and stack actions on mobile ([506aa76](https://github.com/NollieChtn6/budget-planner/commit/506aa76ba38a94adcfd40138170081fd9d679fef))
+* **extra-income:** add extra income and savings transfer entry and display ([05e16b5](https://github.com/NollieChtn6/budget-planner/commit/05e16b5c5984342e55da83439e54587e9f1588a1))
+* **extra-income:** add extra incomes and mid-month savings transfers ([b613196](https://github.com/NollieChtn6/budget-planner/commit/b613196683a50c982445a343e5fadae263134cbd))
+* **operations:** display operations in a single table ([ed1a5ab](https://github.com/NollieChtn6/budget-planner/commit/ed1a5ab3b1a4cdfce646331eefe09f4500950302))
+* **operations:** display operations in a single table ([a9366c5](https://github.com/NollieChtn6/budget-planner/commit/a9366c5c5c5d62e64d5ce729a410e07c441727f3))
+* **operations:** group secondary operations in a single new operation dialog ([8e6cc3b](https://github.com/NollieChtn6/budget-planner/commit/8e6cc3ba9d6695e8e499e5922975337956a5e149))
+* **operations:** group secondary operations in a single new operation dialog ([a885833](https://github.com/NollieChtn6/budget-planner/commit/a8858334bb24e6f7e329b23c0de611739554f7f7))
+* **provision:** replace start month field with a month select ([c8c01db](https://github.com/NollieChtn6/budget-planner/commit/c8c01db4acfa78039a0d1cd77198dac77592c7d9))
+* **provision:** replace start month field with a month select ([87c9492](https://github.com/NollieChtn6/budget-planner/commit/87c949238031d3d3f5e484ffb37165f98e157dbb))
+* **reimbursement:** add reimbursement entry and display ([df5727f](https://github.com/NollieChtn6/budget-planner/commit/df5727ff612d0ea97abbd849a20a165f5f1c3ebb))
+* **reimbursement:** add reimbursements ([5848763](https://github.com/NollieChtn6/budget-planner/commit/584876311610bebd75cb5cd4d8348bed4fc054b8))
+* **savings-transfer:** add converted urge kind ([ea5c109](https://github.com/NollieChtn6/budget-planner/commit/ea5c1091b79e05624ae2c0bb9c79753d357fc21b))
+* **savings-transfer:** add converted urge kind ([5f7f675](https://github.com/NollieChtn6/budget-planner/commit/5f7f675cc3ecf5c13b6644dfaf8dc31d63afcf41))
+
+
+### Bug Fixes
+
+* **dashboard:** improve contrast, accessibility and clarity of the month view ([3e9d052](https://github.com/NollieChtn6/budget-planner/commit/3e9d052e51e6b9f0549fb8b8897d9b1a47be14f8))
+* **dashboard:** improve contrast, accessibility and mobile layout of the month view ([a30d32b](https://github.com/NollieChtn6/budget-planner/commit/a30d32b4dbdcd12c3331872e351663210934f061))
+
 ## [0.4.0](https://github.com/NollieChtn6/budget-planner/compare/budget-planner-v0.3.0...budget-planner-v0.4.0) (2026-10-18)
 
 

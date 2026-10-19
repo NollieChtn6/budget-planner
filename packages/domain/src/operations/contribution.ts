@@ -7,8 +7,12 @@ export type Contribution = {
   date: CalendarDate;
   amount: Money;
   provisionId: string;
-  /** `closing`: created by the month-closing leftover allocation (R25) — not produced yet, see issue #11. */
-  origin: "manual" | "closing";
+  /**
+   * `closing`: created by the month-closing leftover allocation (R25).
+   * `disposableIncome`: entered by hand, taken from the disposable income (R37).
+   * `manual`: entered before R37, doesn't touch the disposable income.
+   */
+  origin: "manual" | "closing" | "disposableIncome";
 };
 
 export type RecordContributionInput = {
@@ -38,13 +42,16 @@ export type RecordContributionResult =
 /**
  * A contribution created by a month closing (R25) is a frozen receipt of
  * that closing's leftover split, paired with a LeftoverAllocation — only a
- * manually-entered contribution can be revised or removed.
+ * contribution entered by hand can be revised or removed.
  */
 export function canModifyContribution(contribution: Pick<Contribution, "origin">): boolean {
-  return contribution.origin === "manual";
+  return contribution.origin !== "closing";
 }
 
-/** R3: a contribution is attached to the budget month of its date. */
+/**
+ * R3: a contribution is attached to the budget month of its date. R37: one
+ * entered by hand is taken from the disposable income.
+ */
 export function recordContribution(
   input: RecordContributionInput,
   context: RecordContributionContext,
@@ -67,7 +74,7 @@ export function recordContribution(
       date: input.date,
       amount: input.amount,
       provisionId: input.provisionId,
-      origin: "manual",
+      origin: "disposableIncome",
     },
   };
 }

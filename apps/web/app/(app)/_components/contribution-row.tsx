@@ -3,12 +3,13 @@
 import {
   type CalendarDate,
   type Contribution,
+  canModifyContribution,
   formatCalendarDate,
   moneyToEuros,
 } from "@budget/domain";
 import { useActionState, useEffect, useState } from "react";
 import { deleteContributionAction, updateContributionAction } from "@/actions/contribution";
-import { initialVariableEnvelopeActionState } from "@/actions/variable-envelope-state";
+import { initialOperationActionState } from "@/actions/operation-state";
 import { Button } from "@/components/ui/button";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -43,20 +44,21 @@ export function ContributionRow({
   const [isEditing, setIsEditing] = useState(false);
   const [updateState, updateAction, updatePending] = useActionState(
     updateContributionAction,
-    initialVariableEnvelopeActionState,
+    initialOperationActionState,
   );
   const [deleteState, deleteAction, deletePending] = useActionState(
     deleteContributionAction,
-    initialVariableEnvelopeActionState,
+    initialOperationActionState,
   );
 
+  // Stay on the form when the save carries a warning (R37), so it can be read.
   useEffect(() => {
-    if (updateState.status === "success") {
+    if (updateState.status === "success" && !updateState.warning) {
       setIsEditing(false);
     }
-  }, [updateState.status]);
+  }, [updateState.status, updateState.warning]);
 
-  const canModify = editable && contribution.origin === "manual";
+  const canModify = editable && canModifyContribution(contribution);
 
   if (!isEditing) {
     return (
@@ -131,12 +133,17 @@ export function ContributionRow({
             />
           </Field>
           {updateState.status === "error" ? <FieldError>{updateState.message}</FieldError> : null}
+          {updateState.warning ? (
+            <p className="rounded-md border border-l-4 border-l-alert-warning bg-card px-3 py-2 text-sm">
+              {updateState.warning}
+            </p>
+          ) : null}
           <div className="flex gap-2">
             <Button type="submit" size="sm" disabled={updatePending}>
               {updatePending ? "Enregistrement..." : "Enregistrer"}
             </Button>
             <Button type="button" variant="outline" size="sm" onClick={() => setIsEditing(false)}>
-              Annuler
+              {updateState.warning ? "Fermer" : "Annuler"}
             </Button>
           </div>
         </FieldGroup>

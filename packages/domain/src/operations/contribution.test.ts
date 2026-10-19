@@ -26,7 +26,7 @@ function baseInput(overrides: Partial<RecordContributionInput> = {}): RecordCont
 }
 
 describe("recordContribution", () => {
-  it("accepts a valid contribution to a snapshot provision", () => {
+  it("accepts a valid contribution to a snapshot provision, taken from the disposable income (R37)", () => {
     const result = recordContribution(baseInput(), context);
     expect(result).toEqual({
       ok: true,
@@ -34,7 +34,7 @@ describe("recordContribution", () => {
         date: parseCalendarDate("2026-10-05"),
         amount: moneyFromEuros(100),
         provisionId: "p1",
-        origin: "manual",
+        origin: "disposableIncome",
       },
     });
   });
@@ -59,8 +59,9 @@ describe("recordContribution", () => {
 });
 
 describe("canModifyContribution", () => {
-  it("allows a manually-entered contribution", () => {
+  it("allows a contribution entered by hand, legacy or not", () => {
     expect(canModifyContribution({ origin: "manual" })).toBe(true);
+    expect(canModifyContribution({ origin: "disposableIncome" })).toBe(true);
   });
 
   it("rejects a contribution created by a month closing", () => {

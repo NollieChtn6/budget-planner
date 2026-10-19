@@ -1,0 +1,64 @@
+"use client";
+
+import { useActionState } from "react";
+import { initialOperationActionState } from "@/actions/operation-state";
+import { createSavingsTransferAction } from "@/actions/savings-transfer";
+import { Button } from "@/components/ui/button";
+import { FieldError, FieldGroup } from "@/components/ui/field";
+import { SavingsTransferFields } from "./savings-transfer-fields";
+
+export function AddSavingsTransferForm({
+  minDate,
+  maxDate,
+  defaultDate,
+  defaultAmountEuros,
+  onClose,
+}: {
+  minDate: string;
+  maxDate: string;
+  defaultDate: string;
+  defaultAmountEuros?: number;
+  onClose: () => void;
+}) {
+  const [state, formAction, pending] = useActionState(
+    createSavingsTransferAction,
+    initialOperationActionState,
+  );
+
+  // A warning (R37) must stay readable, so the dialog only closes on its own for a clean success.
+  if (state.status === "success") {
+    return (
+      <div className="flex flex-col gap-3">
+        <p className="text-sm text-muted-foreground">{state.message}</p>
+        {state.warning ? (
+          <p className="rounded-md border border-l-4 border-l-alert-warning bg-card px-3 py-2 text-sm">
+            {state.warning}
+          </p>
+        ) : null}
+        <Button type="button" variant="outline" onClick={onClose}>
+          Fermer
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <form action={formAction}>
+      <FieldGroup>
+        <SavingsTransferFields
+          idPrefix="savings-transfer"
+          minDate={minDate}
+          maxDate={maxDate}
+          initial={{
+            date: defaultDate,
+            amountEuros: Number.isFinite(defaultAmountEuros) ? defaultAmountEuros : undefined,
+          }}
+        />
+        {state.status === "error" ? <FieldError>{state.message}</FieldError> : null}
+        <Button type="submit" variant="accent" disabled={pending}>
+          {pending ? "Ajout..." : "Transférer vers l'épargne"}
+        </Button>
+      </FieldGroup>
+    </form>
+  );
+}

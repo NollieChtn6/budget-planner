@@ -4,9 +4,11 @@ import {
   findClosedBudgetMonthsByUser,
   findContributionsByUserAndMonth,
   findExpensesByUserAndMonth,
+  findExtraIncomesByUserAndMonth,
   findOpenBudgetMonthByUser,
   findRecentExpensesByUser,
   findReimbursementsByUserAndMonth,
+  findSavingsTransfersByUserAndMonth,
   prisma,
 } from "@budget/db";
 import {
@@ -30,7 +32,9 @@ import { formatEuros } from "@/lib/format-money";
 import { requireSession } from "@/lib/session";
 import { ContributionRow } from "../_components/contribution-row";
 import { ExpenseRow } from "../_components/expense-row";
+import { ExtraIncomeRow } from "../_components/extra-income-row";
 import { ReimbursementRow } from "../_components/reimbursement-row";
+import { SavingsTransferRow } from "../_components/savings-transfer-row";
 import { OperationsFilters } from "./operations-filters";
 
 /** How many of the latest expenses a reimbursement's "Dépense d'origine" proposes (R35). */
@@ -89,10 +93,20 @@ export default async function OperationsPage({
     );
   }
 
-  const [expenses, contributions, reimbursements, recentExpenses, categories] = await Promise.all([
+  const [
+    expenses,
+    contributions,
+    reimbursements,
+    extraIncomes,
+    savingsTransfers,
+    recentExpenses,
+    categories,
+  ] = await Promise.all([
     findExpensesByUserAndMonth(prisma, session.user.id, viewedMonth),
     findContributionsByUserAndMonth(prisma, session.user.id, viewedMonth),
     findReimbursementsByUserAndMonth(prisma, session.user.id, viewedMonth),
+    findExtraIncomesByUserAndMonth(prisma, session.user.id, viewedMonth),
+    findSavingsTransfersByUserAndMonth(prisma, session.user.id, viewedMonth),
     findRecentExpensesByUser(prisma, session.user.id, RECENT_EXPENSE_LINK_LIMIT),
     findCategoriesByUser(prisma, session.user.id),
   ]);
@@ -139,6 +153,10 @@ export default async function OperationsPage({
   const totalSpent = formatEuros(moneyToEuros(sumMoney(expenses.map((e) => e.amount))));
   const totalContributed = formatEuros(moneyToEuros(sumMoney(contributions.map((c) => c.amount))));
   const totalReimbursed = formatEuros(moneyToEuros(sumMoney(reimbursements.map((r) => r.amount))));
+  const totalExtraIncome = formatEuros(moneyToEuros(sumMoney(extraIncomes.map((e) => e.amount))));
+  const totalTransferred = formatEuros(
+    moneyToEuros(sumMoney(savingsTransfers.map((t) => t.amount))),
+  );
   const activeCategories = categories
     .filter((category) => !category.archived)
     .map((category) => ({ id: category.id, label: category.label }));
@@ -147,7 +165,7 @@ export default async function OperationsPage({
   return (
     <div className="flex flex-col gap-6">
       {head}
-      <div className="flex gap-7 text-sm text-muted-foreground">
+      <div className="flex flex-wrap gap-x-7 gap-y-2 text-sm text-muted-foreground">
         <span>
           Dépensé <strong className="font-heading text-base text-foreground">{totalSpent}</strong>
         </span>
@@ -158,6 +176,14 @@ export default async function OperationsPage({
         <span>
           Remboursé{" "}
           <strong className="font-heading text-base text-positive">+{totalReimbursed}</strong>
+        </span>
+        <span>
+          Entrées exceptionnelles{" "}
+          <strong className="font-heading text-base text-positive">+{totalExtraIncome}</strong>
+        </span>
+        <span>
+          Transféré à l'épargne{" "}
+          <strong className="font-heading text-base text-foreground">{totalTransferred}</strong>
         </span>
       </div>
       <OperationsFilters
@@ -257,6 +283,54 @@ export default async function OperationsPage({
                 ? "Aucun remboursement ne correspond à ta recherche."
                 : "Aucun remboursement ce mois-là."}
             </p>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Entrées exceptionnelles</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {extraIncomes.length > 0 ? (
+            <ul className="flex flex-col gap-2">
+              {extraIncomes.map((extraIncome) => (
+                <ExtraIncomeRow
+                  key={extraIncome.id}
+                  extraIncome={extraIncome}
+                  minDate={minDate}
+                  maxDate={maxDate}
+                  editable={editable}
+                />
+              ))}
+            </ul>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              Aucune entrée exceptionnelle ce mois-là.
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Transferts vers l'épargne</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {savingsTransfers.length > 0 ? (
+            <ul className="flex flex-col gap-2">
+              {savingsTransfers.map((savingsTransfer) => (
+                <SavingsTransferRow
+                  key={savingsTransfer.id}
+                  savingsTransfer={savingsTransfer}
+                  minDate={minDate}
+                  maxDate={maxDate}
+                  editable={editable}
+                />
+              ))}
+            </ul>
+          ) : (
+            <p className="text-sm text-muted-foreground">Aucun transfert ce mois-là.</p>
           )}
         </CardContent>
       </Card>

@@ -39,9 +39,11 @@ Au premier accès d'un mois non ouvert, l'app propose de l'ouvrir, à condition 
 ### Au fil du mois
 
 - Elle **pointe** les postes fixes quand les prélèvements ou virements sont passés (R27).
-- Elle **enregistre ses versements** vers les provisions. Un versement supérieur à la cible s'affiche comme une avance, en vert (R19).
+- Elle **enregistre ses versements** vers les provisions, quand elle veut dans le mois ; ils sont prélevés sur le reste à vivre (R37). Un versement supérieur à la cible s'affiche comme une avance, en vert (R19).
 - Elle **saisit ses dépenses** : date, lieu, montant, description, catégorie, enveloppe ou provision. Le lieu est autocomplété et propose la catégorie utilisée la dernière fois ; la catégorie propose son enveloppe par défaut.
 - Elle **enregistre ses remboursements** (mutuelle…) à leur date de réception : ils s'ajoutent au reste à vivre du mois, sans modifier les budgets (R35). Catégorie obligatoire, dépense d'origine facultative.
+- Elle **enregistre ses entrées exceptionnelles** (chèque cadeau…) à leur date de réception : elles s'ajoutent au reste à vivre du mois, non attribuées (R36). Elle peut aussitôt en transférer une partie vers l'épargne ou une provision.
+- Elle **transfère de l'argent vers l'épargne** à tout moment du mois : le montant est retiré du reste à vivre (R37).
 - Le dashboard affiche pour chaque enveloppe le budget, le consommé, le restant (éventuellement négatif) et un niveau d'alerte coloré accompagné d'un libellé (R16).
 
 ### Consommation d'une provision
@@ -59,10 +61,10 @@ En cas d'erreur découverte après coup, elle peut rouvrir le dernier mois clôt
 - **Connexion**, et gestion des moyens d'authentification.
 - **Navigation** : rubriques fixes, sans entrée par mois : Ce mois-ci, Opérations, Provisions, Historique, Paramètres.
 - **Ce mois-ci** : toujours le mois actif. Écran d'ouverture s'il n'est pas ouvert ; sinon le dashboard, avec un rappel de clôture quand le mois du calendrier a dépassé le mois actif.
-- **Dashboard du mois** : ce qu'il reste ce mois-ci, reste à vivre, remboursements reçus (ligne distincte), marge prévisionnelle, enveloppes variables avec niveau d'alerte, provisions avec progression et statut, pointage.
+- **Dashboard du mois** : ce qu'il reste ce mois-ci, reste à vivre, remboursements reçus, entrées exceptionnelles, transferts vers l'épargne (lignes distinctes), marge prévisionnelle, enveloppes variables avec niveau d'alerte, provisions avec progression et statut, pointage.
 - **Historique** : mois clôturés groupés par année, avec totaux annuels ; chaque mois s'ouvre en lecture seule, et seul le dernier mois clôturé propose la réouverture (R29).
 - **Provisions** : une carte par provision, avec versement et dépense directs.
-- **Saisie rapide** : dépense, versement ou remboursement, optimisée pour le mobile.
+- **Saisie rapide** : dépense, versement, remboursement, entrée exceptionnelle ou transfert vers l'épargne, optimisée pour le mobile.
 - **Paramètres** : postes fixes, enveloppes, provisions, catégories.
 - **Ouverture** et **clôture** du mois.
 - **Liste des opérations** d'un mois au choix (mois actif par défaut), avec recherche et filtre par catégorie ; modifiables uniquement pour le mois actif ouvert.
@@ -71,8 +73,8 @@ En cas d'erreur découverte après coup, elle peut rouvrir le dernier mois clôt
 
 | Version | Contenu |
 |---|---|
-| V1 | Tout ce qui précède, remboursements compris |
-| V2 | Historique et dashboard multi-mois ; règles automatiques de report des reliquats ; envoi d'un montant du reste à vivre vers l'épargne ou une provision (R9 et `Contribution.origin` évolueront) ; « dépenses évitées » ; consommation rapportée au temps écoulé dans le mois |
+| V1 | Tout ce qui précède, remboursements, entrées exceptionnelles et transferts compris |
+| V2 | Historique et dashboard multi-mois ; règles automatiques de report des reliquats ; « dépenses évitées » ; consommation rapportée au temps écoulé dans le mois |
 | V3 | Import CSV bancaire ; notifications push ; analyse des tendances par IA |
 
 Hors périmètre : le compte commun (énergie, etc.), géré en dehors de l'app.

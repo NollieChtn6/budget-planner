@@ -1,9 +1,11 @@
 import {
   findBudgetMonthByMonth,
   findCategoriesByUser,
+  findContributionsByUserAndMonth,
   findContributionsByUserAndProvision,
   findExpensesByUserAndMonth,
   findExpensesByUserAndProvision,
+  findExtraIncomesByUserAndMonth,
   findFixedEntriesByUser,
   findKnownPlacesByUser,
   findLastUsedCategoryIdByUser,
@@ -11,6 +13,7 @@ import {
   findProvisionsByUser,
   findRecentExpensesByUser,
   findReimbursementsByUserAndMonth,
+  findSavingsTransfersByUserAndMonth,
   findVariableEnvelopesByUser,
   prisma,
 } from "@budget/db";
@@ -30,6 +33,7 @@ import {
   computeLeftover,
   computeProvisionBalance,
   computeRemaining,
+  computeRemainingProvisionTarget,
   computeSavingsFundedAmount,
   computeSpent,
   type Expense,
@@ -113,14 +117,37 @@ export default async function HomePage() {
     );
   }
 
-  const [previousMonthAllocations, allEnvelopes, nextMonthRow, reimbursements] = await Promise.all([
+  const [
+    previousMonthAllocations,
+    allEnvelopes,
+    nextMonthRow,
+    reimbursements,
+    extraIncomes,
+    savingsTransfers,
+    monthContributions,
+  ] = await Promise.all([
     findLeftoverAllocationsByUserAndMonth(prisma, session.user.id, previousMonth(activeMonth)),
     findVariableEnvelopesByUser(prisma, session.user.id),
     findBudgetMonthByMonth(prisma, session.user.id, nextMonth(activeMonth)),
     findReimbursementsByUserAndMonth(prisma, session.user.id, activeMonth),
+    findExtraIncomesByUserAndMonth(prisma, session.user.id, activeMonth),
+    findSavingsTransfersByUserAndMonth(prisma, session.user.id, activeMonth),
+    findContributionsByUserAndMonth(prisma, session.user.id, activeMonth),
   ]);
-  const reimbursementAmounts = reimbursements.map((reimbursement) => reimbursement.amount);
-  const reimbursementsTotal = sumMoney(reimbursementAmounts);
+  const reimbursementsTotal = sumMoney(reimbursements.map((r) => r.amount));
+  const extraIncomeTotal = sumMoney(extraIncomes.map((e) => e.amount));
+  const savingsTransfersTotal = sumMoney(savingsTransfers.map((t) => t.amount));
+  // R37: only the contributions entered by hand since R37 are taken from the disposable income.
+  const deductedContributions = monthContributions.filter(
+    (contribution) => contribution.origin === "disposableIncome",
+  );
+  // R9, R11: reimbursements and extra incomes move the disposable income but not the allocation
+  // base; so do savings transfers and the contributions taken from it.
+  const oneOffInflowAmounts = [...reimbursements, ...extraIncomes].map((inflow) => inflow.amount);
+  const withdrawalAmounts = [
+    ...savingsTransfers.map((transfer) => transfer.amount),
+    ...deductedContributions.map((contribution) => contribution.amount),
+  ];
   const carriedOver = computeCarriedOver(previousMonthAllocations);
   const envelopeBonuses = new Map(
     budgetMonth.envelopeBudgets.map((entry) => [
@@ -140,7 +167,8 @@ export default async function HomePage() {
     budgetMonth.income,
     carriedOver,
     fixedEntryAmounts,
-    reimbursementAmounts,
+    oneOffInflowAmounts,
+    withdrawalAmounts,
   );
 
   const amountModeValues = budgetMonth.envelopeBudgets
@@ -149,13 +177,23 @@ export default async function HomePage() {
   const allocationBase = computeAllocationBase(
     disposableIncome,
     amountModeValues,
-    reimbursementAmounts,
+    oneOffInflowAmounts,
+    withdrawalAmounts,
   );
 
   const forecastMargin = computeForecastMargin(
     disposableIncome,
     budgetMonth.envelopeBudgets.map((entry) => entry.budget),
-    budgetMonth.provisionTargets.map((entry) => entry.target),
+    budgetMonth.provisionTargets.map((entry) =>
+      computeRemainingProvisionTarget(
+        entry.target,
+        sumMoney(
+          deductedContributions
+            .filter((contribution) => contribution.provisionId === entry.provisionId)
+            .map((contribution) => contribution.amount),
+        ),
+      ),
+    ),
   );
 
   const [expenses, categories, provisions, knownPlaces, lastUsedCategoryId, recentExpenses] =
@@ -272,8 +310,15 @@ export default async function HomePage() {
     Array.from(envelopeConsumption.values()).map((entry) => entry.spent),
   );
   const totalEnvelopeBudget = sumMoney(budgetMonth.envelopeBudgets.map((entry) => entry.budget));
-  const totalContributed = sumMoney(contributionsThisMonth.map((c) => c.amount));
-  const left = subtractMoney(subtractMoney(disposableIncome, totalEnvelopeSpent), totalContributed);
+  // Contributions taken from the disposable income are already out of it (R37): only the others
+  // are still to set aside here.
+  const totalNotYetDeducted = sumMoney(
+    contributionsThisMonth.filter((c) => c.origin !== "disposableIncome").map((c) => c.amount),
+  );
+  const left = subtractMoney(
+    subtractMoney(disposableIncome, totalEnvelopeSpent),
+    totalNotYetDeducted,
+  );
   const toSpend = sumMoney(
     Array.from(envelopeConsumption.values()).map((entry) =>
       entry.remaining.cents > 0 ? entry.remaining : moneyFromCents(0),
@@ -316,6 +361,8 @@ export default async function HomePage() {
             canAddExpense={canAddExpense}
             canAddContribution={canAddContribution}
             canAddReimbursement={canAddReimbursement}
+            canAddExtraIncome
+            canAddSavingsTransfer
             expenseOptions={toExpenseLinkOptions(recentExpenses)}
             envelopes={budgetMonth.envelopeBudgets.map((entry) => ({
               id: entry.envelopeId,
@@ -488,6 +535,18 @@ export default async function HomePage() {
                 +{formatEuros(moneyToEuros(reimbursementsTotal))}
               </span>{" "}
               de remboursements reçus
+            </p>
+          ) : null}
+          {extraIncomeTotal.cents > 0 ? (
+            <p className="mt-3 text-sm text-muted-foreground">
+              Dont{" "}
+              <span className="text-positive">+{formatEuros(moneyToEuros(extraIncomeTotal))}</span>{" "}
+              d'entrées exceptionnelles
+            </p>
+          ) : null}
+          {savingsTransfersTotal.cents > 0 ? (
+            <p className="mt-3 text-sm text-muted-foreground">
+              Après {formatEuros(moneyToEuros(savingsTransfersTotal))} transférés vers l'épargne
             </p>
           ) : null}
         </Card>

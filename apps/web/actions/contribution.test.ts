@@ -220,3 +220,79 @@ describe("deleteContributionForUser", () => {
     expect(result.message).toContain("clôture");
   });
 });
+
+describe("contributions taken from the disposable income (R37)", () => {
+  it("records a hand-entered contribution with the disposableIncome origin", async () => {
+    const user = await createTestUser();
+    const { provision } = await seedOpenMonth(user.id);
+
+    await createContributionForUser(prisma, user.id, {
+      amountEuros: 50,
+      date: today,
+      provisionId: provision.id,
+    });
+
+    const contributions = await findContributionsByUserAndMonth(prisma, user.id, currentMonth);
+    expect(contributions[0]?.origin).toBe("disposableIncome");
+  });
+
+  it("warns without blocking when the disposable income turns negative", async () => {
+    const user = await createTestUser();
+    const { provision } = await seedOpenMonth(user.id);
+
+    const result = await createContributionForUser(prisma, user.id, {
+      amountEuros: 5000,
+      date: today,
+      provisionId: provision.id,
+    });
+
+    expect(result.status).toBe("success");
+    expect(result.warning).toContain("négatif");
+    const contributions = await findContributionsByUserAndMonth(prisma, user.id, currentMonth);
+    expect(contributions).toHaveLength(1);
+  });
+
+  it("keeps the manual origin of a legacy contribution when it is edited", async () => {
+    const user = await createTestUser();
+    const { provision } = await seedOpenMonth(user.id);
+    const legacy = await createContribution(prisma, user.id, {
+      date: parseCalendarDate(today),
+      amount: moneyFromEuros(50),
+      provisionId: provision.id,
+      origin: "manual",
+    });
+
+    await updateContributionForUser(prisma, user.id, {
+      id: legacy.id,
+      amountEuros: 80,
+      date: today,
+      provisionId: provision.id,
+    });
+
+    const contributions = await findContributionsByUserAndMonth(prisma, user.id, currentMonth);
+    expect(contributions[0]?.origin).toBe("manual");
+    expect(moneyToCents(contributions[0]?.amount ?? moneyFromEuros(0))).toBe(8000);
+  });
+
+  it("can modify and delete a disposableIncome contribution", async () => {
+    const user = await createTestUser();
+    const { provision } = await seedOpenMonth(user.id);
+    const created = await createContribution(prisma, user.id, {
+      date: parseCalendarDate(today),
+      amount: moneyFromEuros(50),
+      provisionId: provision.id,
+      origin: "disposableIncome",
+    });
+
+    const updated = await updateContributionForUser(prisma, user.id, {
+      id: created.id,
+      amountEuros: 60,
+      date: today,
+      provisionId: provision.id,
+    });
+    const deleted = await deleteContributionForUser(prisma, user.id, created.id);
+
+    expect(updated.status).toBe("success");
+    expect(deleted.status).toBe("success");
+  });
+});

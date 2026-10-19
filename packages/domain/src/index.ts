@@ -135,8 +135,17 @@ export {
   recordExpense,
 } from "./operations/expense";
 export {
+  type ExtraIncome,
+  type RecordExtraIncomeContext,
+  type RecordExtraIncomeFailure,
+  type RecordExtraIncomeInput,
+  type RecordExtraIncomeResult,
+  recordExtraIncome,
+} from "./operations/extra-income";
+export {
   computeContributionSurplus,
   computeProvisionBalance,
+  computeRemainingProvisionTarget,
   isProvisionDone,
 } from "./operations/provision-ledger";
 export {
@@ -148,6 +157,14 @@ export {
   type Reimbursement,
   recordReimbursement,
 } from "./operations/reimbursement";
+export {
+  type RecordSavingsTransferContext,
+  type RecordSavingsTransferFailure,
+  type RecordSavingsTransferInput,
+  type RecordSavingsTransferResult,
+  recordSavingsTransfer,
+  type SavingsTransfer,
+} from "./operations/savings-transfer";
 export {
   type ArchiveProvisionFailure,
   type ArchiveProvisionInput,

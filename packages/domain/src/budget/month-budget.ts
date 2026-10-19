@@ -9,34 +9,42 @@ import {
 
 /**
  * R9: what's left of the income, plus whatever was carried over from last
- * month's closing (R32) and the month's reimbursements (R35), once every
- * fixed entry is deducted. The month snapshot (R5) is computed without
- * reimbursements, which only arrive once the month is open.
+ * month's closing (R32) and the month's one-off inflows (reimbursements R35,
+ * extra incomes R36), once every fixed entry and every withdrawal (savings
+ * transfers and contributions taken from it, R37) is deducted. The month
+ * snapshot (R5) is computed without any of these, which only arrive once the
+ * month is open.
  */
 export function computeDisposableIncome(
   income: Money,
   carriedOver: Money,
   fixedEntryAmounts: Money[],
-  reimbursementAmounts: Money[] = [],
+  oneOffInflowAmounts: Money[] = [],
+  withdrawalAmounts: Money[] = [],
 ): Money {
   return subtractMoney(
-    addMoney(addMoney(income, carriedOver), sumMoney(reimbursementAmounts)),
-    sumMoney(fixedEntryAmounts),
+    addMoney(addMoney(income, carriedOver), sumMoney(oneOffInflowAmounts)),
+    addMoney(sumMoney(fixedEntryAmounts), sumMoney(withdrawalAmounts)),
   );
 }
 
 /**
  * R11: the amount percentage-mode envelopes apply their share to. Can be
- * negative (R13). Reimbursements (R35) are part of `disposableIncome` but
- * never of the base, so they leave the envelope budgets untouched.
+ * negative (R13). The one-off inflows and withdrawals (R35, R36, R37) move
+ * `disposableIncome` but never the base, so they leave the envelope budgets
+ * untouched.
  */
 export function computeAllocationBase(
   disposableIncome: Money,
   amountModeEnvelopeValues: Money[],
-  reimbursementAmounts: Money[] = [],
+  oneOffInflowAmounts: Money[] = [],
+  withdrawalAmounts: Money[] = [],
 ): Money {
   return subtractMoney(
-    subtractMoney(disposableIncome, sumMoney(reimbursementAmounts)),
+    addMoney(
+      subtractMoney(disposableIncome, sumMoney(oneOffInflowAmounts)),
+      sumMoney(withdrawalAmounts),
+    ),
     sumMoney(amountModeEnvelopeValues),
   );
 }
@@ -65,8 +73,9 @@ export function computeUnallocated(
 
 /**
  * R14: purely indicative feasibility signal, never a blocker when negative.
- * `envelopeBudgets` excludes the unallocated share; provision targets are
- * added as objectives, not deducted from disposableIncome like fixed entries.
+ * `envelopeBudgets` excludes the unallocated share; `provisionTargets` are the
+ * remaining targets (see `computeRemainingProvisionTarget`), objectives not
+ * deducted from disposableIncome like fixed entries.
  */
 export function computeForecastMargin(
   disposableIncome: Money,

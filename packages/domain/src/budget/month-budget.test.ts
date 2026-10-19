@@ -43,7 +43,30 @@ describe("computeDisposableIncome with reimbursements (R9, R35)", () => {
   });
 });
 
+describe("computeDisposableIncome with extra incomes and withdrawals (R9, R36, R37)", () => {
+  it("E18: 1 000€ + 100€ cheque - 40€ savings transfer - 66,67€ contribution -> 993,33€", () => {
+    const disposableIncome = computeDisposableIncome(
+      moneyFromEuros(2800),
+      moneyFromEuros(0),
+      [moneyFromEuros(1400), moneyFromEuros(400)],
+      [moneyFromEuros(100)],
+      [moneyFromEuros(40), moneyFromEuros(66.67)],
+    );
+    expect(moneyToCents(disposableIncome)).toBe(99333);
+  });
+});
+
 describe("computeAllocationBase", () => {
+  it("E18: extra incomes and withdrawals leave the base at 850€", () => {
+    const allocationBase = computeAllocationBase(
+      moneyFromEuros(993.33),
+      [moneyFromEuros(150)],
+      [moneyFromEuros(100)],
+      [moneyFromEuros(40), moneyFromEuros(66.67)],
+    );
+    expect(moneyToCents(allocationBase)).toBe(moneyToCents(moneyFromEuros(850)));
+  });
+
   it("leaves reimbursements out of the base (E17: 1 042€ - 42€ - 150€ -> 850€)", () => {
     const allocationBase = computeAllocationBase(
       moneyFromEuros(1042),

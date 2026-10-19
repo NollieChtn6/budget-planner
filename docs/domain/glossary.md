@@ -87,6 +87,8 @@ Langage commun du projet. L'interface parle français, le code utilise les noms 
 | Enveloppe par défaut | `Category.defaultEnvelopeId` | Attribut | Enveloppe proposée automatiquement pour une catégorie. |
 | Catégorie archivée | `Category.archived` | Attribut | Catégorie retirée de la saisie de nouvelles dépenses ; sans date d'effet, contrairement à `archivedFrom` (R7/R8 ne s'appliquent pas à `Category`). |
 | Versement | `Contribution` | Entité | Somme mise de côté dans une provision. |
+| Remboursement | `Reimbursement` | Entité | Somme reçue en retour d'une dépense déjà payée (ex. : mutuelle). Rattaché au mois de sa date de réception (pas à celui de la dépense), il s'ajoute au reste à vivre de ce mois sans modifier les budgets des enveloppes. N'est pas un revenu (`BudgetMonth.income`). Porte une catégorie et peut renvoyer à la dépense d'origine. |
+| Total des remboursements | `reimbursementsTotal` | Valeur dérivée | Σ des remboursements d'un mois. |
 | Financé par l'épargne | `Expense.savingsDraw` / `savingsDraw` | Attribut / Valeur dérivée | Part d'une dépense sur provision qui excède son solde (attribut de la dépense), ou reliquat négatif d'un mois à sa clôture (valeur dérivée du mois). |
 | Répartition du reliquat | `LeftoverAllocation` | Entité | Affectation du reliquat, à la clôture, vers l'épargne, une provision, une enveloppe variable (bonus, voir Bonus d'enveloppe) ou sans destination (report, voir Report). |
 | Archiver | `archive()` | Action | Fixe la date d'archivage (`archivedFrom`) d'un poste fixe, d'une enveloppe variable ou d'une provision, sans effacer son historique (R8). |

@@ -79,9 +79,15 @@ Les libellés sont copiés volontairement : renommer un élément ne modifie pas
 - `id`, `date`, `amount`, `label`, `categoryId`
 - `expenseId?` : dépense d'origine, lien informatif (R35)
 
+**ExtraIncome**
+- `id`, `date`, `amount`, `label` (R36)
+
+**SavingsTransfer**
+- `id`, `date`, `amount`, `label?` (R37)
+
 **Contribution**
 - `id`, `date`, `amount`, `provisionId`
-- `origin` : `manual` | `closing`
+- `origin` : `manual` (historique, sans effet sur le reste à vivre) | `closing` | `disposableIncome` (prélevé sur le reste à vivre, R37)
 
 ## Relations
 
@@ -116,6 +122,9 @@ Ces valeurs sont toujours calculées, jamais stockées, pour éviter toute déri
 - report d'un mois : somme des `LeftoverAllocation` du mois précédent dont `destination = report` (R32) ;
 - bonus d'une enveloppe sur un mois : somme des `LeftoverAllocation` du mois précédent dont `destination = envelope` pour cette enveloppe (R31) ;
 - total des remboursements d'un mois : Σ `Reimbursement.amount` dont la date tombe dans le mois (R35) ;
+- total des entrées exceptionnelles d'un mois : Σ `ExtraIncome.amount` dont la date tombe dans le mois (R36) ;
+- total des transferts vers l'épargne d'un mois : Σ `SavingsTransfer.amount` dont la date tombe dans le mois (R37) ;
+- total des versements prélevés d'un mois : Σ `Contribution.amount` d'origine `disposableIncome` dont la date tombe dans le mois (R37) ;
 - places connues et dernière catégorie utilisée (à partir des dépenses).
 
 ## Cycles de vie

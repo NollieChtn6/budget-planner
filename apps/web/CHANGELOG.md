@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.6.0](https://github.com/NollieChtn6/budget-planner/compare/budget-planner-v0.5.1...budget-planner-v0.6.0) (2026-10-20)
+
+
+### Features
+
+* **operations:** adapt operations page and dialogs for mobile ([0c2e6c8](https://github.com/NollieChtn6/budget-planner/commit/0c2e6c868e78bd4eb4ff61bc9cc815fc01039074))
+* **operations:** adapt operations page and dialogs for mobile ([ec8a916](https://github.com/NollieChtn6/budget-planner/commit/ec8a916322f432948387aaf1ad6051098ef55053))
+* **profile:** add profile page to edit first name and password ([0559546](https://github.com/NollieChtn6/budget-planner/commit/05595467290144ed8dccde87a1574f0fa154dd47))
+* **profile:** add profile page to edit first name and password ([e02c49d](https://github.com/NollieChtn6/budget-planner/commit/e02c49d769cba0fd44cf2a2a2712a092ea3357cb))
+* **provisions:** show time on provision cards and use dialogs ([bfb7ec7](https://github.com/NollieChtn6/budget-planner/commit/bfb7ec773ec4f4c331c92c917a6701bb1c5d478f))
+* **provisions:** show time on provision cards and use dialogs ([614df2d](https://github.com/NollieChtn6/budget-planner/commit/614df2d74aa11bb47c77bc92076b30d017a01017))
+* **settings:** adapt settings for mobile and clarify versioning ([59a1433](https://github.com/NollieChtn6/budget-planner/commit/59a14338f16377462dd7319da04958412b329dde))
+* **settings:** adapt settings for mobile and clarify versioning ([b981a87](https://github.com/NollieChtn6/budget-planner/commit/b981a87b5f811062f197df6a90e325236a942d17))
+* **ui:** confirm successes with toasts and rework feedback wording ([ad38104](https://github.com/NollieChtn6/budget-planner/commit/ad381048fc67b674e1902aace974f9029698dda7))
+* **ui:** confirm successes with toasts and rework feedback wording ([30dc03b](https://github.com/NollieChtn6/budget-planner/commit/30dc03b66b05a3f14e88cea1012919208e8a2a52))
+* **ui:** raise field border contrast to meet WCAG 3:1 ([d94e8db](https://github.com/NollieChtn6/budget-planner/commit/d94e8db78fb2c46199ed17feadcb309281655ddc))
+
 ## [0.5.1](https://github.com/NollieChtn6/budget-planner/compare/budget-planner-v0.5.0...budget-planner-v0.5.1) (2026-10-20)
 
 

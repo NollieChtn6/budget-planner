@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.1](https://github.com/NollieChtn6/budget-planner/compare/budget-planner-v0.5.0...budget-planner-v0.5.1) (2026-10-20)
+
+
+### Bug Fixes
+
+* **vercel:** skip builds outside main and develop with ignoreCommand ([3863ed5](https://github.com/NollieChtn6/budget-planner/commit/3863ed55a2ef91e3b8eb89ac13c011d35cda6cc9))
+
 ## [0.5.0](https://github.com/NollieChtn6/budget-planner/compare/budget-planner-v0.4.0...budget-planner-v0.5.0) (2026-10-19)
 
 

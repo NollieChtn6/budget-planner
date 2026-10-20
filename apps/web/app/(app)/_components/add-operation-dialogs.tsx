@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/select";
 import { defaultOperationDate } from "@/lib/default-operation-date";
 import type { ExpenseLinkOption } from "@/lib/expense-link-options";
-import { MOBILE_TOUCH_TARGETS } from "@/lib/touch-targets";
+import { FORM_DIALOG_CLASS } from "@/lib/touch-targets";
 import { AddContributionForm } from "./add-contribution-form";
 import { AddExpenseForm } from "./add-expense-form";
 import { AddExtraIncomeForm } from "./add-extra-income-form";
@@ -54,9 +54,6 @@ const OPERATION_TYPES: { value: OperationType; label: string; description: strin
 ];
 
 /** Header actions for "Ce mois-ci" (docs/ui/pecule_maquettes_v_02.html, headActions): dialogs opened either by click or by the N/V shortcuts from keyboard-shortcuts.tsx. */
-/** Tall forms scroll inside the dialog rather than past the screen. */
-const DIALOG_CLASS = `max-h-[90dvh] overflow-y-auto sm:max-w-md ${MOBILE_TOUCH_TARGETS}`;
-
 export function AddOperationDialogs({
   canAddExpense,
   canAddContribution,
@@ -157,7 +154,7 @@ export function AddOperationDialogs({
               V
             </Kbd>
           </DialogTrigger>
-          <DialogContent className={DIALOG_CLASS}>
+          <DialogContent className={FORM_DIALOG_CLASS}>
             <DialogHeader>
               <DialogTitle>Nouveau versement</DialogTitle>
             </DialogHeader>
@@ -186,7 +183,7 @@ export function AddOperationDialogs({
               N
             </Kbd>
           </DialogTrigger>
-          <DialogContent className={DIALOG_CLASS}>
+          <DialogContent className={FORM_DIALOG_CLASS}>
             <DialogHeader>
               <DialogTitle>Nouvelle dépense</DialogTitle>
             </DialogHeader>
@@ -212,7 +209,7 @@ export function AddOperationDialogs({
             Nouvelle opération
             <Kbd>O</Kbd>
           </DialogTrigger>
-          <DialogContent className={DIALOG_CLASS}>
+          <DialogContent className={FORM_DIALOG_CLASS}>
             <DialogHeader>
               <DialogTitle>Nouvelle opération</DialogTitle>
               <DialogDescription>{selectedOperation?.description}</DialogDescription>

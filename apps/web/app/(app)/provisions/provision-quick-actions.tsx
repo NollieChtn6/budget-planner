@@ -2,7 +2,15 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { defaultOperationDate } from "@/lib/default-operation-date";
+import { FORM_DIALOG_CLASS } from "@/lib/touch-targets";
 import { AddContributionForm } from "../_components/add-contribution-form";
 import { AddExpenseForm } from "../_components/add-expense-form";
 
@@ -11,7 +19,6 @@ export function ProvisionQuickActions({
   provisionLabel,
   minDate,
   maxDate,
-  defaultDate,
   categories,
   knownPlaces,
   lastUsedCategoryId,
@@ -20,68 +27,73 @@ export function ProvisionQuickActions({
   provisionLabel: string;
   minDate: string;
   maxDate: string;
-  defaultDate: string;
   categories: { id: string; label: string }[];
   knownPlaces: string[];
   lastUsedCategoryId: string | null;
 }) {
-  const [open, setOpen] = useState<"contribution" | "expense" | null>(null);
+  const [contributionOpen, setContributionOpen] = useState(false);
+  const [expenseOpen, setExpenseOpen] = useState(false);
+  const defaultDate = defaultOperationDate(minDate, maxDate);
 
   return (
-    <div className="flex flex-col gap-3">
-      <div className="flex gap-2">
-        <Button
-          type="button"
-          variant="accent"
-          size="sm"
-          onClick={() => setOpen(open === "contribution" ? null : "contribution")}
+    <div className="grid grid-cols-2 gap-2 md:flex">
+      <Dialog open={contributionOpen} onOpenChange={setContributionOpen}>
+        <DialogTrigger
+          render={
+            <Button
+              type="button"
+              variant="accent"
+              className="h-11 md:h-8"
+              aria-label={`Verser sur ${provisionLabel}`}
+            />
+          }
         >
           Verser
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={() => setOpen(open === "expense" ? null : "expense")}
+        </DialogTrigger>
+        <DialogContent className={FORM_DIALOG_CLASS}>
+          <DialogHeader>
+            <DialogTitle>Nouveau versement : {provisionLabel}</DialogTitle>
+          </DialogHeader>
+          <AddContributionForm
+            provisions={[{ id: provisionId, label: provisionLabel }]}
+            minDate={minDate}
+            maxDate={maxDate}
+            defaultDate={defaultDate}
+            onSuccess={() => setContributionOpen(false)}
+          />
+        </DialogContent>
+      </Dialog>
+      <Dialog open={expenseOpen} onOpenChange={setExpenseOpen}>
+        <DialogTrigger
+          render={
+            <Button
+              type="button"
+              variant="outline"
+              className="h-11 md:h-8"
+              aria-label={`Dépenser depuis ${provisionLabel}`}
+            />
+          }
         >
           Dépenser
-        </Button>
-      </div>
-      {open === "contribution" ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>Nouveau versement</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <AddContributionForm
-              provisions={[{ id: provisionId, label: provisionLabel }]}
-              minDate={minDate}
-              maxDate={maxDate}
-              defaultDate={defaultDate}
-            />
-          </CardContent>
-        </Card>
-      ) : null}
-      {open === "expense" ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>Nouvelle dépense</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <AddExpenseForm
-              envelopes={[]}
-              provisions={[{ id: provisionId, label: provisionLabel }]}
-              categories={categories}
-              minDate={minDate}
-              maxDate={maxDate}
-              defaultDate={defaultDate}
-              knownPlaces={knownPlaces}
-              lastUsedCategoryId={lastUsedCategoryId}
-              defaultTarget={`provision:${provisionId}`}
-            />
-          </CardContent>
-        </Card>
-      ) : null}
+        </DialogTrigger>
+        <DialogContent className={FORM_DIALOG_CLASS}>
+          <DialogHeader>
+            <DialogTitle>Nouvelle dépense : {provisionLabel}</DialogTitle>
+          </DialogHeader>
+          <AddExpenseForm
+            envelopes={[]}
+            provisions={[{ id: provisionId, label: provisionLabel }]}
+            categories={categories}
+            minDate={minDate}
+            maxDate={maxDate}
+            defaultDate={defaultDate}
+            knownPlaces={knownPlaces}
+            lastUsedCategoryId={lastUsedCategoryId}
+            defaultTarget={`provision:${provisionId}`}
+            onSuccess={() => setExpenseOpen(false)}
+          />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -20,7 +20,11 @@ export function MobileNav() {
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
-      <SheetTrigger render={<Button variant="ghost" size="icon" aria-label="Ouvrir le menu" />}>
+      <SheetTrigger
+        render={
+          <Button variant="ghost" size="icon" className="size-11" aria-label="Ouvrir le menu" />
+        }
+      >
         <MenuIcon />
       </SheetTrigger>
       <SheetContent side="left" className="flex flex-col gap-1 p-4">

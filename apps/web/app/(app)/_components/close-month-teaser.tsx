@@ -10,6 +10,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { MOBILE_TOUCH_TARGETS } from "@/lib/touch-targets";
 import { CloseMonthForm } from "./close-month-form";
 
 /** The dash grid's closecard (docs/ui/pecule_maquettes_v_02.html, .closecard): clôture is opt-in, behind a dialog, not an always-open form. */
@@ -44,10 +45,12 @@ export function CloseMonthTeaser({
         </p>
       </div>
       <Dialog>
-        <DialogTrigger render={<Button type="button" variant="outline" />}>
+        <DialogTrigger render={<Button type="button" variant="outline" className="max-md:h-11" />}>
           Clôturer {monthLabel}
         </DialogTrigger>
-        <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
+        <DialogContent
+          className={`max-h-[90dvh] overflow-y-auto sm:max-w-2xl ${MOBILE_TOUCH_TARGETS}`}
+        >
           <DialogHeader>
             <DialogTitle>Clôturer {monthLabel}</DialogTitle>
             <DialogDescription>

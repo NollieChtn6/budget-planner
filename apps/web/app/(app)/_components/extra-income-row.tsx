@@ -6,17 +6,14 @@ import { deleteExtraIncomeAction, updateExtraIncomeAction } from "@/actions/extr
 import { initialOperationActionState } from "@/actions/operation-state";
 import { Button } from "@/components/ui/button";
 import { FieldError, FieldGroup } from "@/components/ui/field";
-import { TableCell, TableRow } from "@/components/ui/table";
 import { formatEuros } from "@/lib/format-money";
 import { ExtraIncomeFields } from "./extra-income-fields";
 import {
-  AmountCell,
-  formatDay,
   MutedText,
   OPERATION_EDIT_FULL_WIDTH_CLASS,
   OPERATION_EDIT_GRID_CLASS,
-  OperationActions,
-  OperationEditRow,
+  OperationReadRow,
+  OperationRow,
 } from "./operation-table-parts";
 
 export function ExtraIncomeRow({
@@ -46,34 +43,34 @@ export function ExtraIncomeRow({
     }
   }, [updateState.status]);
 
-  if (!isEditing) {
-    return (
-      <TableRow>
-        <TableCell className="tabular-nums">{formatDay(extraIncome.date)}</TableCell>
-        <TableCell>
-          <MutedText>Entrée exceptionnelle</MutedText>
-        </TableCell>
-        <TableCell className="min-w-40 whitespace-normal">{extraIncome.label}</TableCell>
-        <TableCell />
-        <TableCell>
-          <MutedText>Reste à vivre</MutedText>
-        </TableCell>
-        <AmountCell incoming>{formatEuros(moneyToEuros(extraIncome.amount))}</AmountCell>
-        {editable ? (
-          <OperationActions
-            id={extraIncome.id}
-            onEdit={() => setIsEditing(true)}
-            deleteAction={deleteAction}
-            deletePending={deletePending}
-            error={deleteState.status === "error" ? deleteState.message : undefined}
-          />
-        ) : null}
-      </TableRow>
-    );
-  }
+  const deletion = {
+    id: extraIncome.id,
+    action: deleteAction,
+    pending: deletePending,
+    error: deleteState.status === "error" ? deleteState.message : undefined,
+  };
+  const read = (
+    <OperationReadRow
+      date={extraIncome.date}
+      target={<MutedText>Reste à vivre</MutedText>}
+      place={<MutedText>Entrée exceptionnelle</MutedText>}
+      description={extraIncome.label}
+      amount={formatEuros(moneyToEuros(extraIncome.amount))}
+      incoming
+      editable={editable}
+      editLabel={`Modifier l'entrée ${extraIncome.label}`}
+      edit={{ onEdit: () => setIsEditing(true), delete: deletion }}
+    />
+  );
 
   return (
-    <OperationEditRow>
+    <OperationRow
+      isEditing={isEditing}
+      onClose={() => setIsEditing(false)}
+      title="Modifier l'entrée exceptionnelle"
+      read={read}
+      deletion={deletion}
+    >
       <form action={updateAction}>
         <input type="hidden" name="id" value={extraIncome.id} />
         <FieldGroup className={OPERATION_EDIT_GRID_CLASS}>
@@ -102,6 +99,6 @@ export function ExtraIncomeRow({
           </div>
         </FieldGroup>
       </form>
-    </OperationEditRow>
+    </OperationRow>
   );
 }

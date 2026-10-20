@@ -5,6 +5,7 @@ import {
   prisma,
 } from "@budget/db";
 import { formatMonth, isSameMonth, moneyToEuros, parseMonth } from "@budget/domain";
+import { SparklesIcon } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ReopenMonthForm } from "@/app/(app)/_components/reopen-month-form";
@@ -115,7 +116,7 @@ export default async function HistoryMonthPage({ params }: { params: Promise<{ m
             {formatEuros(moneyToEuros(summary.convertedUrges.total))}
           </span>{" "}
           d'envies converties ({summary.convertedUrges.count}) ce mois-là{" "}
-          <span aria-hidden>✨</span>
+          <SparklesIcon aria-hidden className="inline size-3.5 align-text-bottom" />
         </p>
       ) : null}
 

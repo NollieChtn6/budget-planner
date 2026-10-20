@@ -7,6 +7,7 @@ import {
   moneyFromCents,
   moneyToEuros,
 } from "@budget/domain";
+import { SparklesIcon } from "lucide-react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
@@ -116,8 +117,8 @@ export default async function HistoryPage({
       {totals.convertedUrgesCount > 0 ? (
         <Card className="gap-1 p-4">
           <p className="text-sm text-muted-foreground">
-            <span aria-hidden>✨ </span>
-            Envies converties {selectedYear}
+            <SparklesIcon aria-hidden className="inline size-3.5 align-text-bottom" /> Envies
+            converties {selectedYear}
           </p>
           <p className="font-heading text-xl text-positive">
             {formatEuros(moneyToEuros(totals.convertedUrges))}

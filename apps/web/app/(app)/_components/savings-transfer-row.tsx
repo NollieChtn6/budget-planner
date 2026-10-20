@@ -6,6 +6,7 @@ import {
   type SavingsTransfer,
   type SavingsTransferKind,
 } from "@budget/domain";
+import { SparklesIcon } from "lucide-react";
 import { useActionState, useEffect, useState } from "react";
 import { initialOperationActionState } from "@/actions/operation-state";
 import {
@@ -14,16 +15,14 @@ import {
 } from "@/actions/savings-transfer";
 import { Button } from "@/components/ui/button";
 import { FieldError, FieldGroup } from "@/components/ui/field";
-import { TableCell, TableRow } from "@/components/ui/table";
 import { formatEuros } from "@/lib/format-money";
 import {
-  AmountCell,
-  formatDay,
   MutedText,
   OPERATION_EDIT_FULL_WIDTH_CLASS,
   OPERATION_EDIT_GRID_CLASS,
-  OperationActions,
-  OperationEditRow,
+  OperationReadRow,
+  OperationRow,
+  TargetChip,
 } from "./operation-table-parts";
 import { SavingsTransferFields } from "./savings-transfer-fields";
 
@@ -56,41 +55,47 @@ export function SavingsTransferRow({
     }
   }, [updateState.status, updateState.warning]);
 
-  if (!isEditing) {
-    return (
-      <TableRow>
-        <TableCell className="tabular-nums">{formatDay(savingsTransfer.date)}</TableCell>
-        <TableCell>
-          {savingsTransfer.kind === "convertedUrge" ? (
-            <span className="text-positive">
-              <span aria-hidden>✨ </span>
-              Envie convertie
-            </span>
-          ) : (
-            <MutedText>Transfert</MutedText>
-          )}
-        </TableCell>
-        <TableCell className="min-w-40 whitespace-normal">{savingsTransfer.label ?? ""}</TableCell>
-        <TableCell />
-        <TableCell>Épargne</TableCell>
-        <AmountCell incoming={false}>
-          {formatEuros(moneyToEuros(savingsTransfer.amount))}
-        </AmountCell>
-        {editable ? (
-          <OperationActions
-            id={savingsTransfer.id}
-            onEdit={() => setIsEditing(true)}
-            deleteAction={deleteAction}
-            deletePending={deletePending}
-            error={deleteState.status === "error" ? deleteState.message : undefined}
-          />
-        ) : null}
-      </TableRow>
-    );
-  }
+  const deletion = {
+    id: savingsTransfer.id,
+    action: deleteAction,
+    pending: deletePending,
+    error: deleteState.status === "error" ? deleteState.message : undefined,
+  };
+  const closeEdit = () => {
+    setKind(savingsTransfer.kind);
+    setIsEditing(false);
+  };
+  const read = (
+    <OperationReadRow
+      date={savingsTransfer.date}
+      target={<TargetChip kind="savings" label="Épargne" />}
+      place={
+        savingsTransfer.kind === "convertedUrge" ? (
+          <span className="inline-flex items-center gap-1.5 text-positive">
+            <SparklesIcon aria-hidden className="size-3.5" />
+            Envie convertie
+          </span>
+        ) : (
+          <MutedText>Transfert</MutedText>
+        )
+      }
+      description={savingsTransfer.label}
+      amount={formatEuros(moneyToEuros(savingsTransfer.amount))}
+      incoming={false}
+      editable={editable}
+      editLabel={`Modifier le transfert ${savingsTransfer.label ?? "vers l'épargne"}`}
+      edit={{ onEdit: () => setIsEditing(true), delete: deletion }}
+    />
+  );
 
   return (
-    <OperationEditRow>
+    <OperationRow
+      isEditing={isEditing}
+      onClose={closeEdit}
+      title="Modifier le transfert d'épargne"
+      read={read}
+      deletion={deletion}
+    >
       <form action={updateAction}>
         <input type="hidden" name="id" value={savingsTransfer.id} />
         <FieldGroup className={OPERATION_EDIT_GRID_CLASS}>
@@ -122,20 +127,12 @@ export function SavingsTransferRow({
             <Button type="submit" size="sm" disabled={updatePending}>
               {updatePending ? "Enregistrement..." : "Enregistrer"}
             </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                setKind(savingsTransfer.kind);
-                setIsEditing(false);
-              }}
-            >
+            <Button type="button" variant="outline" size="sm" onClick={closeEdit}>
               {updateState.warning ? "Fermer" : "Annuler"}
             </Button>
           </div>
         </FieldGroup>
       </form>
-    </OperationEditRow>
+    </OperationRow>
   );
 }

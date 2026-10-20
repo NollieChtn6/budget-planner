@@ -54,6 +54,7 @@ import {
   sumMoney,
   summarizeConvertedUrges,
 } from "@budget/domain";
+import { SparklesIcon } from "lucide-react";
 import Link from "next/link";
 import { Fragment, type ReactNode } from "react";
 import { Meter } from "@/components/meter";
@@ -412,7 +413,6 @@ export default async function HomePage() {
             }))}
             minDate={formatCalendarDate(firstDayOfMonth(activeMonth))}
             maxDate={formatCalendarDate(lastDayOfMonth(activeMonth))}
-            defaultDate={new Date().toISOString().slice(0, 10)}
             knownPlaces={knownPlaces}
             lastUsedCategoryId={lastUsedCategoryId}
           />
@@ -595,7 +595,8 @@ export default async function HomePage() {
                       </span>{" "}
                       d'envies{" "}
                       <span className="whitespace-nowrap">
-                        converties ({convertedUrges.count}) <span aria-hidden>✨</span>
+                        converties ({convertedUrges.count}){" "}
+                        <SparklesIcon aria-hidden className="inline size-3.5 align-text-bottom" />
                       </span>
                     </>
                   ) : null}
@@ -690,7 +691,7 @@ export default async function HomePage() {
             <CardAction>
               <Link
                 href="/provisions"
-                className="text-sm text-muted-foreground hover:text-foreground"
+                className="inline-flex min-h-11 items-center text-sm text-muted-foreground hover:text-foreground md:min-h-0"
               >
                 Tout voir
               </Link>

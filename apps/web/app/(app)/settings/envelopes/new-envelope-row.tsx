@@ -3,6 +3,7 @@
 import { useActionState, useEffect, useState } from "react";
 import { createVariableEnvelopeAction } from "@/actions/variable-envelope";
 import { initialVariableEnvelopeActionState } from "@/actions/variable-envelope-state";
+import { EditableRow } from "@/components/editable-row";
 import { Button } from "@/components/ui/button";
 import { FieldError } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -13,7 +14,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { TableCell, TableRow } from "@/components/ui/table";
+import {
+  FormActions,
+  FormField,
+  MonthChoiceSelect,
+  SETTINGS_FORM_CLASS,
+} from "../settings-form-parts";
 
 export function NewEnvelopeRow({ onDone }: { onDone: () => void }) {
   const [mode, setMode] = useState<"amount" | "percentage">("amount");
@@ -27,24 +33,24 @@ export function NewEnvelopeRow({ onDone }: { onDone: () => void }) {
   }, [state.status, onDone]);
 
   return (
-    <TableRow onKeyDown={(e) => e.key === "Escape" && onDone()}>
-      <TableCell colSpan={4} className="whitespace-normal">
-        <form action={action} className="flex flex-wrap items-end gap-3 py-1">
-          <input type="hidden" name="mode" value={mode} />
-          <div className="flex flex-col gap-1">
-            <span className="text-muted-foreground text-xs">Libellé</span>
+    <EditableRow isEditing onClose={onDone} title="Nouvelle enveloppe" read={null} colSpan={4}>
+      <form action={action} className={SETTINGS_FORM_CLASS}>
+        <input type="hidden" name="mode" value={mode} />
+        <FormField label="Libellé">
+          {(id) => (
             <Input
+              id={id}
               name="label"
               placeholder="Sorties et loisirs"
               required
-              autoFocus
-              className="w-44"
+              className="w-full md:w-44"
             />
-          </div>
-          <div className="flex flex-col gap-1">
-            <span className="text-muted-foreground text-xs">Mode</span>
+          )}
+        </FormField>
+        <FormField label="Mode">
+          {(id) => (
             <Select value={mode} onValueChange={(value) => setMode(value as typeof mode)}>
-              <SelectTrigger className="w-40">
+              <SelectTrigger id={id} className="w-full md:w-40">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -52,58 +58,53 @@ export function NewEnvelopeRow({ onDone }: { onDone: () => void }) {
                 <SelectItem value="percentage">Pourcentage</SelectItem>
               </SelectContent>
             </Select>
-          </div>
-          {mode === "amount" ? (
-            <div className="flex flex-col gap-1">
-              <span className="text-muted-foreground text-xs">Montant (€)</span>
+          )}
+        </FormField>
+        {mode === "amount" ? (
+          <FormField label="Montant (€)">
+            {(id) => (
               <Input
+                id={id}
                 name="amountEuros"
                 type="number"
+                inputMode="decimal"
                 step="0.01"
                 min="0"
                 required
-                className="w-28"
+                className="w-full md:w-28"
               />
-            </div>
-          ) : (
-            <div className="flex flex-col gap-1">
-              <span className="text-muted-foreground text-xs">Pourcentage (%)</span>
+            )}
+          </FormField>
+        ) : (
+          <FormField label="Pourcentage (%)">
+            {(id) => (
               <Input
+                id={id}
                 name="percentage"
                 type="number"
+                inputMode="numeric"
                 step="1"
                 min="0"
                 max="100"
                 required
-                className="w-24"
+                className="w-full md:w-24"
               />
-            </div>
-          )}
-          <div className="flex flex-col gap-1">
-            <span className="text-muted-foreground text-xs">Date d'effet</span>
-            <Select name="effectiveFrom" defaultValue="current">
-              <SelectTrigger className="w-36">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="current">Ce mois-ci</SelectItem>
-                <SelectItem value="next">Le mois prochain</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="flex gap-2">
-            <Button type="submit" size="sm" disabled={pending}>
-              {pending ? "Création..." : "Ajouter"}
-            </Button>
-            <Button type="button" size="sm" variant="ghost" onClick={onDone}>
-              Annuler
-            </Button>
-          </div>
-          {state.status === "error" ? (
-            <FieldError className="basis-full">{state.message}</FieldError>
-          ) : null}
-        </form>
-      </TableCell>
-    </TableRow>
+            )}
+          </FormField>
+        )}
+        <MonthChoiceSelect label="À partir de" />
+        <FormActions>
+          <Button type="submit" size="sm" disabled={pending}>
+            {pending ? "Création..." : "Ajouter"}
+          </Button>
+          <Button type="button" size="sm" variant="ghost" onClick={onDone}>
+            Annuler
+          </Button>
+        </FormActions>
+        {state.status === "error" ? (
+          <FieldError className="basis-full">{state.message}</FieldError>
+        ) : null}
+      </form>
+    </EditableRow>
   );
 }

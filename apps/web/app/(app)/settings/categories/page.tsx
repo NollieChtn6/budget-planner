@@ -34,7 +34,7 @@ export default async function CategoriesSettingsPage() {
 
   return (
     <div className="flex flex-col gap-2">
-      <h2 className="font-heading text-xl">Catégories</h2>
+      <h2 className="sr-only">Catégories</h2>
       <CategoryTable rows={rows} envelopeOptions={envelopeOptions} />
     </div>
   );

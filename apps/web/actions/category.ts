@@ -10,6 +10,7 @@ import {
 } from "@budget/db";
 import { archiveCategory, unarchiveCategory, updateCategory } from "@budget/domain";
 import { revalidatePath } from "next/cache";
+import { INVALID_REQUEST, notFound } from "@/actions/messages";
 import type { VariableEnvelopeActionState } from "@/actions/variable-envelope-state";
 import { isEnvelopeActive } from "@/lib/active-envelopes";
 import { resolveCurrentMonth } from "@/lib/current-month";
@@ -21,6 +22,7 @@ import {
   unarchiveCategorySchema,
   updateCategorySchema,
 } from "@/schemas/category";
+import { describeInvalidInput } from "@/schemas/describe-invalid-input";
 
 const CATEGORIES_PATH = "/settings/categories";
 
@@ -36,7 +38,7 @@ async function resolveDefaultEnvelopeId(
   const envelopes = await findVariableEnvelopesByUser(prisma, userId);
   const envelope = envelopes.find((e) => e.id === rawDefaultEnvelopeId);
   if (!envelope || !isEnvelopeActive(envelope, currentMonth)) {
-    return { message: "Enveloppe par défaut introuvable." };
+    return { message: notFound("Enveloppe par défaut") };
   }
   return { defaultEnvelopeId: rawDefaultEnvelopeId };
 }
@@ -48,7 +50,7 @@ export async function createCategoryAction(
   const session = await requireSession();
   const parsed = createCategorySchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) {
-    return { status: "error", message: parsed.error.issues[0]?.message ?? "Entrée invalide." };
+    return { status: "error", message: describeInvalidInput(parsed.error) };
   }
 
   const resolved = await resolveDefaultEnvelopeId(session.user.id, parsed.data.defaultEnvelopeId);
@@ -72,12 +74,12 @@ export async function updateCategoryAction(
   const session = await requireSession();
   const parsed = updateCategorySchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) {
-    return { status: "error", message: parsed.error.issues[0]?.message ?? "Entrée invalide." };
+    return { status: "error", message: describeInvalidInput(parsed.error) };
   }
 
   const category = await findCategoryById(prisma, session.user.id, parsed.data.categoryId);
   if (!category) {
-    return { status: "error", message: "Catégorie introuvable." };
+    return { status: "error", message: notFound("Catégorie") };
   }
 
   const resolved = await resolveDefaultEnvelopeId(session.user.id, parsed.data.defaultEnvelopeId);
@@ -106,12 +108,12 @@ export async function archiveCategoryAction(
   const session = await requireSession();
   const parsed = archiveCategorySchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) {
-    return { status: "error", message: "Entrée invalide." };
+    return { status: "error", message: INVALID_REQUEST };
   }
 
   const category = await findCategoryById(prisma, session.user.id, parsed.data.categoryId);
   if (!category) {
-    return { status: "error", message: "Catégorie introuvable." };
+    return { status: "error", message: notFound("Catégorie") };
   }
   if (category.archived) {
     return { status: "error", message: "Cette catégorie est déjà archivée." };
@@ -130,12 +132,12 @@ export async function unarchiveCategoryAction(
   const session = await requireSession();
   const parsed = unarchiveCategorySchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) {
-    return { status: "error", message: "Entrée invalide." };
+    return { status: "error", message: INVALID_REQUEST };
   }
 
   const category = await findCategoryById(prisma, session.user.id, parsed.data.categoryId);
   if (!category) {
-    return { status: "error", message: "Catégorie introuvable." };
+    return { status: "error", message: notFound("Catégorie") };
   }
   if (!category.archived) {
     return { status: "error", message: "Cette catégorie n'est pas archivée." };

@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   archiveProvisionAction,
   closeProvisionAction,
@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { FieldError } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { formatEuros } from "@/lib/format-money";
+import { useFeedbackActionState } from "@/lib/use-feedback-action-state";
 import {
   ArchiveNote,
   FormActions,
@@ -38,27 +39,27 @@ type Editing = "value" | "archive" | "extend";
 export function ProvisionRow({ provision }: { provision: ProvisionRowData }) {
   const [editing, setEditing] = useState<Editing | null>(null);
 
-  const [valueState, valueAction, valuePending] = useActionState(
+  const [valueState, valueAction, valuePending] = useFeedbackActionState(
     updateProvisionGoalAction,
     initialVariableEnvelopeActionState,
   );
-  const [archiveState, archiveAction, archivePending] = useActionState(
+  const [archiveState, archiveAction, archivePending] = useFeedbackActionState(
     archiveProvisionAction,
     initialVariableEnvelopeActionState,
   );
-  const [unarchiveState, unarchiveAction, unarchivePending] = useActionState(
+  const [unarchiveState, unarchiveAction, unarchivePending] = useFeedbackActionState(
     unarchiveProvisionAction,
     initialVariableEnvelopeActionState,
   );
-  const [extendState, extendAction, extendPending] = useActionState(
+  const [extendState, extendAction, extendPending] = useFeedbackActionState(
     extendProvisionAction,
     initialVariableEnvelopeActionState,
   );
-  const [closeState, closeAction, closePending] = useActionState(
+  const [closeState, closeAction, closePending] = useFeedbackActionState(
     closeProvisionAction,
     initialVariableEnvelopeActionState,
   );
-  const [renewState, renewAction, renewPending] = useActionState(
+  const [renewState, renewAction, renewPending] = useFeedbackActionState(
     renewProvisionAction,
     initialVariableEnvelopeActionState,
   );

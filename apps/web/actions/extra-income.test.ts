@@ -48,7 +48,10 @@ describe("createExtraIncomeForUser", () => {
       label: "Chèque cadeau",
     });
 
-    expect(result).toEqual({ status: "success", message: "Entrée exceptionnelle enregistrée." });
+    expect(result).toEqual({
+      status: "success",
+      message: expect.stringMatching(/^Entrée de 100,00\s€ enregistrée\.$/),
+    });
     const saved = await findExtraIncomesByUserAndMonth(prisma, user.id, currentMonth);
     expect(saved).toHaveLength(1);
     expect(moneyToCents(saved[0]?.amount ?? moneyFromEuros(-1))).toBe(10000);

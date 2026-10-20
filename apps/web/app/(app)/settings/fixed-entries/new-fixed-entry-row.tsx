@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { createFixedEntryAction } from "@/actions/fixed-entry";
 import { initialVariableEnvelopeActionState } from "@/actions/variable-envelope-state";
 import { EditableRow } from "@/components/editable-row";
@@ -14,6 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useFeedbackActionState } from "@/lib/use-feedback-action-state";
 import {
   FormActions,
   FormField,
@@ -23,7 +24,7 @@ import {
 
 export function NewFixedEntryRow({ onDone }: { onDone: () => void }) {
   const [type, setType] = useState<"charge" | "scheduledSaving">("charge");
-  const [state, action, pending] = useActionState(
+  const [state, action, pending] = useFeedbackActionState(
     createFixedEntryAction,
     initialVariableEnvelopeActionState,
   );

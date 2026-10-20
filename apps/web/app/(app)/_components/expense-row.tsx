@@ -1,7 +1,7 @@
 "use client";
 
 import { type Expense, type ExpenseSource, formatCalendarDate, moneyToEuros } from "@budget/domain";
-import { useActionState, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { deleteExpenseAction, updateExpenseAction } from "@/actions/expense";
 import { initialExpenseActionState } from "@/actions/expense-state";
 import { initialVariableEnvelopeActionState } from "@/actions/variable-envelope-state";
@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/select";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { formatEuros } from "@/lib/format-money";
+import { useFeedbackActionState } from "@/lib/use-feedback-action-state";
 import {
   CategoryTag,
   OPERATION_COLUMN_COUNT,
@@ -59,11 +60,11 @@ export function ExpenseRow({
   editable: boolean;
 }) {
   const [isEditing, setIsEditing] = useState(false);
-  const [updateState, updateAction, updatePending] = useActionState(
+  const [updateState, updateAction, updatePending] = useFeedbackActionState(
     updateExpenseAction,
     initialExpenseActionState,
   );
-  const [deleteState, deleteAction, deletePending] = useActionState(
+  const [deleteState, deleteAction, deletePending] = useFeedbackActionState(
     deleteExpenseAction,
     initialVariableEnvelopeActionState,
   );

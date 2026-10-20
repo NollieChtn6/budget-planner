@@ -1,7 +1,7 @@
 "use client";
 
 import { addMonths, formatMonth, parseMonth } from "@budget/domain";
-import { useActionState, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { createProvisionAction } from "@/actions/provision";
 import { initialVariableEnvelopeActionState } from "@/actions/variable-envelope-state";
 import { EditableRow } from "@/components/editable-row";
@@ -16,6 +16,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { formatMonthLabel } from "@/lib/format-month-label";
+import { useFeedbackActionState } from "@/lib/use-feedback-action-state";
 import { FormActions, FormField, SETTINGS_FORM_CLASS } from "../settings-form-parts";
 
 const START_MONTH_CHOICES = 12;
@@ -31,7 +32,7 @@ export function NewProvisionRow({
 }) {
   const [startMonth, setStartMonth] = useState(activeMonth);
   const [durationMonths, setDurationMonths] = useState("");
-  const [state, action, pending] = useActionState(
+  const [state, action, pending] = useFeedbackActionState(
     createProvisionAction,
     initialVariableEnvelopeActionState,
   );

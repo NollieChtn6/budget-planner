@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useState } from "react";
 import { openMonthAction } from "@/actions/month";
 import { initialVariableEnvelopeActionState } from "@/actions/variable-envelope-state";
 import { Button } from "@/components/ui/button";
@@ -8,9 +8,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { formatEuros as euros } from "@/lib/format-money";
+import { useFeedbackActionState } from "@/lib/use-feedback-action-state";
 
 export function OpenMonthForm({ totalFixedEuros }: { totalFixedEuros: number }) {
-  const [state, formAction, pending] = useActionState(
+  const [state, formAction, pending] = useFeedbackActionState(
     openMonthAction,
     initialVariableEnvelopeActionState,
   );

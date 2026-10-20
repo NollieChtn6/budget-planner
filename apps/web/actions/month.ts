@@ -40,9 +40,11 @@ import {
 } from "@budget/domain";
 import type { PrismaClient } from "@prisma/client";
 import { revalidatePath } from "next/cache";
+import { INVALID_AMOUNT, MONTH_NOT_OPEN } from "@/actions/messages";
 import type { VariableEnvelopeActionState } from "@/actions/variable-envelope-state";
 import { resolveActiveMonth } from "@/lib/current-month";
 import { requireSession } from "@/lib/session";
+import { describeInvalidInput } from "@/schemas/describe-invalid-input";
 import { closeMonthSchema, openMonthSchema, pointFixedEntrySchema } from "@/schemas/month";
 
 /**
@@ -60,7 +62,7 @@ export async function openMonthForUser(
   try {
     income = moneyFromEuros(incomeEuros);
   } catch {
-    return { status: "error", message: "Montant invalide (centimes uniquement)." };
+    return { status: "error", message: INVALID_AMOUNT };
   }
 
   // The active month (glossary.md's `activeMonth`), never a route segment or
@@ -126,7 +128,7 @@ export async function openMonthAction(
   const session = await requireSession();
   const parsed = openMonthSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) {
-    return { status: "error", message: parsed.error.issues[0]?.message ?? "Entrée invalide." };
+    return { status: "error", message: describeInvalidInput(parsed.error) };
   }
 
   const result = await openMonthForUser(prisma, session.user.id, parsed.data.incomeEuros);
@@ -152,7 +154,7 @@ export async function pointFixedEntryForUser(
   const activeMonth = await resolveActiveMonth(prismaClient, userId);
   const budgetMonth = await findBudgetMonthByMonth(prismaClient, userId, activeMonth);
   if (budgetMonth?.status !== "open") {
-    return { status: "error", message: "Le mois n'est pas ouvert." };
+    return { status: "error", message: MONTH_NOT_OPEN };
   }
 
   const result = pointFixedEntry(budgetMonth.fixedEntries, input.fixedEntryId, input.done);
@@ -177,7 +179,7 @@ export async function pointFixedEntryAction(
   const session = await requireSession();
   const parsed = pointFixedEntrySchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) {
-    return { status: "error", message: parsed.error.issues[0]?.message ?? "Entrée invalide." };
+    return { status: "error", message: describeInvalidInput(parsed.error) };
   }
 
   const result = await pointFixedEntryForUser(prisma, session.user.id, parsed.data);
@@ -258,7 +260,7 @@ export async function closeMonthForUser(
   const activeMonth = await resolveActiveMonth(prismaClient, userId);
   const budgetMonth = await findBudgetMonthByMonth(prismaClient, userId, activeMonth);
   if (budgetMonth?.status !== "open") {
-    return { status: "error", message: "Le mois n'est pas ouvert." };
+    return { status: "error", message: MONTH_NOT_OPEN };
   }
 
   const [nextMonthRow, envelopes] = await Promise.all([
@@ -330,7 +332,7 @@ export async function closeMonthAction(
     })),
   });
   if (!parsed.success) {
-    return { status: "error", message: parsed.error.issues[0]?.message ?? "Entrée invalide." };
+    return { status: "error", message: describeInvalidInput(parsed.error) };
   }
 
   const result = await closeMonthForUser(prisma, session.user.id, parsed.data);

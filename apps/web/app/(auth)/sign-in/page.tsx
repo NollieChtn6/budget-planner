@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { authClient } from "@/lib/auth-client";
+import { describeAuthError } from "@/lib/auth-error-message";
 
 export default function SignInPage() {
   const router = useRouter();
@@ -24,7 +25,12 @@ export default function SignInPage() {
 
     setPending(false);
     if (signInError) {
-      setError(signInError.message ?? "Connexion refusée.");
+      setError(
+        describeAuthError(
+          signInError,
+          "Connexion impossible pour le moment. Réessaie dans un instant.",
+        ),
+      );
       return;
     }
 

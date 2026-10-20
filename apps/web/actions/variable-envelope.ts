@@ -25,10 +25,12 @@ import {
   type VariableEnvelope,
 } from "@budget/domain";
 import { revalidatePath } from "next/cache";
+import { INVALID_AMOUNT, INVALID_REQUEST, notFound } from "@/actions/messages";
 import type { VariableEnvelopeActionState } from "@/actions/variable-envelope-state";
 import { resolveCurrentMonth } from "@/lib/current-month";
 import { recalculateOpenMonthSnapshotForUser } from "@/lib/recalculate-open-month";
 import { requireSession } from "@/lib/session";
+import { describeInvalidInput } from "@/schemas/describe-invalid-input";
 import {
   addVariableEnvelopeVersionSchema,
   archiveVariableEnvelopeSchema,
@@ -46,20 +48,20 @@ function toMoneyOrMessage(euros: number): Money | { message: string } {
   try {
     return moneyFromEuros(euros);
   } catch {
-    return { message: "Montant invalide (centimes uniquement)." };
+    return { message: INVALID_AMOUNT };
   }
 }
 
 function describeAddVersionFailure(error: AddVersionFailure): string {
   if (error.type === "invalidEffectiveDate") {
-    return "Date d'effet invalide : choisissez le mois en cours ou le mois suivant.";
+    return "Date d'effet invalide : choisis le mois en cours ou le mois suivant.";
   }
   const details = error.violations.map((v) => `${formatMonth(v.month)} : ${v.total}%`).join(", ");
   return `La somme des pourcentages dépasserait 100 % : ${details}.`;
 }
 
 function describeArchiveFailure(_error: ArchiveFailure): string {
-  return "Date d'archivage invalide : choisissez le mois en cours (sans opération) ou le mois suivant.";
+  return "Date d'archivage invalide : choisis le mois en cours (s'il n'a pas encore d'opération) ou le mois suivant.";
 }
 
 function describeUnarchiveFailure(): string {
@@ -93,7 +95,7 @@ export async function createVariableEnvelopeAction(
   const session = await requireSession();
   const parsed = createVariableEnvelopeSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) {
-    return { status: "error", message: parsed.error.issues[0]?.message ?? "Entrée invalide." };
+    return { status: "error", message: describeInvalidInput(parsed.error) };
   }
 
   const currentMonth = resolveCurrentMonth();
@@ -138,7 +140,7 @@ export async function addVariableEnvelopeVersionAction(
   const session = await requireSession();
   const parsed = addVariableEnvelopeVersionSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) {
-    return { status: "error", message: parsed.error.issues[0]?.message ?? "Entrée invalide." };
+    return { status: "error", message: describeInvalidInput(parsed.error) };
   }
 
   const currentMonth = resolveCurrentMonth();
@@ -150,7 +152,7 @@ export async function addVariableEnvelopeVersionAction(
 
   const envelopes = await findVariableEnvelopesByUser(prisma, session.user.id);
   if (!envelopes.some((envelope) => envelope.id === parsed.data.envelopeId)) {
-    return { status: "error", message: "Enveloppe introuvable." };
+    return { status: "error", message: notFound("Enveloppe") };
   }
 
   const result = addVersion(parsed.data.envelopeId, envelopes, input, currentMonth);
@@ -175,14 +177,14 @@ export async function archiveVariableEnvelopeAction(
   const session = await requireSession();
   const parsed = archiveVariableEnvelopeSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) {
-    return { status: "error", message: parsed.error.issues[0]?.message ?? "Entrée invalide." };
+    return { status: "error", message: describeInvalidInput(parsed.error) };
   }
 
   const currentMonth = resolveCurrentMonth();
   const effectiveFrom = resolveEffectiveFrom(parsed.data.effectiveFrom, currentMonth);
   const envelope = await findVariableEnvelopeById(prisma, session.user.id, parsed.data.envelopeId);
   if (!envelope) {
-    return { status: "error", message: "Enveloppe introuvable." };
+    return { status: "error", message: notFound("Enveloppe") };
   }
 
   const result = archive(
@@ -216,12 +218,12 @@ export async function unarchiveVariableEnvelopeAction(
   const session = await requireSession();
   const parsed = unarchiveVariableEnvelopeSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) {
-    return { status: "error", message: "Entrée invalide." };
+    return { status: "error", message: INVALID_REQUEST };
   }
 
   const envelope = await findVariableEnvelopeById(prisma, session.user.id, parsed.data.envelopeId);
   if (!envelope) {
-    return { status: "error", message: "Enveloppe introuvable." };
+    return { status: "error", message: notFound("Enveloppe") };
   }
 
   const result = unarchive(envelope, resolveCurrentMonth());

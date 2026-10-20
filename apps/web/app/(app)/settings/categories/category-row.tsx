@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   archiveCategoryAction,
   unarchiveCategoryAction,
@@ -19,6 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useFeedbackActionState } from "@/lib/use-feedback-action-state";
 import { NO_DEFAULT_ENVELOPE } from "@/schemas/category";
 import { FormActions, FormField, OtherActions, SETTINGS_FORM_CLASS } from "../settings-form-parts";
 import type { CategoryRowData, EnvelopeOption } from "./category-table";
@@ -32,15 +33,15 @@ export function CategoryRow({
 }) {
   const [editing, setEditing] = useState(false);
 
-  const [updateState, updateAction, updatePending] = useActionState(
+  const [updateState, updateAction, updatePending] = useFeedbackActionState(
     updateCategoryAction,
     initialVariableEnvelopeActionState,
   );
-  const [archiveState, archiveAction, archivePending] = useActionState(
+  const [archiveState, archiveAction, archivePending] = useFeedbackActionState(
     archiveCategoryAction,
     initialVariableEnvelopeActionState,
   );
-  const [unarchiveState, unarchiveAction, unarchivePending] = useActionState(
+  const [unarchiveState, unarchiveAction, unarchivePending] = useFeedbackActionState(
     unarchiveCategoryAction,
     initialVariableEnvelopeActionState,
   );

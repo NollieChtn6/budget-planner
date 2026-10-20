@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { createExpenseAction } from "@/actions/expense";
 import { initialExpenseActionState } from "@/actions/expense-state";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useFeedbackActionState } from "@/lib/use-feedback-action-state";
 import { ProvisionExhaustionPrompt } from "./provision-exhaustion-prompt";
 
 export function AddExpenseForm({
@@ -41,7 +42,7 @@ export function AddExpenseForm({
   defaultTarget?: string;
   onSuccess?: () => void;
 }) {
-  const [state, formAction, pending] = useActionState(
+  const [state, formAction, pending] = useFeedbackActionState(
     createExpenseAction,
     initialExpenseActionState,
   );
@@ -165,9 +166,6 @@ export function AddExpenseForm({
           />
         </Field>
         {state.status === "error" ? <FieldError>{state.message}</FieldError> : null}
-        {state.status === "success" ? (
-          <p className="text-sm text-muted-foreground">{state.message}</p>
-        ) : null}
         <Button type="submit" disabled={pending}>
           {pending ? "Ajout..." : "Ajouter la dépense"}
         </Button>

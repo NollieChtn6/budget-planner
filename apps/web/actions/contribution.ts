@@ -12,6 +12,7 @@ import {
   canModifyContribution,
   isSameMonth,
   moneyFromEuros,
+  moneyToEuros,
   monthOfCalendarDate,
   parseCalendarDate,
   type RecordContributionFailure,
@@ -19,16 +20,19 @@ import {
 } from "@budget/domain";
 import type { PrismaClient } from "@prisma/client";
 import { revalidatePath } from "next/cache";
+import { INVALID_AMOUNT, INVALID_DATE, MONTH_NOT_OPEN, notFound } from "@/actions/messages";
 import type { OperationActionState } from "@/actions/operation-state";
 import type { VariableEnvelopeActionState } from "@/actions/variable-envelope-state";
 import { resolveActiveMonth } from "@/lib/current-month";
 import { successWithDisposableIncomeWarning } from "@/lib/disposable-income";
+import { formatEuros } from "@/lib/format-money";
 import { requireSession } from "@/lib/session";
 import {
   createContributionSchema,
   deleteContributionSchema,
   updateContributionSchema,
 } from "@/schemas/contribution";
+import { describeInvalidInput } from "@/schemas/describe-invalid-input";
 
 function describeRecordContributionFailure(error: RecordContributionFailure): string {
   switch (error.type) {
@@ -61,20 +65,20 @@ export async function createContributionForUser(
   try {
     amount = moneyFromEuros(input.amountEuros);
   } catch {
-    return { status: "error", message: "Montant invalide (centimes uniquement)." };
+    return { status: "error", message: INVALID_AMOUNT };
   }
 
   let date: ReturnType<typeof parseCalendarDate>;
   try {
     date = parseCalendarDate(input.date);
   } catch {
-    return { status: "error", message: "Date invalide." };
+    return { status: "error", message: INVALID_DATE };
   }
 
   const activeMonth = await resolveActiveMonth(prismaClient, userId);
   const budgetMonth = await findBudgetMonthByMonth(prismaClient, userId, activeMonth);
   if (budgetMonth?.status !== "open") {
-    return { status: "error", message: "Le mois n'est pas ouvert." };
+    return { status: "error", message: MONTH_NOT_OPEN };
   }
 
   const result = recordContribution(
@@ -94,7 +98,7 @@ export async function createContributionForUser(
     prismaClient,
     userId,
     budgetMonth,
-    "Versement enregistré.",
+    `Versement de ${formatEuros(moneyToEuros(result.contribution.amount))} enregistré.`,
   );
 }
 
@@ -105,7 +109,7 @@ export async function createContributionAction(
   const session = await requireSession();
   const parsed = createContributionSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) {
-    return { status: "error", message: parsed.error.issues[0]?.message ?? "Entrée invalide." };
+    return { status: "error", message: describeInvalidInput(parsed.error) };
   }
 
   const result = await createContributionForUser(prisma, session.user.id, parsed.data);
@@ -129,25 +133,25 @@ export async function updateContributionForUser(
   try {
     amount = moneyFromEuros(input.amountEuros);
   } catch {
-    return { status: "error", message: "Montant invalide (centimes uniquement)." };
+    return { status: "error", message: INVALID_AMOUNT };
   }
 
   let date: ReturnType<typeof parseCalendarDate>;
   try {
     date = parseCalendarDate(input.date);
   } catch {
-    return { status: "error", message: "Date invalide." };
+    return { status: "error", message: INVALID_DATE };
   }
 
   const activeMonth = await resolveActiveMonth(prismaClient, userId);
   const budgetMonth = await findBudgetMonthByMonth(prismaClient, userId, activeMonth);
   if (budgetMonth?.status !== "open") {
-    return { status: "error", message: "Le mois n'est pas ouvert." };
+    return { status: "error", message: MONTH_NOT_OPEN };
   }
 
   const existing = await findContributionById(prismaClient, userId, input.id);
   if (!existing || !isSameMonth(monthOfCalendarDate(existing.date), activeMonth)) {
-    return { status: "error", message: "Versement introuvable." };
+    return { status: "error", message: notFound("Versement") };
   }
   if (!canModifyContribution(existing)) {
     return {
@@ -189,7 +193,7 @@ export async function updateContributionAction(
   const session = await requireSession();
   const parsed = updateContributionSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) {
-    return { status: "error", message: parsed.error.issues[0]?.message ?? "Entrée invalide." };
+    return { status: "error", message: describeInvalidInput(parsed.error) };
   }
 
   const result = await updateContributionForUser(prisma, session.user.id, parsed.data);
@@ -210,12 +214,12 @@ export async function deleteContributionForUser(
   const activeMonth = await resolveActiveMonth(prismaClient, userId);
   const budgetMonth = await findBudgetMonthByMonth(prismaClient, userId, activeMonth);
   if (budgetMonth?.status !== "open") {
-    return { status: "error", message: "Le mois n'est pas ouvert." };
+    return { status: "error", message: MONTH_NOT_OPEN };
   }
 
   const existing = await findContributionById(prismaClient, userId, contributionId);
   if (!existing || !isSameMonth(monthOfCalendarDate(existing.date), activeMonth)) {
-    return { status: "error", message: "Versement introuvable." };
+    return { status: "error", message: notFound("Versement") };
   }
   if (!canModifyContribution(existing)) {
     return {
@@ -235,7 +239,7 @@ export async function deleteContributionAction(
   const session = await requireSession();
   const parsed = deleteContributionSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) {
-    return { status: "error", message: parsed.error.issues[0]?.message ?? "Entrée invalide." };
+    return { status: "error", message: describeInvalidInput(parsed.error) };
   }
 
   const result = await deleteContributionForUser(prisma, session.user.id, parsed.data.id);

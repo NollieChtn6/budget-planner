@@ -1,11 +1,12 @@
 "use client";
 
-import { useActionState, useEffect } from "react";
+import { useEffect } from "react";
 import { createReimbursementAction } from "@/actions/reimbursement";
 import { initialReimbursementActionState } from "@/actions/reimbursement-state";
 import { Button } from "@/components/ui/button";
 import { FieldError, FieldGroup } from "@/components/ui/field";
 import type { ExpenseLinkOption } from "@/lib/expense-link-options";
+import { useFeedbackActionState } from "@/lib/use-feedback-action-state";
 import { ReimbursementFields } from "./reimbursement-fields";
 
 export function AddReimbursementForm({
@@ -25,7 +26,7 @@ export function AddReimbursementForm({
   defaultDate: string;
   onSuccess?: () => void;
 }) {
-  const [state, formAction, pending] = useActionState(
+  const [state, formAction, pending] = useFeedbackActionState(
     createReimbursementAction,
     initialReimbursementActionState,
   );
@@ -54,9 +55,6 @@ export function AddReimbursementForm({
           }}
         />
         {state.status === "error" ? <FieldError>{state.message}</FieldError> : null}
-        {state.status === "success" ? (
-          <p className="text-sm text-muted-foreground">{state.message}</p>
-        ) : null}
         {state.warning ? (
           <p className="rounded-md border border-alert-warning/60 bg-card px-3 py-2 text-sm">
             {state.warning}

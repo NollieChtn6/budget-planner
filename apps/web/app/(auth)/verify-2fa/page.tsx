@@ -8,6 +8,7 @@ import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field
 import { Input } from "@/components/ui/input";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { authClient } from "@/lib/auth-client";
+import { describeAuthError } from "@/lib/auth-error-message";
 
 export default function VerifyTwoFactorPage() {
   const router = useRouter();
@@ -26,7 +27,9 @@ export default function VerifyTwoFactorPage() {
 
     setPending(false);
     if (verifyError) {
-      setError(verifyError.message ?? "Code invalide.");
+      setError(
+        describeAuthError(verifyError, "Ce code n'est pas valide. Vérifie-le puis réessaie."),
+      );
       return;
     }
 
@@ -49,8 +52,8 @@ export default function VerifyTwoFactorPage() {
         <CardTitle>Vérification en deux étapes</CardTitle>
         <CardDescription>
           {useBackupCode
-            ? "Saisissez l'un de vos codes de secours."
-            : "Saisissez le code affiché par votre application d'authentification."}
+            ? "Saisis l'un de tes codes de secours."
+            : "Saisis le code affiché par ton application d'authentification."}
         </CardDescription>
       </CardHeader>
       <CardContent>

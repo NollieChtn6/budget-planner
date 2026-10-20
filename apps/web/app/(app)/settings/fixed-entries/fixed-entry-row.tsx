@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   addFixedEntryVersionAction,
   archiveFixedEntryAction,
@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { FieldError } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { formatEuros } from "@/lib/format-money";
+import { useFeedbackActionState } from "@/lib/use-feedback-action-state";
 import {
   ArchiveNote,
   FormActions,
@@ -26,15 +27,15 @@ import type { FixedEntryRowData } from "./fixed-entry-table";
 export function FixedEntryRow({ entry }: { entry: FixedEntryRowData }) {
   const [editing, setEditing] = useState<"value" | "archive" | null>(null);
 
-  const [valueState, valueAction, valuePending] = useActionState(
+  const [valueState, valueAction, valuePending] = useFeedbackActionState(
     addFixedEntryVersionAction,
     initialVariableEnvelopeActionState,
   );
-  const [archiveState, archiveAction, archivePending] = useActionState(
+  const [archiveState, archiveAction, archivePending] = useFeedbackActionState(
     archiveFixedEntryAction,
     initialVariableEnvelopeActionState,
   );
-  const [unarchiveState, unarchiveAction, unarchivePending] = useActionState(
+  const [unarchiveState, unarchiveAction, unarchivePending] = useFeedbackActionState(
     unarchiveFixedEntryAction,
     initialVariableEnvelopeActionState,
   );

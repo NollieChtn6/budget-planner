@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect } from "react";
+import { useEffect } from "react";
 import { createCategoryAction } from "@/actions/category";
 import { initialVariableEnvelopeActionState } from "@/actions/variable-envelope-state";
 import { EditableRow } from "@/components/editable-row";
@@ -14,6 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useFeedbackActionState } from "@/lib/use-feedback-action-state";
 import { NO_DEFAULT_ENVELOPE } from "@/schemas/category";
 import { FormActions, FormField, SETTINGS_FORM_CLASS } from "../settings-form-parts";
 import type { EnvelopeOption } from "./category-table";
@@ -25,7 +26,7 @@ export function NewCategoryRow({
   envelopeOptions: EnvelopeOption[];
   onDone: () => void;
 }) {
-  const [state, action, pending] = useActionState(
+  const [state, action, pending] = useFeedbackActionState(
     createCategoryAction,
     initialVariableEnvelopeActionState,
   );

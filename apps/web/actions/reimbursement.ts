@@ -16,6 +16,7 @@ import {
   isSameMonth,
   type Money,
   moneyFromEuros,
+  moneyToEuros,
   monthOfCalendarDate,
   parseCalendarDate,
   type RecordReimbursementFailure,
@@ -24,9 +25,12 @@ import {
 } from "@budget/domain";
 import type { PrismaClient } from "@prisma/client";
 import { revalidatePath } from "next/cache";
+import { INVALID_AMOUNT, INVALID_DATE, MONTH_NOT_OPEN, notFound } from "@/actions/messages";
 import type { ReimbursementActionState } from "@/actions/reimbursement-state";
 import { resolveActiveMonth } from "@/lib/current-month";
+import { formatEuros } from "@/lib/format-money";
 import { requireSession } from "@/lib/session";
+import { describeInvalidInput } from "@/schemas/describe-invalid-input";
 import {
   createReimbursementSchema,
   deleteReimbursementSchema,
@@ -42,7 +46,7 @@ function describeRecordReimbursementFailure(error: RecordReimbursementFailure): 
     case "dateOutsideCurrentMonth":
       return "Choisis une date dans le mois en cours.";
     case "unknownCategory":
-      return "Catégorie introuvable.";
+      return notFound("Catégorie");
     case "archivedCategory":
       return "Cette catégorie est archivée.";
   }
@@ -78,20 +82,20 @@ async function validateReimbursement(
   try {
     amount = moneyFromEuros(input.amountEuros);
   } catch {
-    return { status: "error", message: "Montant invalide (centimes uniquement)." };
+    return { status: "error", message: INVALID_AMOUNT };
   }
 
   let date: ReturnType<typeof parseCalendarDate>;
   try {
     date = parseCalendarDate(input.date);
   } catch {
-    return { status: "error", message: "Date invalide." };
+    return { status: "error", message: INVALID_DATE };
   }
 
   const activeMonth = await resolveActiveMonth(prismaClient, userId);
   const budgetMonth = await findBudgetMonthByMonth(prismaClient, userId, activeMonth);
   if (budgetMonth?.status !== "open") {
-    return { status: "error", message: "Le mois n'est pas ouvert." };
+    return { status: "error", message: MONTH_NOT_OPEN };
   }
 
   const categories = await findCategoriesByUser(prismaClient, userId);
@@ -113,7 +117,7 @@ async function validateReimbursement(
   if (input.expenseId) {
     const expense = await findExpenseById(prismaClient, userId, input.expenseId);
     if (!expense) {
-      return { status: "error", message: "Dépense d'origine introuvable." };
+      return { status: "error", message: notFound("Dépense d'origine") };
     }
     const linked = await findReimbursementsByUserAndExpense(prismaClient, userId, expense.id);
     overReimbursed = exceedsExpenseAmount(expense.amount, [
@@ -148,7 +152,10 @@ export async function createReimbursementForUser(
   }
 
   await createReimbursement(prismaClient, userId, validated.reimbursement);
-  return success("Remboursement enregistré.", validated.overReimbursed);
+  return success(
+    `Remboursement de ${formatEuros(moneyToEuros(validated.reimbursement.amount))} enregistré.`,
+    validated.overReimbursed,
+  );
 }
 
 export async function createReimbursementAction(
@@ -158,7 +165,7 @@ export async function createReimbursementAction(
   const session = await requireSession();
   const parsed = createReimbursementSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) {
-    return { status: "error", message: parsed.error.issues[0]?.message ?? "Entrée invalide." };
+    return { status: "error", message: describeInvalidInput(parsed.error) };
   }
 
   const result = await createReimbursementForUser(prisma, session.user.id, parsed.data);
@@ -181,7 +188,7 @@ export async function updateReimbursementForUser(
   const existing = await findReimbursementById(prismaClient, userId, input.id);
   const activeMonth = await resolveActiveMonth(prismaClient, userId);
   if (!existing || !isSameMonth(monthOfCalendarDate(existing.date), activeMonth)) {
-    return { status: "error", message: "Remboursement introuvable." };
+    return { status: "error", message: notFound("Remboursement") };
   }
 
   const validated = await validateReimbursement(prismaClient, userId, input, input.id);
@@ -200,7 +207,7 @@ export async function updateReimbursementAction(
   const session = await requireSession();
   const parsed = updateReimbursementSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) {
-    return { status: "error", message: parsed.error.issues[0]?.message ?? "Entrée invalide." };
+    return { status: "error", message: describeInvalidInput(parsed.error) };
   }
 
   const result = await updateReimbursementForUser(prisma, session.user.id, parsed.data);
@@ -221,12 +228,12 @@ export async function deleteReimbursementForUser(
   const activeMonth = await resolveActiveMonth(prismaClient, userId);
   const budgetMonth = await findBudgetMonthByMonth(prismaClient, userId, activeMonth);
   if (budgetMonth?.status !== "open") {
-    return { status: "error", message: "Le mois n'est pas ouvert." };
+    return { status: "error", message: MONTH_NOT_OPEN };
   }
 
   const existing = await findReimbursementById(prismaClient, userId, reimbursementId);
   if (!existing || !isSameMonth(monthOfCalendarDate(existing.date), activeMonth)) {
-    return { status: "error", message: "Remboursement introuvable." };
+    return { status: "error", message: notFound("Remboursement") };
   }
 
   await deleteReimbursement(prismaClient, userId, reimbursementId);
@@ -240,7 +247,7 @@ export async function deleteReimbursementAction(
   const session = await requireSession();
   const parsed = deleteReimbursementSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) {
-    return { status: "error", message: parsed.error.issues[0]?.message ?? "Entrée invalide." };
+    return { status: "error", message: describeInvalidInput(parsed.error) };
   }
 
   const result = await deleteReimbursementForUser(prisma, session.user.id, parsed.data.id);

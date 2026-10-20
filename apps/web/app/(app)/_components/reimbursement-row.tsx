@@ -1,7 +1,7 @@
 "use client";
 
 import { formatCalendarDate, moneyToEuros, type Reimbursement } from "@budget/domain";
-import { useActionState, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { deleteReimbursementAction, updateReimbursementAction } from "@/actions/reimbursement";
 import { initialReimbursementActionState } from "@/actions/reimbursement-state";
 import { initialVariableEnvelopeActionState } from "@/actions/variable-envelope-state";
@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { FieldError, FieldGroup } from "@/components/ui/field";
 import type { ExpenseLinkOption } from "@/lib/expense-link-options";
 import { formatEuros } from "@/lib/format-money";
+import { useFeedbackActionState } from "@/lib/use-feedback-action-state";
 import {
   CategoryTag,
   MutedText,
@@ -37,11 +38,11 @@ export function ReimbursementRow({
   editable: boolean;
 }) {
   const [isEditing, setIsEditing] = useState(false);
-  const [updateState, updateAction, updatePending] = useActionState(
+  const [updateState, updateAction, updatePending] = useFeedbackActionState(
     updateReimbursementAction,
     initialReimbursementActionState,
   );
-  const [deleteState, deleteAction, deletePending] = useActionState(
+  const [deleteState, deleteAction, deletePending] = useFeedbackActionState(
     deleteReimbursementAction,
     initialVariableEnvelopeActionState,
   );

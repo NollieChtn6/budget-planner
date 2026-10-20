@@ -1,11 +1,12 @@
 "use client";
 
 import type { SavingsTransferKind } from "@budget/domain";
-import { useActionState } from "react";
+import { useEffect } from "react";
 import { initialOperationActionState } from "@/actions/operation-state";
 import { createSavingsTransferAction } from "@/actions/savings-transfer";
 import { Button } from "@/components/ui/button";
 import { FieldError, FieldGroup } from "@/components/ui/field";
+import { useFeedbackActionState } from "@/lib/use-feedback-action-state";
 import { SavingsTransferFields } from "./savings-transfer-fields";
 
 export function AddSavingsTransferForm({
@@ -23,21 +24,23 @@ export function AddSavingsTransferForm({
   kind?: SavingsTransferKind;
   onClose: () => void;
 }) {
-  const [state, formAction, pending] = useActionState(
+  const [state, formAction, pending] = useFeedbackActionState(
     createSavingsTransferAction,
     initialOperationActionState,
   );
 
   // A warning (R37) must stay readable, so the dialog only closes on its own for a clean success.
-  if (state.status === "success") {
+  useEffect(() => {
+    if (state.status === "success" && !state.warning) onClose();
+  }, [state, onClose]);
+
+  if (state.status === "success" && state.warning) {
     return (
       <div className="flex flex-col gap-3">
         <p className="text-sm text-muted-foreground">{state.message}</p>
-        {state.warning ? (
-          <p className="rounded-md border border-alert-warning/60 bg-card px-3 py-2 text-sm">
-            {state.warning}
-          </p>
-        ) : null}
+        <p className="rounded-md border border-alert-warning/60 bg-card px-3 py-2 text-sm">
+          {state.warning}
+        </p>
         <Button type="button" variant="outline" onClick={onClose}>
           Fermer
         </Button>

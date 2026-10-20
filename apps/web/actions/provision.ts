@@ -27,10 +27,12 @@ import {
   unarchiveProvision,
 } from "@budget/domain";
 import { revalidatePath } from "next/cache";
+import { INVALID_AMOUNT, INVALID_REQUEST, notFound } from "@/actions/messages";
 import type { VariableEnvelopeActionState } from "@/actions/variable-envelope-state";
 import { resolveCurrentMonth } from "@/lib/current-month";
 import { recalculateOpenMonthSnapshotForUser } from "@/lib/recalculate-open-month";
 import { requireSession } from "@/lib/session";
+import { describeInvalidInput } from "@/schemas/describe-invalid-input";
 import {
   archiveProvisionSchema,
   closeProvisionSchema,
@@ -55,12 +57,12 @@ function toMoneyOrMessage(euros: number): Money | { message: string } {
   try {
     return moneyFromEuros(euros);
   } catch {
-    return { message: "Montant invalide (centimes uniquement)." };
+    return { message: INVALID_AMOUNT };
   }
 }
 
 function describeArchiveFailure(_error: ArchiveProvisionFailure): string {
-  return "Date d'archivage invalide : choisissez le mois en cours (sans opération) ou le mois suivant.";
+  return "Date d'archivage invalide : choisis le mois en cours (s'il n'a pas encore d'opération) ou le mois suivant.";
 }
 
 function describeUnarchiveFailure(): string {
@@ -85,7 +87,7 @@ export async function createProvisionAction(
   const session = await requireSession();
   const parsed = createProvisionSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) {
-    return { status: "error", message: parsed.error.issues[0]?.message ?? "Entrée invalide." };
+    return { status: "error", message: describeInvalidInput(parsed.error) };
   }
 
   const target = toMoneyOrMessage(parsed.data.targetEuros);
@@ -132,12 +134,12 @@ export async function updateProvisionGoalAction(
   const session = await requireSession();
   const parsed = updateProvisionGoalSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) {
-    return { status: "error", message: parsed.error.issues[0]?.message ?? "Entrée invalide." };
+    return { status: "error", message: describeInvalidInput(parsed.error) };
   }
 
   const existing = await findProvisionById(prisma, session.user.id, parsed.data.provisionId);
   if (!existing) {
-    return { status: "error", message: "Provision introuvable." };
+    return { status: "error", message: notFound("Provision") };
   }
   if (existing.type !== parsed.data.type) {
     return { status: "error", message: "Le type d'une provision ne peut pas être modifié." };
@@ -177,14 +179,14 @@ export async function archiveProvisionAction(
   const session = await requireSession();
   const parsed = archiveProvisionSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) {
-    return { status: "error", message: parsed.error.issues[0]?.message ?? "Entrée invalide." };
+    return { status: "error", message: describeInvalidInput(parsed.error) };
   }
 
   const currentMonth = resolveCurrentMonth();
   const effectiveFrom = resolveEffectiveFrom(parsed.data.effectiveFrom, currentMonth);
   const provision = await findProvisionById(prisma, session.user.id, parsed.data.provisionId);
   if (!provision) {
-    return { status: "error", message: "Provision introuvable." };
+    return { status: "error", message: notFound("Provision") };
   }
 
   const result = archiveProvision(
@@ -213,12 +215,12 @@ export async function unarchiveProvisionAction(
   const session = await requireSession();
   const parsed = unarchiveProvisionSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) {
-    return { status: "error", message: "Entrée invalide." };
+    return { status: "error", message: INVALID_REQUEST };
   }
 
   const provision = await findProvisionById(prisma, session.user.id, parsed.data.provisionId);
   if (!provision) {
-    return { status: "error", message: "Provision introuvable." };
+    return { status: "error", message: notFound("Provision") };
   }
 
   const result = unarchiveProvision(provision, resolveCurrentMonth());
@@ -238,12 +240,12 @@ export async function closeProvisionAction(
   const session = await requireSession();
   const parsed = closeProvisionSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) {
-    return { status: "error", message: "Entrée invalide." };
+    return { status: "error", message: INVALID_REQUEST };
   }
 
   const provision = await findProvisionById(prisma, session.user.id, parsed.data.provisionId);
   if (!provision) {
-    return { status: "error", message: "Provision introuvable." };
+    return { status: "error", message: notFound("Provision") };
   }
 
   const result = closeProvision(provision);
@@ -264,12 +266,12 @@ export async function renewProvisionAction(
   const session = await requireSession();
   const parsed = renewProvisionSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) {
-    return { status: "error", message: "Entrée invalide." };
+    return { status: "error", message: INVALID_REQUEST };
   }
 
   const provision = await findProvisionById(prisma, session.user.id, parsed.data.provisionId);
   if (!provision) {
-    return { status: "error", message: "Provision introuvable." };
+    return { status: "error", message: notFound("Provision") };
   }
 
   const result = renewProvision(provision, resolveCurrentMonth());
@@ -290,12 +292,12 @@ export async function extendProvisionAction(
   const session = await requireSession();
   const parsed = extendProvisionSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) {
-    return { status: "error", message: parsed.error.issues[0]?.message ?? "Entrée invalide." };
+    return { status: "error", message: describeInvalidInput(parsed.error) };
   }
 
   const provision = await findProvisionById(prisma, session.user.id, parsed.data.provisionId);
   if (!provision) {
-    return { status: "error", message: "Provision introuvable." };
+    return { status: "error", message: notFound("Provision") };
   }
 
   const result = extendProvision(provision, parseMonth(parsed.data.newDueMonth));

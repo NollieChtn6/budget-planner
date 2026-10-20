@@ -76,7 +76,10 @@ describe("createReimbursementForUser", () => {
       expenseId: expense.id,
     });
 
-    expect(result).toEqual({ status: "success", message: "Remboursement enregistré." });
+    expect(result).toEqual({
+      status: "success",
+      message: expect.stringMatching(/^Remboursement de 42,00\s€ enregistré\.$/),
+    });
     const saved = await findReimbursementsByUserAndMonth(prisma, user.id, currentMonth);
     expect(saved).toHaveLength(1);
     expect(moneyToCents(saved[0]?.amount ?? moneyFromEuros(-1))).toBe(4200);

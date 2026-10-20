@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   addVariableEnvelopeVersionAction,
   archiveVariableEnvelopeAction,
@@ -19,6 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useFeedbackActionState } from "@/lib/use-feedback-action-state";
 import {
   ArchiveNote,
   FormActions,
@@ -33,15 +34,15 @@ export function EnvelopeRow({ envelope }: { envelope: EnvelopeRowData }) {
   const [editing, setEditing] = useState<"value" | "archive" | null>(null);
   const [mode, setMode] = useState<"amount" | "percentage">(envelope.mode);
 
-  const [valueState, valueAction, valuePending] = useActionState(
+  const [valueState, valueAction, valuePending] = useFeedbackActionState(
     addVariableEnvelopeVersionAction,
     initialVariableEnvelopeActionState,
   );
-  const [archiveState, archiveAction, archivePending] = useActionState(
+  const [archiveState, archiveAction, archivePending] = useFeedbackActionState(
     archiveVariableEnvelopeAction,
     initialVariableEnvelopeActionState,
   );
-  const [unarchiveState, unarchiveAction, unarchivePending] = useActionState(
+  const [unarchiveState, unarchiveAction, unarchivePending] = useFeedbackActionState(
     unarchiveVariableEnvelopeAction,
     initialVariableEnvelopeActionState,
   );

@@ -1,12 +1,13 @@
 "use client";
 
-import { useActionState, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { closeMonthAction } from "@/actions/month";
 import { initialVariableEnvelopeActionState } from "@/actions/variable-envelope-state";
 import { Button } from "@/components/ui/button";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { formatEuros as euros } from "@/lib/format-money";
+import { useFeedbackActionState } from "@/lib/use-feedback-action-state";
 
 export function CloseMonthForm({
   envelopeRemainders,
@@ -28,7 +29,7 @@ export function CloseMonthForm({
   /** R33: next month already froze its instantané, so envelope/report rows can no longer change it. */
   nextMonthIsOpen: boolean;
 }) {
-  const [state, formAction, pending] = useActionState(
+  const [state, formAction, pending] = useFeedbackActionState(
     closeMonthAction,
     initialVariableEnvelopeActionState,
   );
@@ -174,9 +175,6 @@ export function CloseMonthForm({
           </p>
         ) : null}
         {state.status === "error" ? <FieldError>{state.message}</FieldError> : null}
-        {state.status === "success" ? (
-          <p className="text-sm text-muted-foreground">{state.message}</p>
-        ) : null}
         <Button type="submit" variant="destructive" disabled={pending}>
           {pending ? "Clôture..." : "Clôturer le mois"}
         </Button>

@@ -6,7 +6,7 @@ import {
   formatCalendarDate,
   moneyToEuros,
 } from "@budget/domain";
-import { useActionState, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { deleteContributionAction, updateContributionAction } from "@/actions/contribution";
 import { initialOperationActionState } from "@/actions/operation-state";
 import { Button } from "@/components/ui/button";
@@ -20,6 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { formatEuros } from "@/lib/format-money";
+import { useFeedbackActionState } from "@/lib/use-feedback-action-state";
 import {
   MutedText,
   OPERATION_EDIT_FULL_WIDTH_CLASS,
@@ -45,11 +46,11 @@ export function ContributionRow({
   editable: boolean;
 }) {
   const [isEditing, setIsEditing] = useState(false);
-  const [updateState, updateAction, updatePending] = useActionState(
+  const [updateState, updateAction, updatePending] = useFeedbackActionState(
     updateContributionAction,
     initialOperationActionState,
   );
-  const [deleteState, deleteAction, deletePending] = useActionState(
+  const [deleteState, deleteAction, deletePending] = useFeedbackActionState(
     deleteContributionAction,
     initialOperationActionState,
   );

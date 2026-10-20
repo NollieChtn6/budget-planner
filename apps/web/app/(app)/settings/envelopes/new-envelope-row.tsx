@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { createVariableEnvelopeAction } from "@/actions/variable-envelope";
 import { initialVariableEnvelopeActionState } from "@/actions/variable-envelope-state";
 import { EditableRow } from "@/components/editable-row";
@@ -14,6 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useFeedbackActionState } from "@/lib/use-feedback-action-state";
 import {
   FormActions,
   FormField,
@@ -23,7 +24,7 @@ import {
 
 export function NewEnvelopeRow({ onDone }: { onDone: () => void }) {
   const [mode, setMode] = useState<"amount" | "percentage">("amount");
-  const [state, action, pending] = useActionState(
+  const [state, action, pending] = useFeedbackActionState(
     createVariableEnvelopeAction,
     initialVariableEnvelopeActionState,
   );

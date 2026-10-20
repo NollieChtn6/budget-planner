@@ -19,10 +19,12 @@ import {
   unarchiveFixedEntry,
 } from "@budget/domain";
 import { revalidatePath } from "next/cache";
+import { INVALID_AMOUNT, INVALID_REQUEST, notFound } from "@/actions/messages";
 import type { VariableEnvelopeActionState } from "@/actions/variable-envelope-state";
 import { resolveCurrentMonth } from "@/lib/current-month";
 import { recalculateOpenMonthSnapshotForUser } from "@/lib/recalculate-open-month";
 import { requireSession } from "@/lib/session";
+import { describeInvalidInput } from "@/schemas/describe-invalid-input";
 import {
   addFixedEntryVersionSchema,
   archiveFixedEntrySchema,
@@ -40,16 +42,16 @@ function toMoneyOrMessage(euros: number): Money | { message: string } {
   try {
     return moneyFromEuros(euros);
   } catch {
-    return { message: "Montant invalide (centimes uniquement)." };
+    return { message: INVALID_AMOUNT };
   }
 }
 
 function describeAddVersionFailure(): string {
-  return "Date d'effet invalide : choisissez le mois en cours ou le mois suivant.";
+  return "Date d'effet invalide : choisis le mois en cours ou le mois suivant.";
 }
 
 function describeArchiveFailure(_error: ArchiveFixedEntryFailure): string {
-  return "Date d'archivage invalide : choisissez le mois en cours (sans opération) ou le mois suivant.";
+  return "Date d'archivage invalide : choisis le mois en cours (s'il n'a pas encore d'opération) ou le mois suivant.";
 }
 
 function describeUnarchiveFailure(): string {
@@ -63,7 +65,7 @@ export async function createFixedEntryAction(
   const session = await requireSession();
   const parsed = createFixedEntrySchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) {
-    return { status: "error", message: parsed.error.issues[0]?.message ?? "Entrée invalide." };
+    return { status: "error", message: describeInvalidInput(parsed.error) };
   }
 
   const currentMonth = resolveCurrentMonth();
@@ -107,12 +109,12 @@ export async function addFixedEntryVersionAction(
   const session = await requireSession();
   const parsed = addFixedEntryVersionSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) {
-    return { status: "error", message: parsed.error.issues[0]?.message ?? "Entrée invalide." };
+    return { status: "error", message: describeInvalidInput(parsed.error) };
   }
 
   const existing = await findFixedEntryById(prisma, session.user.id, parsed.data.fixedEntryId);
   if (!existing) {
-    return { status: "error", message: "Poste fixe introuvable." };
+    return { status: "error", message: notFound("Poste fixe") };
   }
 
   const currentMonth = resolveCurrentMonth();
@@ -148,14 +150,14 @@ export async function archiveFixedEntryAction(
   const session = await requireSession();
   const parsed = archiveFixedEntrySchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) {
-    return { status: "error", message: parsed.error.issues[0]?.message ?? "Entrée invalide." };
+    return { status: "error", message: describeInvalidInput(parsed.error) };
   }
 
   const currentMonth = resolveCurrentMonth();
   const effectiveFrom = resolveEffectiveFrom(parsed.data.effectiveFrom, currentMonth);
   const fixedEntry = await findFixedEntryById(prisma, session.user.id, parsed.data.fixedEntryId);
   if (!fixedEntry) {
-    return { status: "error", message: "Poste fixe introuvable." };
+    return { status: "error", message: notFound("Poste fixe") };
   }
 
   const result = archiveFixedEntry(
@@ -184,12 +186,12 @@ export async function unarchiveFixedEntryAction(
   const session = await requireSession();
   const parsed = unarchiveFixedEntrySchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) {
-    return { status: "error", message: "Entrée invalide." };
+    return { status: "error", message: INVALID_REQUEST };
   }
 
   const fixedEntry = await findFixedEntryById(prisma, session.user.id, parsed.data.fixedEntryId);
   if (!fixedEntry) {
-    return { status: "error", message: "Poste fixe introuvable." };
+    return { status: "error", message: notFound("Poste fixe") };
   }
 
   const result = unarchiveFixedEntry(fixedEntry, resolveCurrentMonth());

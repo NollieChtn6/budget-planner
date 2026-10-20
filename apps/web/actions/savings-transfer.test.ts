@@ -47,7 +47,10 @@ describe("createSavingsTransferForUser", () => {
       date: today,
     });
 
-    expect(result).toEqual({ status: "success", message: "Transfert enregistré." });
+    expect(result).toEqual({
+      status: "success",
+      message: expect.stringMatching(/^Transfert de 40,00\s€ enregistré\.$/),
+    });
     const saved = await findSavingsTransfersByUserAndMonth(prisma, user.id, currentMonth);
     expect(saved).toHaveLength(1);
     expect(moneyToCents(saved[0]?.amount ?? moneyFromEuros(-1))).toBe(4000);

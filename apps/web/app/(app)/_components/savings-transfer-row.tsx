@@ -7,7 +7,7 @@ import {
   type SavingsTransferKind,
 } from "@budget/domain";
 import { SparklesIcon } from "lucide-react";
-import { useActionState, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { initialOperationActionState } from "@/actions/operation-state";
 import {
   deleteSavingsTransferAction,
@@ -16,6 +16,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { FieldError, FieldGroup } from "@/components/ui/field";
 import { formatEuros } from "@/lib/format-money";
+import { useFeedbackActionState } from "@/lib/use-feedback-action-state";
 import {
   MutedText,
   OPERATION_EDIT_FULL_WIDTH_CLASS,
@@ -39,11 +40,11 @@ export function SavingsTransferRow({
 }) {
   const [isEditing, setIsEditing] = useState(false);
   const [kind, setKind] = useState<SavingsTransferKind>(savingsTransfer.kind);
-  const [updateState, updateAction, updatePending] = useActionState(
+  const [updateState, updateAction, updatePending] = useFeedbackActionState(
     updateSavingsTransferAction,
     initialOperationActionState,
   );
-  const [deleteState, deleteAction, deletePending] = useActionState(
+  const [deleteState, deleteAction, deletePending] = useFeedbackActionState(
     deleteSavingsTransferAction,
     initialOperationActionState,
   );

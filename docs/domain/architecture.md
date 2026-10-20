@@ -78,6 +78,11 @@ packages/db/
 5. Elle persiste via `@budget/db`, puis invalide le cache des pages concernées (`revalidatePath`).
 6. Elle renvoie un résultat que le formulaire traduit en message.
 
+**Retours à l'utilisateur.** Une action renvoie `{ status, message }`, en français et au tutoiement.
+- Une erreur reste en ligne dans le formulaire, près du champ concerné. Les erreurs de validation Zod passent par `describeInvalidInput` (`schemas/`), qui choisit le message par champ ; les phrases communes (mois fermé, élément introuvable…) sont dans `actions/messages.ts`.
+- Un succès est confirmé par un toast Sonner (`useFeedbackActionState`, qui remplace `useActionState` dans les formulaires). Un succès accompagné d'un avertissement (R37) n'est pas toasté : le formulaire garde l'avertissement lisible.
+- Les erreurs de Better Auth, en anglais, sont traduites par `describeAuthError` (`lib/auth-error-message.ts`).
+
 ### Opérations de mois : ouvrir, clôturer, rouvrir
 
 Même schéma, avec une contrainte de plus : toutes les écritures d'une opération de mois se font dans **une seule transaction**. L'ouverture crée le mois et toutes ses lignes d'instantané ; la clôture enregistre la répartition du reliquat, les versements qui en découlent et le changement de statut. Aucun état intermédiaire ne doit être visible.

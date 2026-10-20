@@ -2,20 +2,13 @@
 
 import type { CalendarDate } from "@budget/domain";
 import { Landmark, Mail, PiggyBank } from "lucide-react";
-import { type ReactNode, useEffect, useRef, useState } from "react";
+import { type ReactNode, useState } from "react";
+import { ConfirmForm } from "@/components/confirm-form";
+import { EditableRow } from "@/components/editable-row";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { FieldError } from "@/components/ui/field";
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
 import { TableCell, TableRow } from "@/components/ui/table";
-import { MOBILE_TOUCH_TARGETS } from "@/lib/touch-targets";
-import { useIsDesktop } from "@/lib/use-is-desktop";
 
 /** Date, Imputé à, Lieu, Description, Catégorie, Montant, then Actions on an editable month (docs/ui maquette, opsTable). */
 export const OPERATION_COLUMN_COUNT = 7;
@@ -172,196 +165,57 @@ function OperationActions({
   );
 }
 
-/**
- * Supprimer takes two steps: a first press asks, a second one deletes (no undo on a ledger line).
- * Focus moves to the safe answer when asked, and back to Supprimer when the user declines.
- */
 function DeleteControl({
   deletion,
   block = false,
   onConfirmingChange,
 }: {
   deletion: DeleteControls;
-  /** Full-width layout, for the edit sheet. */
   block?: boolean;
   onConfirmingChange?: (confirming: boolean) => void;
 }) {
-  const [confirming, setConfirming] = useState(false);
-  const triggerRef = useRef<HTMLButtonElement>(null);
-  const declineRef = useRef<HTMLButtonElement>(null);
-  const hasAsked = useRef(false);
-
-  useEffect(() => {
-    if (confirming) {
-      hasAsked.current = true;
-      declineRef.current?.focus();
-    } else if (hasAsked.current) {
-      triggerRef.current?.focus();
-    }
-  }, [confirming]);
-
-  function setAsking(next: boolean) {
-    setConfirming(next);
-    onConfirmingChange?.(next);
-  }
-
   return (
-    <form
+    <ConfirmForm
       action={deletion.action}
-      className={block ? "flex flex-col gap-2" : "flex items-center gap-1"}
-    >
-      <input type="hidden" name="id" value={deletion.id} />
-      {confirming ? (
-        <>
-          {block ? (
-            <span className="text-sm">Supprimer définitivement cette opération ?</span>
-          ) : (
-            <span className="sr-only">Supprimer cette opération ?</span>
-          )}
-          <div className={block ? "grid grid-cols-2 gap-2" : "flex gap-1"}>
-            <Button
-              type="submit"
-              variant="destructive"
-              size={block ? "default" : "sm"}
-              disabled={deletion.pending}
-            >
-              {deletion.pending ? "Suppression..." : block ? "Supprimer" : "Oui, supprimer"}
-            </Button>
-            <Button
-              ref={declineRef}
-              type="button"
-              variant={block ? "outline" : "ghost"}
-              size={block ? "default" : "sm"}
-              onClick={() => setAsking(false)}
-            >
-              Garder
-            </Button>
-          </div>
-        </>
-      ) : (
-        <Button
-          ref={triggerRef}
-          type="button"
-          variant={block ? "outline" : "ghost"}
-          size={block ? "default" : "sm"}
-          className={block ? "w-full text-destructive" : "hover:text-destructive"}
-          onClick={() => setAsking(true)}
-        >
-          {block ? "Supprimer l'opération" : "Supprimer"}
-        </Button>
-      )}
-    </form>
+      fields={{ id: deletion.id }}
+      pending={deletion.pending}
+      trigger={block ? "Supprimer l'opération" : "Supprimer"}
+      question={
+        block ? "Supprimer définitivement cette opération ?" : "Supprimer cette opération ?"
+      }
+      confirm={block ? "Supprimer" : "Oui, supprimer"}
+      pendingLabel="Suppression..."
+      block={block}
+      onConfirmingChange={onConfirmingChange}
+    />
   );
 }
 
-/**
- * Shows an operation, and its edit form while `isEditing`: in place of the row from `md`, in a
- * bottom sheet over the card below it. The form is rendered once, so it keeps its state either way.
- */
+/** An operation and its edit form: see `EditableRow`. Supprimer sits in the sheet, next to Modifier on a table row. */
 export function OperationRow({
-  isEditing,
-  onClose,
-  title,
-  read,
   deletion,
-  children,
+  ...props
 }: {
   isEditing: boolean;
   onClose: () => void;
   title: string;
   read: ReactNode;
-  /** Shown in the sheet only: on a table row, Supprimer sits next to Modifier. */
-  deletion?: DeleteControls;
-  children: ReactNode;
-}) {
-  const isDesktop = useIsDesktop();
-
-  if (isEditing && isDesktop) {
-    return <OperationEditRow onClose={onClose}>{children}</OperationEditRow>;
-  }
-
-  return (
-    <>
-      {read}
-      {isEditing ? (
-        <OperationEditSheet title={title} onClose={onClose} deletion={deletion}>
-          {children}
-        </OperationEditSheet>
-      ) : null}
-    </>
-  );
-}
-
-/** A row's edit form replaces the read-only row; it is capped so it stays within the screen when the table scrolls sideways. */
-export function OperationEditRow({
-  onClose,
-  children,
-}: {
-  onClose: () => void;
-  children: ReactNode;
-}) {
-  const formRef = useRef<HTMLDivElement>(null);
-
-  // The row it replaces held the focus: move it to the first field. Escape cancels.
-  useEffect(() => {
-    const form = formRef.current;
-    form?.querySelector<HTMLElement>("input:not([type=hidden]), button")?.focus();
-    const cancelOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
-    };
-    form?.addEventListener("keydown", cancelOnEscape);
-    return () => form?.removeEventListener("keydown", cancelOnEscape);
-  }, [onClose]);
-
-  return (
-    <TableRow className="hover:bg-transparent">
-      <TableCell colSpan={OPERATION_COLUMN_COUNT} className="whitespace-normal py-4">
-        <div ref={formRef} className="max-w-3xl">
-          {children}
-        </div>
-      </TableCell>
-    </TableRow>
-  );
-}
-
-function OperationEditSheet({
-  title,
-  onClose,
-  deletion,
-  children,
-}: {
-  title: string;
-  onClose: () => void;
   deletion?: DeleteControls;
   children: ReactNode;
 }) {
   return (
-    <Sheet
-      open
-      onOpenChange={(open) => {
-        if (!open) onClose();
-      }}
-    >
-      <SheetContent
-        side="bottom"
-        showCloseButton={false}
-        className={`max-h-[90dvh] overflow-y-auto rounded-t-xl pb-[env(safe-area-inset-bottom)] ${MOBILE_TOUCH_TARGETS}`}
-      >
-        <SheetHeader>
-          <SheetTitle>{title}</SheetTitle>
-          <SheetDescription className="sr-only">
-            Modifie les champs puis enregistre, ou ferme pour annuler.
-          </SheetDescription>
-        </SheetHeader>
-        <div className="px-4 pb-4">{children}</div>
-        {deletion ? (
+    <EditableRow
+      {...props}
+      colSpan={OPERATION_COLUMN_COUNT}
+      footer={
+        deletion ? (
           <div className="flex flex-col gap-2 border-t px-4 py-4">
             <DeleteControl deletion={deletion} block />
             {deletion.error ? <FieldError>{deletion.error}</FieldError> : null}
           </div>
-        ) : null}
-      </SheetContent>
-    </Sheet>
+        ) : null
+      }
+    />
   );
 }
 

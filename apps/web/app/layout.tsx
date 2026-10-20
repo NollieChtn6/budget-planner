@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Hanken_Grotesk, Source_Serif_4 } from "next/font/google";
 import { ServiceWorkerRegister } from "@/components/service-worker-register";
+import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
 
 const sans = Hanken_Grotesk({
@@ -44,6 +45,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       </head>
       <body className="min-h-full flex flex-col">
         {children}
+        <Toaster />
         <ServiceWorkerRegister />
       </body>
     </html>

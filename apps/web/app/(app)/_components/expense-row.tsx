@@ -1,7 +1,7 @@
 "use client";
 
 import { type Expense, type ExpenseSource, formatCalendarDate, moneyToEuros } from "@budget/domain";
-import { useActionState, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { deleteExpenseAction, updateExpenseAction } from "@/actions/expense";
 import { initialExpenseActionState } from "@/actions/expense-state";
 import { initialVariableEnvelopeActionState } from "@/actions/variable-envelope-state";
@@ -20,16 +20,15 @@ import {
 } from "@/components/ui/select";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { formatEuros } from "@/lib/format-money";
+import { useFeedbackActionState } from "@/lib/use-feedback-action-state";
 import {
-  AmountCell,
   CategoryTag,
-  formatDay,
   OPERATION_COLUMN_COUNT,
   OPERATION_EDIT_FULL_WIDTH_CLASS,
   OPERATION_EDIT_GRID_CLASS,
-  OperationActions,
-  OperationEditRow,
-  ProvisionTarget,
+  OperationReadRow,
+  OperationRow,
+  TargetChip,
 } from "./operation-table-parts";
 import { ProvisionExhaustionPrompt } from "./provision-exhaustion-prompt";
 
@@ -61,11 +60,11 @@ export function ExpenseRow({
   editable: boolean;
 }) {
   const [isEditing, setIsEditing] = useState(false);
-  const [updateState, updateAction, updatePending] = useActionState(
+  const [updateState, updateAction, updatePending] = useFeedbackActionState(
     updateExpenseAction,
     initialExpenseActionState,
   );
-  const [deleteState, deleteAction, deletePending] = useActionState(
+  const [deleteState, deleteAction, deletePending] = useFeedbackActionState(
     deleteExpenseAction,
     initialVariableEnvelopeActionState,
   );
@@ -82,8 +81,8 @@ export function ExpenseRow({
 
   if (updateState.provisionExhausted && !exhaustionResolved) {
     return (
-      <TableRow className="hover:bg-transparent">
-        <TableCell colSpan={OPERATION_COLUMN_COUNT} className="whitespace-normal">
+      <TableRow className="hover:bg-transparent max-md:block">
+        <TableCell colSpan={OPERATION_COLUMN_COUNT} className="whitespace-normal max-md:block">
           <ProvisionExhaustionPrompt
             provisionId={updateState.provisionExhausted.provisionId}
             label={updateState.provisionExhausted.label}
@@ -94,13 +93,20 @@ export function ExpenseRow({
     );
   }
 
-  if (!isEditing) {
-    return (
-      <TableRow>
-        <TableCell className="tabular-nums">{formatDay(expense.date)}</TableCell>
-        <TableCell>{expense.place ?? ""}</TableCell>
-        <TableCell className="min-w-40 whitespace-normal">
-          {expense.description ?? ""}
+  const deletion = {
+    id: expense.id,
+    action: deleteAction,
+    pending: deletePending,
+    error: deleteState.status === "error" ? deleteState.message : undefined,
+  };
+  const read = (
+    <OperationReadRow
+      date={expense.date}
+      target={<TargetChip kind={expense.source.type} label={targetLabel} />}
+      place={expense.place}
+      description={
+        <>
+          {expense.description}
           {expense.savingsDraw ? (
             <>
               {" "}
@@ -109,33 +115,27 @@ export function ExpenseRow({
               </Badge>
             </>
           ) : null}
-        </TableCell>
-        <TableCell>{category ? <CategoryTag {...category} /> : null}</TableCell>
-        <TableCell>
-          {expense.source.type === "provision" ? (
-            <ProvisionTarget label={targetLabel} />
-          ) : (
-            targetLabel
-          )}
-        </TableCell>
-        <AmountCell incoming={false}>{formatEuros(moneyToEuros(expense.amount))}</AmountCell>
-        {editable ? (
-          <OperationActions
-            id={expense.id}
-            onEdit={() => setIsEditing(true)}
-            deleteAction={deleteAction}
-            deletePending={deletePending}
-            error={deleteState.status === "error" ? deleteState.message : undefined}
-          />
-        ) : null}
-      </TableRow>
-    );
-  }
+        </>
+      }
+      category={category ? <CategoryTag {...category} /> : null}
+      amount={formatEuros(moneyToEuros(expense.amount))}
+      incoming={false}
+      editable={editable}
+      editLabel={`Modifier ${expense.place ?? expense.description ?? "la dépense"}`}
+      edit={{ onEdit: () => setIsEditing(true), delete: deletion }}
+    />
+  );
 
   const defaultTarget = targetValue(expense.source);
 
   return (
-    <OperationEditRow>
+    <OperationRow
+      isEditing={isEditing}
+      onClose={() => setIsEditing(false)}
+      title="Modifier la dépense"
+      read={read}
+      deletion={deletion}
+    >
       <form action={updateAction}>
         <input type="hidden" name="id" value={expense.id} />
         <FieldGroup className={OPERATION_EDIT_GRID_CLASS}>
@@ -239,6 +239,6 @@ export function ExpenseRow({
           </div>
         </FieldGroup>
       </form>
-    </OperationEditRow>
+    </OperationRow>
   );
 }

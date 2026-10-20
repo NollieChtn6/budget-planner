@@ -30,13 +30,23 @@ import {
   parseMonth,
   sumMoney,
 } from "@budget/domain";
+import Link from "next/link";
 import type { ReactNode } from "react";
 import { MonthNav } from "@/components/month-nav";
 import { Badge } from "@/components/ui/badge";
-import { Table, TableBody, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { buttonVariants } from "@/components/ui/button";
+import {
+  Table,
+  TableBody,
+  TableCaption,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { resolveActiveMonth } from "@/lib/current-month";
 import { toExpenseLinkOptions } from "@/lib/expense-link-options";
 import { formatEuros } from "@/lib/format-money";
+import { formatMonthLabel } from "@/lib/format-month-label";
 import { requireSession } from "@/lib/session";
 import { AddOperationDialogs } from "../_components/add-operation-dialogs";
 import { ContributionRow } from "../_components/contribution-row";
@@ -53,6 +63,32 @@ function clampMonth(month: Month, min: Month, max: Month): Month {
   if (isMonthBefore(month, min)) return min;
   if (isMonthAfter(month, max)) return max;
   return month;
+}
+
+/** One figure of the month's summary; an incoming figure that is nil reads "—" rather than "+0,00 €". */
+function Total({
+  label,
+  amount,
+  incoming = false,
+  note,
+}: {
+  label: string;
+  amount: Money;
+  incoming?: boolean;
+  note?: string;
+}) {
+  const nil = incoming && amount.cents === 0;
+  return (
+    <div className="flex flex-col gap-0.5">
+      <dt className="text-[13px] text-muted-foreground">{label}</dt>
+      <dd
+        className={`font-heading text-lg tabular-nums ${nil ? "text-muted-foreground" : incoming ? "text-positive" : "text-foreground"}`}
+      >
+        {nil ? "—" : `${incoming ? "+" : ""}${formatEuros(moneyToEuros(amount))}`}
+      </dd>
+      {note ? <dd className="text-[13px] text-muted-foreground">{note}</dd> : null}
+    </div>
+  );
 }
 
 /** One line of the operations table, whatever its kind (docs/ui maquette, opsTable). */
@@ -91,8 +127,19 @@ export default async function OperationsPage({
   const viewedMonth = clampMonth(requestedMonth, firstMonth, activeMonth);
 
   const q = (params.q ?? "").trim();
-  const categoryId = params.category ?? "";
-  const buildHref = (month: Month) => `/operations?month=${formatMonth(month)}`;
+  const requestedCategoryId = params.category ?? "";
+  // Month navigation keeps the search and the category filter.
+  const buildHref = (month: Month) => {
+    const query = new URLSearchParams({ month: formatMonth(month) });
+    if (q) query.set("q", q);
+    if (requestedCategoryId) query.set("category", requestedCategoryId);
+    return `/operations?${query.toString()}`;
+  };
+
+  // Only the latest closed month can be reopened, and only while no month is open (R29).
+  const latestClosed = closedMonths[0];
+  const canReopen =
+    !openMonthRow && latestClosed !== undefined && isSameMonth(latestClosed.month, viewedMonth);
 
   const budgetMonth = await findBudgetMonthByMonth(prisma, session.user.id, viewedMonth);
 
@@ -108,7 +155,19 @@ export default async function OperationsPage({
               max={activeMonth}
               buildHref={buildHref}
             />
-            {budgetMonth?.status === "closed" ? <Badge>Clôturé, lecture seule</Badge> : null}
+            {budgetMonth?.status === "closed" ? (
+              <>
+                <Badge>Clôturé, lecture seule</Badge>
+                {canReopen ? (
+                  <Link
+                    href={`/history/${formatMonth(viewedMonth)}`}
+                    className="text-sm text-muted-foreground underline-offset-4 hover:underline"
+                  >
+                    Rouvrir depuis l'historique
+                  </Link>
+                ) : null}
+              </>
+            ) : null}
           </div>
         </div>
         {actions}
@@ -120,7 +179,18 @@ export default async function OperationsPage({
     return (
       <div className="flex flex-col gap-6">
         {renderHead()}
-        <p className="text-sm text-muted-foreground">Aucune opération ce mois-là.</p>
+        {isSameMonth(viewedMonth, activeMonth) ? (
+          <div className="flex flex-wrap items-center gap-3">
+            <p className="text-sm text-muted-foreground">
+              Ouvre {formatMonthLabel(viewedMonth)} pour saisir des opérations.
+            </p>
+            <Link href="/" className={buttonVariants({ variant: "outline", size: "sm" })}>
+              Ouvrir le mois
+            </Link>
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground">Aucune opération ce mois-là.</p>
+        )}
       </div>
     );
   }
@@ -149,6 +219,10 @@ export default async function OperationsPage({
     findLastUsedCategoryIdByUser(prisma, session.user.id),
   ]);
 
+  // A category from an old link that no longer exists filters nothing, instead of hiding every row.
+  const categoryId = categories.some((category) => category.id === requestedCategoryId)
+    ? requestedCategoryId
+    : "";
   const categoriesById = new Map(categories.map((category) => [category.id, category]));
   const provisionLabels = new Map(
     budgetMonth.provisionTargets.map((entry) => [entry.provisionId, entry.label]),
@@ -292,6 +366,15 @@ export default async function OperationsPage({
     .filter((item) => !qLower || item.searchText.toLowerCase().includes(qLower))
     .sort((a, b) => compareCalendarDates(a.date, b.date) || a.kindOrder - b.kindOrder);
 
+  const filtering = Boolean(q || categoryId);
+  const categoryLabel = categoryId ? categoriesById.get(categoryId)?.label : undefined;
+  const noMatchMessage =
+    q && categoryLabel
+      ? `Aucune opération ne correspond à « ${q} » dans la catégorie ${categoryLabel}.`
+      : q
+        ? `Aucune opération ne correspond à « ${q} ».`
+        : `Aucune opération dans la catégorie ${categoryLabel}.`;
+
   const totalOf = (amounts: { amount: Money }[]) => sumMoney(amounts.map((entry) => entry.amount));
   const totalSpent = totalOf(expenses);
   const totalTransferred = totalOf(savingsTransfers);
@@ -319,7 +402,6 @@ export default async function OperationsPage({
       categories={activeCategories}
       minDate={minDate}
       maxDate={maxDate}
-      defaultDate={new Date().toISOString().slice(0, 10)}
       knownPlaces={knownPlaces}
       lastUsedCategoryId={lastUsedCategoryId}
     />
@@ -328,39 +410,20 @@ export default async function OperationsPage({
   return (
     <div className="flex flex-col gap-6">
       {renderHead(dialogs)}
-      <div className="flex flex-wrap gap-x-7 gap-y-2 text-sm text-muted-foreground">
-        <span>
-          Dépensé{" "}
-          <strong className="font-heading text-base text-foreground">
-            {formatEuros(moneyToEuros(totalSpent))}
-          </strong>
-        </span>
-        <span>
-          Mis de côté{" "}
-          <strong className="font-heading text-base text-foreground">
-            {formatEuros(moneyToEuros(totalSetAside))}
-          </strong>
-          {totalTransferred.cents > 0 ? (
-            <> dont {formatEuros(moneyToEuros(totalTransferred))} vers l'épargne</>
-          ) : null}
-        </span>
-        {totalReimbursed.cents > 0 ? (
-          <span>
-            Remboursé{" "}
-            <strong className="font-heading text-base text-positive">
-              +{formatEuros(moneyToEuros(totalReimbursed))}
-            </strong>
-          </span>
-        ) : null}
-        {totalExtraIncome.cents > 0 ? (
-          <span>
-            Entrées exceptionnelles{" "}
-            <strong className="font-heading text-base text-positive">
-              +{formatEuros(moneyToEuros(totalExtraIncome))}
-            </strong>
-          </span>
-        ) : null}
-      </div>
+      <dl className="grid grid-cols-2 gap-x-6 gap-y-4 md:grid-cols-[repeat(4,max-content)] md:gap-x-10">
+        <Total label="Dépensé" amount={totalSpent} />
+        <Total
+          label="Mis de côté"
+          amount={totalSetAside}
+          note={
+            totalTransferred.cents > 0
+              ? `dont ${formatEuros(moneyToEuros(totalTransferred))} vers l'épargne`
+              : undefined
+          }
+        />
+        <Total label="Remboursé" amount={totalReimbursed} incoming />
+        <Total label="Entrées exceptionnelles" amount={totalExtraIncome} incoming />
+      </dl>
       <OperationsFilters
         month={formatMonth(viewedMonth)}
         q={q}
@@ -368,31 +431,55 @@ export default async function OperationsPage({
         categories={categories}
       />
 
-      <div className="overflow-x-auto rounded-xl border bg-card">
-        {visibleItems.length > 0 ? (
-          <Table className="[&_td]:px-3 [&_th]:px-3">
-            <TableHeader>
-              <TableRow>
-                <TableHead className="text-muted-foreground">Date</TableHead>
-                <TableHead className="text-muted-foreground">Lieu</TableHead>
-                <TableHead className="text-muted-foreground">Description</TableHead>
-                <TableHead className="text-muted-foreground">Catégorie</TableHead>
-                <TableHead className="text-muted-foreground">Imputé à</TableHead>
-                <TableHead className="text-right text-muted-foreground">Montant</TableHead>
-                {editable ? <TableHead /> : null}
-              </TableRow>
-            </TableHeader>
-            <TableBody>{visibleItems.map((item) => item.row)}</TableBody>
-          </Table>
-        ) : (
-          <p className="p-4 text-sm text-muted-foreground">
-            {items.length > 0
-              ? "Aucune opération ne correspond à ta recherche."
-              : editable
-                ? "Aucune opération pour l'instant. Ajoute une dépense avec le bouton en haut à droite, ou la touche N."
-                : "Aucune opération ce mois-là."}
-          </p>
-        )}
+      <div className="flex flex-col gap-2">
+        <p role="status" className={filtering ? "text-sm text-muted-foreground" : "sr-only"}>
+          {visibleItems.length} {visibleItems.length > 1 ? "opérations" : "opération"}
+          {filtering ? ` sur ${items.length}` : ""}
+        </p>
+        <div className="overflow-hidden rounded-xl border bg-card">
+          {visibleItems.length > 0 ? (
+            <Table className="max-md:block md:[&_td]:px-3 md:[&_th]:px-3">
+              <TableCaption className="sr-only">
+                Opérations, {formatMonthLabel(viewedMonth)}
+              </TableCaption>
+              <TableHeader className="max-md:sr-only">
+                <TableRow>
+                  <TableHead className="text-muted-foreground">Date</TableHead>
+                  <TableHead className="text-muted-foreground">Imputé à</TableHead>
+                  <TableHead className="text-muted-foreground">Lieu ou type</TableHead>
+                  <TableHead className="text-muted-foreground">Description</TableHead>
+                  <TableHead className="text-muted-foreground">Catégorie</TableHead>
+                  <TableHead className="text-right text-muted-foreground">Montant</TableHead>
+                  {editable ? <TableHead /> : null}
+                </TableRow>
+              </TableHeader>
+              <TableBody className="max-md:block">{visibleItems.map((item) => item.row)}</TableBody>
+            </Table>
+          ) : (
+            <div className="flex flex-col items-start gap-3 p-4">
+              <p className="text-sm text-muted-foreground">
+                {items.length > 0 ? (
+                  noMatchMessage
+                ) : editable ? (
+                  <>
+                    Aucune opération pour l'instant. Ajoute une dépense avec « Nouvelle dépense »
+                    <span className="max-md:hidden">, ou avec la touche N</span>.
+                  </>
+                ) : (
+                  "Aucune opération ce mois-là."
+                )}
+              </p>
+              {items.length > 0 ? (
+                <Link
+                  href={`/operations?month=${formatMonth(viewedMonth)}`}
+                  className={buttonVariants({ variant: "outline", size: "sm" })}
+                >
+                  Effacer les filtres
+                </Link>
+              ) : null}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

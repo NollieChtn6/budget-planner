@@ -67,6 +67,7 @@ En cas d'erreur découverte après coup, elle peut rouvrir le dernier mois clôt
 - **Provisions** : une carte par provision, avec versement et dépense directs.
 - **Saisie rapide** : dépense, versement, remboursement, entrée exceptionnelle ou transfert vers l'épargne, optimisée pour le mobile.
 - **Paramètres** : postes fixes, enveloppes, provisions, catégories.
+- **Profil** (`/profile`, depuis l'icône en pied de navigation) : modifier son prénom et son mot de passe ; l'email s'affiche en lecture seule. La gestion du second facteur (codes de secours, réenrôlement) et le changement d'email n'y sont pas proposés.
 - **Ouverture** et **clôture** du mois.
 - **Liste des opérations** d'un mois au choix (mois actif par défaut), avec recherche et filtre par catégorie ; modifiables uniquement pour le mois actif ouvert.
 

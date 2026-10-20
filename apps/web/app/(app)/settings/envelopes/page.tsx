@@ -1,9 +1,22 @@
 import { findVariableEnvelopesByUser, prisma } from "@budget/db";
-import { activeVersionAt, compareMonths, formatMonth, moneyToEuros } from "@budget/domain";
+import {
+  activeVersionAt,
+  compareMonths,
+  isMonthAfter,
+  moneyToEuros,
+  type VariableEnvelopeVersion,
+} from "@budget/domain";
 import { resolveCurrentMonth } from "@/lib/current-month";
 import { formatEuros } from "@/lib/format-money";
+import { formatFromMonthLabel } from "@/lib/format-month-label";
 import { requireSession } from "@/lib/session";
 import { type EnvelopeRowData, EnvelopeTable } from "./envelope-table";
+
+function valueLabelOf(version: VariableEnvelopeVersion): string {
+  return version.mode === "amount"
+    ? formatEuros(moneyToEuros(version.value))
+    : `${version.value} %`;
+}
 
 export default async function EnvelopesSettingsPage() {
   const session = await requireSession();
@@ -14,19 +27,24 @@ export default async function EnvelopesSettingsPage() {
     const displayed =
       activeVersionAt(envelope, currentMonth) ??
       [...envelope.versions].sort((a, b) => compareMonths(b.effectiveFrom, a.effectiveFrom))[0];
+    const upcoming = envelope.versions
+      .filter((version) => isMonthAfter(version.effectiveFrom, currentMonth))
+      .sort((a, b) => compareMonths(a.effectiveFrom, b.effectiveFrom))[0];
 
     return {
       id: envelope.id,
       label: displayed?.label ?? "",
-      archivedFrom: envelope.archivedFrom ? formatMonth(envelope.archivedFrom) : null,
+      archivedFromLabel: envelope.archivedFrom ? formatFromMonthLabel(envelope.archivedFrom) : null,
       mode: displayed?.mode ?? "amount",
-      valueLabel: displayed
-        ? displayed.mode === "amount"
-          ? formatEuros(moneyToEuros(displayed.value))
-          : `${displayed.value} %`
-        : "—",
+      valueLabel: displayed ? valueLabelOf(displayed) : "—",
       amountEuros: displayed?.mode === "amount" ? moneyToEuros(displayed.value) : null,
       percentage: displayed?.mode === "percentage" ? displayed.value : null,
+      upcoming: upcoming
+        ? {
+            valueLabel: valueLabelOf(upcoming),
+            fromLabel: formatFromMonthLabel(upcoming.effectiveFrom),
+          }
+        : null,
     };
   });
 
@@ -37,7 +55,7 @@ export default async function EnvelopesSettingsPage() {
 
   return (
     <div className="flex flex-col gap-2">
-      <h2 className="font-heading text-xl">Enveloppes variables</h2>
+      <h2 className="sr-only">Enveloppes variables</h2>
       <EnvelopeTable rows={rows} activePercentageSum={activePercentageSum} />
     </div>
   );

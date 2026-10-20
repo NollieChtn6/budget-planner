@@ -1,24 +1,22 @@
 "use client";
 
 import { formatCalendarDate, moneyToEuros, type Reimbursement } from "@budget/domain";
-import { useActionState, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { deleteReimbursementAction, updateReimbursementAction } from "@/actions/reimbursement";
 import { initialReimbursementActionState } from "@/actions/reimbursement-state";
 import { initialVariableEnvelopeActionState } from "@/actions/variable-envelope-state";
 import { Button } from "@/components/ui/button";
 import { FieldError, FieldGroup } from "@/components/ui/field";
-import { TableCell, TableRow } from "@/components/ui/table";
 import type { ExpenseLinkOption } from "@/lib/expense-link-options";
 import { formatEuros } from "@/lib/format-money";
+import { useFeedbackActionState } from "@/lib/use-feedback-action-state";
 import {
-  AmountCell,
   CategoryTag,
-  formatDay,
   MutedText,
   OPERATION_EDIT_FULL_WIDTH_CLASS,
   OPERATION_EDIT_GRID_CLASS,
-  OperationActions,
-  OperationEditRow,
+  OperationReadRow,
+  OperationRow,
 } from "./operation-table-parts";
 import { ReimbursementFields } from "./reimbursement-fields";
 
@@ -40,11 +38,11 @@ export function ReimbursementRow({
   editable: boolean;
 }) {
   const [isEditing, setIsEditing] = useState(false);
-  const [updateState, updateAction, updatePending] = useActionState(
+  const [updateState, updateAction, updatePending] = useFeedbackActionState(
     updateReimbursementAction,
     initialReimbursementActionState,
   );
-  const [deleteState, deleteAction, deletePending] = useActionState(
+  const [deleteState, deleteAction, deletePending] = useFeedbackActionState(
     deleteReimbursementAction,
     initialVariableEnvelopeActionState,
   );
@@ -56,34 +54,35 @@ export function ReimbursementRow({
     }
   }, [updateState.status, updateState.warning]);
 
-  if (!isEditing) {
-    return (
-      <TableRow>
-        <TableCell className="tabular-nums">{formatDay(reimbursement.date)}</TableCell>
-        <TableCell>
-          <MutedText>Remboursement</MutedText>
-        </TableCell>
-        <TableCell className="min-w-40 whitespace-normal">{reimbursement.label}</TableCell>
-        <TableCell>{category ? <CategoryTag {...category} /> : null}</TableCell>
-        <TableCell>
-          <MutedText>Reste à vivre</MutedText>
-        </TableCell>
-        <AmountCell incoming>{formatEuros(moneyToEuros(reimbursement.amount))}</AmountCell>
-        {editable ? (
-          <OperationActions
-            id={reimbursement.id}
-            onEdit={() => setIsEditing(true)}
-            deleteAction={deleteAction}
-            deletePending={deletePending}
-            error={deleteState.status === "error" ? deleteState.message : undefined}
-          />
-        ) : null}
-      </TableRow>
-    );
-  }
+  const deletion = {
+    id: reimbursement.id,
+    action: deleteAction,
+    pending: deletePending,
+    error: deleteState.status === "error" ? deleteState.message : undefined,
+  };
+  const read = (
+    <OperationReadRow
+      date={reimbursement.date}
+      target={<MutedText>Reste à vivre</MutedText>}
+      place={<MutedText>Remboursement</MutedText>}
+      description={reimbursement.label}
+      category={category ? <CategoryTag {...category} /> : null}
+      amount={formatEuros(moneyToEuros(reimbursement.amount))}
+      incoming
+      editable={editable}
+      editLabel={`Modifier le remboursement ${reimbursement.label}`}
+      edit={{ onEdit: () => setIsEditing(true), delete: deletion }}
+    />
+  );
 
   return (
-    <OperationEditRow>
+    <OperationRow
+      isEditing={isEditing}
+      onClose={() => setIsEditing(false)}
+      title="Modifier le remboursement"
+      read={read}
+      deletion={deletion}
+    >
       <form action={updateAction}>
         <input type="hidden" name="id" value={reimbursement.id} />
         <FieldGroup className={OPERATION_EDIT_GRID_CLASS}>
@@ -123,6 +122,6 @@ export function ReimbursementRow({
           </div>
         </FieldGroup>
       </form>
-    </OperationEditRow>
+    </OperationRow>
   );
 }

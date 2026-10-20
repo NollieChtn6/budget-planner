@@ -6,7 +6,7 @@ import {
   formatCalendarDate,
   moneyToEuros,
 } from "@budget/domain";
-import { useActionState, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { deleteContributionAction, updateContributionAction } from "@/actions/contribution";
 import { initialOperationActionState } from "@/actions/operation-state";
 import { Button } from "@/components/ui/button";
@@ -19,17 +19,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { TableCell, TableRow } from "@/components/ui/table";
 import { formatEuros } from "@/lib/format-money";
+import { useFeedbackActionState } from "@/lib/use-feedback-action-state";
 import {
-  AmountCell,
-  formatDay,
   MutedText,
   OPERATION_EDIT_FULL_WIDTH_CLASS,
   OPERATION_EDIT_GRID_CLASS,
-  OperationActions,
-  OperationEditRow,
-  ProvisionTarget,
+  OperationReadRow,
+  OperationRow,
+  TargetChip,
 } from "./operation-table-parts";
 
 export function ContributionRow({
@@ -48,11 +46,11 @@ export function ContributionRow({
   editable: boolean;
 }) {
   const [isEditing, setIsEditing] = useState(false);
-  const [updateState, updateAction, updatePending] = useActionState(
+  const [updateState, updateAction, updatePending] = useFeedbackActionState(
     updateContributionAction,
     initialOperationActionState,
   );
-  const [deleteState, deleteAction, deletePending] = useActionState(
+  const [deleteState, deleteAction, deletePending] = useFeedbackActionState(
     deleteContributionAction,
     initialOperationActionState,
   );
@@ -66,42 +64,36 @@ export function ContributionRow({
 
   const canModify = editable && canModifyContribution(contribution);
 
-  if (!isEditing) {
-    return (
-      <TableRow>
-        <TableCell className="tabular-nums">{formatDay(contribution.date)}</TableCell>
-        <TableCell>
-          <MutedText>Versement</MutedText>
-        </TableCell>
-        <TableCell>
-          {contribution.origin === "closing" ? (
-            <MutedText>Répartition du reliquat</MutedText>
-          ) : null}
-        </TableCell>
-        <TableCell />
-        <TableCell>
-          <ProvisionTarget label={provisionLabel} />
-        </TableCell>
-        <AmountCell incoming>{formatEuros(moneyToEuros(contribution.amount))}</AmountCell>
-        {editable ? (
-          canModify ? (
-            <OperationActions
-              id={contribution.id}
-              onEdit={() => setIsEditing(true)}
-              deleteAction={deleteAction}
-              deletePending={deletePending}
-              error={deleteState.status === "error" ? deleteState.message : undefined}
-            />
-          ) : (
-            <TableCell />
-          )
-        ) : null}
-      </TableRow>
-    );
-  }
+  const deletion = {
+    id: contribution.id,
+    action: deleteAction,
+    pending: deletePending,
+    error: deleteState.status === "error" ? deleteState.message : undefined,
+  };
+  const read = (
+    <OperationReadRow
+      date={contribution.date}
+      target={<TargetChip kind="provision" label={provisionLabel} />}
+      place={<MutedText>Versement</MutedText>}
+      description={
+        contribution.origin === "closing" ? <MutedText>Répartition du reliquat</MutedText> : null
+      }
+      amount={formatEuros(moneyToEuros(contribution.amount))}
+      incoming
+      editable={editable}
+      editLabel={`Modifier le versement vers ${provisionLabel}`}
+      edit={canModify ? { onEdit: () => setIsEditing(true), delete: deletion } : undefined}
+    />
+  );
 
   return (
-    <OperationEditRow>
+    <OperationRow
+      isEditing={isEditing}
+      onClose={() => setIsEditing(false)}
+      title="Modifier le versement"
+      read={read}
+      deletion={deletion}
+    >
       <form action={updateAction}>
         <input type="hidden" name="id" value={contribution.id} />
         <FieldGroup className={OPERATION_EDIT_GRID_CLASS}>
@@ -168,6 +160,6 @@ export function ContributionRow({
           </div>
         </FieldGroup>
       </form>
-    </OperationEditRow>
+    </OperationRow>
   );
 }

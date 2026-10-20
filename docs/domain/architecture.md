@@ -34,6 +34,7 @@ apps/web/
       page.tsx               dashboard du mois
       months/[month]/        ouverture, clôture, opérations d'un mois
       settings/              postes fixes, enveloppes, provisions, catégories
+      profile/               prénom et mot de passe (Server Actions `actions/profile.ts`, logique dans `lib/profile.ts`)
   actions/                   Server Actions, une par intention (addExpense, openMonth…)
   schemas/                   schémas Zod des entrées
   lib/auth.ts                configuration Better Auth (serveur)
@@ -77,6 +78,11 @@ packages/db/
 4. Elle appelle le domaine, qui applique les règles (rattachement au mois, mois ouvert, dépassement d'une provision…) et renvoie soit le résultat à persister, soit une erreur métier typée.
 5. Elle persiste via `@budget/db`, puis invalide le cache des pages concernées (`revalidatePath`).
 6. Elle renvoie un résultat que le formulaire traduit en message.
+
+**Retours à l'utilisateur.** Une action renvoie `{ status, message }`, en français et au tutoiement.
+- Une erreur reste en ligne dans le formulaire, près du champ concerné. Les erreurs de validation Zod passent par `describeInvalidInput` (`schemas/`), qui choisit le message par champ ; les phrases communes (mois fermé, élément introuvable…) sont dans `actions/messages.ts`.
+- Un succès est confirmé par un toast Sonner (`useFeedbackActionState`, qui remplace `useActionState` dans les formulaires). Un succès accompagné d'un avertissement (R37) n'est pas toasté : le formulaire garde l'avertissement lisible.
+- Les erreurs de Better Auth, en anglais, sont traduites par `describeAuthError` (`lib/auth-error-message.ts`).
 
 ### Opérations de mois : ouvrir, clôturer, rouvrir
 

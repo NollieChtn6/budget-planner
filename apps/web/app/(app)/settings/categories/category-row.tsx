@@ -1,12 +1,14 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   archiveCategoryAction,
   unarchiveCategoryAction,
   updateCategoryAction,
 } from "@/actions/category";
 import { initialVariableEnvelopeActionState } from "@/actions/variable-envelope-state";
+import { EditableRow } from "@/components/editable-row";
+import { CardCell, CardRow, CardTapTarget } from "@/components/responsive-table";
 import { Button } from "@/components/ui/button";
 import { FieldError } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -17,8 +19,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { TableCell, TableRow } from "@/components/ui/table";
+import { useFeedbackActionState } from "@/lib/use-feedback-action-state";
 import { NO_DEFAULT_ENVELOPE } from "@/schemas/category";
+import { FormActions, FormField, OtherActions, SETTINGS_FORM_CLASS } from "../settings-form-parts";
 import type { CategoryRowData, EnvelopeOption } from "./category-table";
 
 export function CategoryRow({
@@ -30,15 +33,15 @@ export function CategoryRow({
 }) {
   const [editing, setEditing] = useState(false);
 
-  const [updateState, updateAction, updatePending] = useActionState(
+  const [updateState, updateAction, updatePending] = useFeedbackActionState(
     updateCategoryAction,
     initialVariableEnvelopeActionState,
   );
-  const [archiveState, archiveAction, archivePending] = useActionState(
+  const [archiveState, archiveAction, archivePending] = useFeedbackActionState(
     archiveCategoryAction,
     initialVariableEnvelopeActionState,
   );
-  const [unarchiveState, unarchiveAction, unarchivePending] = useActionState(
+  const [unarchiveState, unarchiveAction, unarchivePending] = useFeedbackActionState(
     unarchiveCategoryAction,
     initialVariableEnvelopeActionState,
   );
@@ -46,78 +49,15 @@ export function CategoryRow({
   useEffect(() => {
     if (updateState.status === "success") setEditing(false);
   }, [updateState.status]);
+  useEffect(() => {
+    if (archiveState.status === "success") setEditing(false);
+  }, [archiveState.status]);
 
-  function cancel() {
-    setEditing(false);
-  }
+  const cancel = () => setEditing(false);
 
-  if (editing) {
-    return (
-      <TableRow onKeyDown={(e) => e.key === "Escape" && cancel()}>
-        <TableCell colSpan={3} className="whitespace-normal">
-          <form action={updateAction} className="flex flex-wrap items-end gap-3 py-1">
-            <input type="hidden" name="categoryId" value={category.id} />
-            <div className="flex flex-col gap-1">
-              <span className="text-muted-foreground text-xs">Couleur</span>
-              <Input
-                name="color"
-                type="color"
-                defaultValue={category.color}
-                required
-                className="h-8 w-14 p-1"
-              />
-            </div>
-            <div className="flex flex-col gap-1">
-              <span className="text-muted-foreground text-xs">Libellé</span>
-              <Input
-                name="label"
-                defaultValue={category.label}
-                required
-                autoFocus
-                className="w-40"
-              />
-            </div>
-            <div className="flex flex-col gap-1">
-              <span className="text-muted-foreground text-xs">Enveloppe par défaut</span>
-              <Select
-                name="defaultEnvelopeId"
-                defaultValue={category.defaultEnvelopeId ?? NO_DEFAULT_ENVELOPE}
-              >
-                <SelectTrigger className="w-48">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={NO_DEFAULT_ENVELOPE}>
-                    Aucune, au choix à chaque saisie
-                  </SelectItem>
-                  {envelopeOptions.map((envelope) => (
-                    <SelectItem key={envelope.id} value={envelope.id}>
-                      {envelope.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex gap-2">
-              <Button type="submit" size="sm" disabled={updatePending}>
-                {updatePending ? "Enregistrement..." : "Valider"}
-              </Button>
-              <Button type="button" size="sm" variant="ghost" onClick={cancel}>
-                Annuler
-              </Button>
-            </div>
-            {updateState.status === "error" ? (
-              <FieldError className="basis-full">{updateState.message}</FieldError>
-            ) : null}
-          </form>
-        </TableCell>
-      </TableRow>
-    );
-  }
-
-  return (
-    <TableRow>
-      <TableCell className="whitespace-normal font-medium">
+  const read = (
+    <CardRow className={category.archived ? "text-muted-foreground" : undefined}>
+      <CardCell heading className="whitespace-normal font-medium">
         <span className="flex items-center gap-2">
           <span
             aria-hidden
@@ -128,39 +68,126 @@ export function CategoryRow({
         </span>
         {category.archived ? (
           <div className="font-normal text-muted-foreground text-xs">Archivée</div>
-        ) : null}
-      </TableCell>
-      <TableCell className="whitespace-normal">
+        ) : (
+          <CardTapTarget label={`Modifier ${category.label}`} onClick={() => setEditing(true)} />
+        )}
+      </CardCell>
+      <CardCell label="Enveloppe par défaut" className="whitespace-normal">
         {category.defaultEnvelopeLabel ?? (
           <span className="text-muted-foreground">Au choix à chaque saisie</span>
         )}
-      </TableCell>
-      <TableCell className="whitespace-normal text-right">
+      </CardCell>
+      <CardCell hideOnMobile={!category.archived} className="whitespace-normal text-right">
         {category.archived ? (
           <form action={unarchiveAction} className="inline">
             <input type="hidden" name="categoryId" value={category.id} />
-            <Button type="submit" variant="link" size="sm" disabled={unarchivePending}>
+            <Button
+              type="submit"
+              variant="link"
+              size="sm"
+              className="max-md:h-11"
+              disabled={unarchivePending}
+            >
               Réactiver
             </Button>
           </form>
         ) : (
-          <>
-            <Button type="button" variant="link" size="sm" onClick={() => setEditing(true)}>
-              Modifier
-            </Button>
-            <form action={archiveAction} className="inline">
-              <input type="hidden" name="categoryId" value={category.id} />
-              <Button type="submit" variant="link" size="sm" disabled={archivePending}>
-                Archiver
-              </Button>
-            </form>
-          </>
+          <Button
+            type="button"
+            variant="link"
+            size="sm"
+            aria-label={`Modifier ${category.label}`}
+            onClick={() => setEditing(true)}
+          >
+            Modifier
+          </Button>
         )}
         {unarchiveState.status === "error" ? (
           <FieldError>{unarchiveState.message}</FieldError>
         ) : null}
-        {archiveState.status === "error" ? <FieldError>{archiveState.message}</FieldError> : null}
-      </TableCell>
-    </TableRow>
+      </CardCell>
+    </CardRow>
+  );
+
+  return (
+    <EditableRow
+      isEditing={editing}
+      onClose={cancel}
+      title={`Modifier « ${category.label} »`}
+      read={read}
+      colSpan={3}
+    >
+      <form action={updateAction} className={SETTINGS_FORM_CLASS}>
+        <input type="hidden" name="categoryId" value={category.id} />
+        <FormField label="Couleur">
+          {(id) => (
+            <Input
+              id={id}
+              name="color"
+              type="color"
+              defaultValue={category.color}
+              required
+              className="h-8 w-14 p-1"
+            />
+          )}
+        </FormField>
+        <FormField label="Libellé">
+          {(id) => (
+            <Input
+              id={id}
+              name="label"
+              defaultValue={category.label}
+              required
+              className="w-full md:w-40"
+            />
+          )}
+        </FormField>
+        <FormField label="Enveloppe par défaut">
+          {(id) => (
+            <Select
+              name="defaultEnvelopeId"
+              defaultValue={category.defaultEnvelopeId ?? NO_DEFAULT_ENVELOPE}
+            >
+              <SelectTrigger id={id} className="w-full md:w-48">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={NO_DEFAULT_ENVELOPE}>
+                  Aucune, au choix à chaque saisie
+                </SelectItem>
+                {envelopeOptions.map((envelope) => (
+                  <SelectItem key={envelope.id} value={envelope.id}>
+                    {envelope.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        </FormField>
+        <FormActions>
+          <Button type="submit" size="sm" disabled={updatePending}>
+            {updatePending ? "Enregistrement..." : "Valider"}
+          </Button>
+          <Button type="button" size="sm" variant="ghost" onClick={cancel}>
+            Annuler
+          </Button>
+        </FormActions>
+        {updateState.status === "error" ? (
+          <FieldError className="basis-full">{updateState.message}</FieldError>
+        ) : null}
+      </form>
+      <OtherActions>
+        <form action={archiveAction}>
+          <input type="hidden" name="categoryId" value={category.id} />
+          <Button type="submit" size="sm" variant="outline" disabled={archivePending}>
+            {archivePending ? "Archivage..." : "Archiver"}
+          </Button>
+        </form>
+        <span className="text-muted-foreground text-xs max-md:text-sm">
+          Les dépenses déjà saisies gardent leur catégorie ; tu peux la réactiver.
+        </span>
+      </OtherActions>
+      {archiveState.status === "error" ? <FieldError>{archiveState.message}</FieldError> : null}
+    </EditableRow>
   );
 }

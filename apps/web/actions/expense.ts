@@ -21,6 +21,7 @@ import {
   isSameMonth,
   type Money,
   moneyFromEuros,
+  moneyToEuros,
   monthOfCalendarDate,
   parseCalendarDate,
   type RecordExpenseFailure,
@@ -29,9 +30,18 @@ import {
 import type { PrismaClient } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import type { ExpenseActionState } from "@/actions/expense-state";
+import {
+  INVALID_AMOUNT,
+  INVALID_DATE,
+  MONTH_NOT_OPEN,
+  notFound,
+  TARGET_REQUIRED,
+} from "@/actions/messages";
 import type { VariableEnvelopeActionState } from "@/actions/variable-envelope-state";
 import { resolveActiveMonth } from "@/lib/current-month";
+import { formatEuros } from "@/lib/format-money";
 import { requireSession } from "@/lib/session";
+import { describeInvalidInput } from "@/schemas/describe-invalid-input";
 import { createExpenseSchema, deleteExpenseSchema, updateExpenseSchema } from "@/schemas/expense";
 
 /** R23: checked after the expense is persisted, against the balance as it now stands (including this expense). */
@@ -68,7 +78,7 @@ function describeRecordExpenseFailure(error: RecordExpenseFailure): string {
     case "dateOutsideCurrentMonth":
       return "Choisis une date dans le mois en cours.";
     case "unknownCategory":
-      return "Catégorie introuvable.";
+      return notFound("Catégorie");
     case "archivedCategory":
       return "Cette catégorie est archivée.";
     case "envelopeNotInSnapshot":
@@ -109,25 +119,25 @@ export async function createExpenseForUser(
   try {
     amount = moneyFromEuros(input.amountEuros);
   } catch {
-    return { status: "error", message: "Montant invalide (centimes uniquement)." };
+    return { status: "error", message: INVALID_AMOUNT };
   }
 
   let date: ReturnType<typeof parseCalendarDate>;
   try {
     date = parseCalendarDate(input.date);
   } catch {
-    return { status: "error", message: "Date invalide." };
+    return { status: "error", message: INVALID_DATE };
   }
 
   const target = parseTarget(input.target);
   if (!target) {
-    return { status: "error", message: "Choisis une enveloppe ou une provision." };
+    return { status: "error", message: TARGET_REQUIRED };
   }
 
   const activeMonth = await resolveActiveMonth(prismaClient, userId);
   const budgetMonth = await findBudgetMonthByMonth(prismaClient, userId, activeMonth);
   if (budgetMonth?.status !== "open") {
-    return { status: "error", message: "Le mois n'est pas ouvert." };
+    return { status: "error", message: MONTH_NOT_OPEN };
   }
 
   const categories = await findCategoriesByUser(prismaClient, userId);
@@ -180,7 +190,11 @@ export async function createExpenseForUser(
     result.expense,
   );
 
-  return { status: "success", message: "Dépense enregistrée.", provisionExhausted };
+  return {
+    status: "success",
+    message: `Dépense de ${formatEuros(moneyToEuros(result.expense.amount))} enregistrée.`,
+    provisionExhausted,
+  };
 }
 
 export async function createExpenseAction(
@@ -190,7 +204,7 @@ export async function createExpenseAction(
   const session = await requireSession();
   const parsed = createExpenseSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) {
-    return { status: "error", message: parsed.error.issues[0]?.message ?? "Entrée invalide." };
+    return { status: "error", message: describeInvalidInput(parsed.error) };
   }
 
   const result = await createExpenseForUser(prisma, session.user.id, {
@@ -221,30 +235,30 @@ export async function updateExpenseForUser(
   try {
     amount = moneyFromEuros(input.amountEuros);
   } catch {
-    return { status: "error", message: "Montant invalide (centimes uniquement)." };
+    return { status: "error", message: INVALID_AMOUNT };
   }
 
   let date: ReturnType<typeof parseCalendarDate>;
   try {
     date = parseCalendarDate(input.date);
   } catch {
-    return { status: "error", message: "Date invalide." };
+    return { status: "error", message: INVALID_DATE };
   }
 
   const target = parseTarget(input.target);
   if (!target) {
-    return { status: "error", message: "Choisis une enveloppe ou une provision." };
+    return { status: "error", message: TARGET_REQUIRED };
   }
 
   const activeMonth = await resolveActiveMonth(prismaClient, userId);
   const budgetMonth = await findBudgetMonthByMonth(prismaClient, userId, activeMonth);
   if (budgetMonth?.status !== "open") {
-    return { status: "error", message: "Le mois n'est pas ouvert." };
+    return { status: "error", message: MONTH_NOT_OPEN };
   }
 
   const existing = await findExpenseById(prismaClient, userId, input.id);
   if (!existing || !isSameMonth(monthOfCalendarDate(existing.date), activeMonth)) {
-    return { status: "error", message: "Dépense introuvable." };
+    return { status: "error", message: notFound("Dépense") };
   }
 
   const categories = await findCategoriesByUser(prismaClient, userId);
@@ -309,7 +323,7 @@ export async function updateExpenseAction(
   const session = await requireSession();
   const parsed = updateExpenseSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) {
-    return { status: "error", message: parsed.error.issues[0]?.message ?? "Entrée invalide." };
+    return { status: "error", message: describeInvalidInput(parsed.error) };
   }
 
   const result = await updateExpenseForUser(prisma, session.user.id, {
@@ -338,12 +352,12 @@ export async function deleteExpenseForUser(
   const activeMonth = await resolveActiveMonth(prismaClient, userId);
   const budgetMonth = await findBudgetMonthByMonth(prismaClient, userId, activeMonth);
   if (budgetMonth?.status !== "open") {
-    return { status: "error", message: "Le mois n'est pas ouvert." };
+    return { status: "error", message: MONTH_NOT_OPEN };
   }
 
   const existing = await findExpenseById(prismaClient, userId, expenseId);
   if (!existing || !isSameMonth(monthOfCalendarDate(existing.date), activeMonth)) {
-    return { status: "error", message: "Dépense introuvable." };
+    return { status: "error", message: notFound("Dépense") };
   }
 
   await deleteExpense(prismaClient, userId, expenseId);
@@ -357,7 +371,7 @@ export async function deleteExpenseAction(
   const session = await requireSession();
   const parsed = deleteExpenseSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) {
-    return { status: "error", message: parsed.error.issues[0]?.message ?? "Entrée invalide." };
+    return { status: "error", message: describeInvalidInput(parsed.error) };
   }
 
   const result = await deleteExpenseForUser(prisma, session.user.id, parsed.data.id);

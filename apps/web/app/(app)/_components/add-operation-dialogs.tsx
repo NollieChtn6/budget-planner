@@ -19,7 +19,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { defaultOperationDate } from "@/lib/default-operation-date";
 import type { ExpenseLinkOption } from "@/lib/expense-link-options";
+import { FORM_DIALOG_CLASS } from "@/lib/touch-targets";
 import { AddContributionForm } from "./add-contribution-form";
 import { AddExpenseForm } from "./add-expense-form";
 import { AddExtraIncomeForm } from "./add-extra-income-form";
@@ -64,7 +66,6 @@ export function AddOperationDialogs({
   categories,
   minDate,
   maxDate,
-  defaultDate,
   knownPlaces,
   lastUsedCategoryId,
 }: {
@@ -79,10 +80,10 @@ export function AddOperationDialogs({
   categories: { id: string; label: string }[];
   minDate: string;
   maxDate: string;
-  defaultDate: string;
   knownPlaces: string[];
   lastUsedCategoryId: string | null;
 }) {
+  const defaultDate = defaultOperationDate(minDate, maxDate);
   const [expenseOpen, setExpenseOpen] = useState(false);
   const [contributionOpen, setContributionOpen] = useState(false);
   const [operationOpen, setOperationOpen] = useState(false);
@@ -153,7 +154,7 @@ export function AddOperationDialogs({
               V
             </Kbd>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-md">
+          <DialogContent className={FORM_DIALOG_CLASS}>
             <DialogHeader>
               <DialogTitle>Nouveau versement</DialogTitle>
             </DialogHeader>
@@ -182,7 +183,7 @@ export function AddOperationDialogs({
               N
             </Kbd>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-md">
+          <DialogContent className={FORM_DIALOG_CLASS}>
             <DialogHeader>
               <DialogTitle>Nouvelle dépense</DialogTitle>
             </DialogHeader>
@@ -208,7 +209,7 @@ export function AddOperationDialogs({
             Nouvelle opération
             <Kbd>O</Kbd>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-md">
+          <DialogContent className={FORM_DIALOG_CLASS}>
             <DialogHeader>
               <DialogTitle>Nouvelle opération</DialogTitle>
               <DialogDescription>{selectedOperation?.description}</DialogDescription>

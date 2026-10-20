@@ -9,6 +9,7 @@ import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field
 import { Input } from "@/components/ui/input";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { authClient } from "@/lib/auth-client";
+import { describeAuthError } from "@/lib/auth-error-message";
 
 type EnrollmentStep =
   | { name: "password" }
@@ -34,7 +35,14 @@ export default function EnrollTwoFactorPage() {
     setPending(false);
 
     if (enableError || !data || data.method !== "totp") {
-      setError(enableError?.message ?? "Impossible d'activer le second facteur.");
+      setError(
+        enableError
+          ? describeAuthError(
+              enableError,
+              "Impossible d'activer la double authentification. Vérifie ton mot de passe puis réessaie.",
+            )
+          : "Impossible d'activer la double authentification.",
+      );
       return;
     }
 
@@ -48,7 +56,9 @@ export default function EnrollTwoFactorPage() {
     setPending(false);
 
     if (verifyError) {
-      setError(verifyError.message ?? "Code invalide.");
+      setError(
+        describeAuthError(verifyError, "Ce code n'est pas valide. Vérifie-le puis réessaie."),
+      );
       return;
     }
 
@@ -73,7 +83,7 @@ export default function EnrollTwoFactorPage() {
       <CardHeader>
         <CardTitle>Activer la vérification en deux étapes</CardTitle>
         <CardDescription>
-          Confirmez votre mot de passe pour générer votre code d'authentification.
+          Confirme ton mot de passe pour générer ton code d'authentification.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -143,10 +153,10 @@ function EnrollmentVerifyStep({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Scannez le code</CardTitle>
+        <CardTitle>Scanne le code</CardTitle>
         <CardDescription>
-          Scannez ce QR code avec votre application d'authentification, puis saisissez le code
-          qu'elle affiche.
+          Scanne ce QR code avec ton application d'authentification, puis saisis le code qu'elle
+          affiche.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -161,16 +171,15 @@ function EnrollmentVerifyStep({
           ) : null}
           {qrError ? (
             <FieldError>
-              Le QR code n'a pas pu être généré. Saisissez cette clé manuellement dans votre
-              application d'authentification :{" "}
-              <span className="font-mono break-all">{totpUri}</span>
+              Le QR code n'a pas pu être généré. Saisis cette clé manuellement dans ton application
+              d'authentification : <span className="font-mono break-all">{totpUri}</span>
             </FieldError>
           ) : null}
           <div>
             <p className="mb-1.5 text-sm font-medium">Codes de secours</p>
             <p className="text-sm text-muted-foreground">
-              Conservez-les en lieu sûr : ils permettent de vous connecter si vous perdez l'accès à
-              votre application d'authentification.
+              Conserve-les en lieu sûr : ils te permettent de te connecter si tu perds l'accès à ton
+              application d'authentification.
             </p>
             <ul className="mt-2 grid grid-cols-2 gap-1 font-mono text-sm">
               {backupCodes.map((backupCode) => (

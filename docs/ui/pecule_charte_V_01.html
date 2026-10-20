@@ -10,7 +10,7 @@
 <style>
 /* ---------- Jetons : thème clair ---------- */
 :root{
-  --bg:#F4F5F1; --surface:#FCFCFA; --soft:#ECEEE8; --line:#D6DAD3;
+  --bg:#F4F5F1; --surface:#FCFCFA; --soft:#ECEEE8; --line:#D6DAD3; --line-field:#80888E;
   --ink:#1C262E; --ink-2:#55616A;
   --accent:#7D5E1A; --accent-soft:#F1EAD8; --on-accent:#FCFCFA;
   --positive:#2F6B4F; --negative:#A3322A;
@@ -23,7 +23,7 @@
 }
 /* ---------- Jetons : thème sombre ---------- */
 @media (prefers-color-scheme:dark){ :root:not([data-theme="light"]){
-  --bg:#14181B; --surface:#1B2024; --soft:#232A2F; --line:#323A40;
+  --bg:#14181B; --surface:#1B2024; --soft:#232A2F; --line:#323A40; --line-field:#656F76;
   --ink:#E6E8E3; --ink-2:#9AA3A8;
   --accent:#D4B36A; --accent-soft:#3A321F; --on-accent:#14181B;
   --positive:#7DC39A; --negative:#EE8A80;
@@ -31,7 +31,7 @@
   color-scheme:dark;
 }}
 :root[data-theme="dark"]{
-  --bg:#14181B; --surface:#1B2024; --soft:#232A2F; --line:#323A40;
+  --bg:#14181B; --surface:#1B2024; --soft:#232A2F; --line:#323A40; --line-field:#656F76;
   --ink:#E6E8E3; --ink-2:#9AA3A8;
   --accent:#D4B36A; --accent-soft:#3A321F; --on-accent:#14181B;
   --positive:#7DC39A; --negative:#EE8A80;
@@ -140,7 +140,7 @@ kbd{font:500 11px var(--mono);border:1px solid var(--line);border-bottom-width:2
 .btn.primary kbd{background:transparent;color:inherit;border-color:currentColor;opacity:.7}
 .field{display:grid;gap:6px;max-width:280px}
 .field label{font-size:13px;font-weight:500}
-.field input,.field select{font:15px var(--sans);color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:var(--r-m);padding:9px 12px}
+.field input,.field select{font:15px var(--sans);color:var(--ink);background:var(--surface);border:1px solid var(--line-field);border-radius:var(--r-m);padding:9px 12px}
 .field input:focus{outline:2px solid var(--accent);outline-offset:0;border-color:var(--accent)}
 .field .help{font-size:12px;color:var(--ink-2)}
 .field.error input{border-color:var(--negative)}

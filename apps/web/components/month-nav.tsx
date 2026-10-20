@@ -2,6 +2,9 @@ import { isSameMonth, type Month, nextMonth, previousMonth } from "@budget/domai
 import Link from "next/link";
 import { formatMonthLabel } from "@/lib/format-month-label";
 
+/** Arrows are 44px wide and high on touch screens. */
+const ARROW_CLASS = "inline-flex items-center justify-center rounded-md px-2 py-1.5 max-md:size-11";
+
 /** Previous/next month navigator, clamped to [min, max] (charte's monthnav). */
 export function MonthNav({
   month,
@@ -21,15 +24,19 @@ export function MonthNav({
   const atMax = isSameMonth(month, max);
 
   return (
-    <div className="inline-flex items-center gap-1 rounded-lg border bg-card px-1 text-sm">
+    <nav
+      aria-label="Mois affiché"
+      className="inline-flex items-center gap-1 rounded-lg border bg-card px-1 text-sm"
+    >
       {atMin ? (
-        <span className="px-2 py-1.5 text-muted-foreground/40" aria-hidden="true">
-          ‹
+        <span className={`${ARROW_CLASS} text-muted-foreground/40`}>
+          <span aria-hidden="true">‹</span>
+          <span className="sr-only">Pas de mois plus ancien</span>
         </span>
       ) : (
         <Link
           href={buildHref(previousMonth(month))}
-          className="rounded-md px-2 py-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+          className={`${ARROW_CLASS} text-muted-foreground hover:bg-muted hover:text-foreground`}
           aria-label="Mois précédent"
         >
           ‹
@@ -41,18 +48,19 @@ export function MonthNav({
         </span>
       ) : null}
       {atMax ? (
-        <span className="px-2 py-1.5 text-muted-foreground/40" aria-hidden="true">
-          ›
+        <span className={`${ARROW_CLASS} text-muted-foreground/40`}>
+          <span aria-hidden="true">›</span>
+          <span className="sr-only">Pas de mois plus récent</span>
         </span>
       ) : (
         <Link
           href={buildHref(nextMonth(month))}
-          className="rounded-md px-2 py-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+          className={`${ARROW_CLASS} text-muted-foreground hover:bg-muted hover:text-foreground`}
           aria-label="Mois suivant"
         >
           ›
         </Link>
       )}
-    </div>
+    </nav>
   );
 }

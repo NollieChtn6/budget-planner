@@ -1,11 +1,12 @@
 "use client";
 
-import { useActionState, useEffect } from "react";
+import { useEffect } from "react";
 import { closeProvisionAction, renewProvisionAction } from "@/actions/provision";
 import { initialVariableEnvelopeActionState } from "@/actions/variable-envelope-state";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { FieldError } from "@/components/ui/field";
+import { useFeedbackActionState } from "@/lib/use-feedback-action-state";
 
 /** R23: shown right after an expense empties a deadline provision. */
 export function ProvisionExhaustionPrompt({
@@ -17,11 +18,11 @@ export function ProvisionExhaustionPrompt({
   label: string;
   onResolved: () => void;
 }) {
-  const [closeState, closeAction, closePending] = useActionState(
+  const [closeState, closeAction, closePending] = useFeedbackActionState(
     closeProvisionAction,
     initialVariableEnvelopeActionState,
   );
-  const [renewState, renewAction, renewPending] = useActionState(
+  const [renewState, renewAction, renewPending] = useFeedbackActionState(
     renewProvisionAction,
     initialVariableEnvelopeActionState,
   );

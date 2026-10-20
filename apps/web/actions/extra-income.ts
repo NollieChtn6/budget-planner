@@ -10,17 +10,21 @@ import {
 } from "@budget/db";
 import {
   isSameMonth,
+  moneyToEuros,
   monthOfCalendarDate,
   type RecordExtraIncomeFailure,
   recordExtraIncome,
 } from "@budget/domain";
 import type { PrismaClient } from "@prisma/client";
 import { revalidatePath } from "next/cache";
+import { MONTH_NOT_OPEN, notFound } from "@/actions/messages";
 import type { OperationActionState } from "@/actions/operation-state";
 import type { VariableEnvelopeActionState } from "@/actions/variable-envelope-state";
 import { resolveActiveMonth } from "@/lib/current-month";
+import { formatEuros } from "@/lib/format-money";
 import { parseAmountAndDate } from "@/lib/parse-operation-input";
 import { requireSession } from "@/lib/session";
+import { describeInvalidInput } from "@/schemas/describe-invalid-input";
 import {
   createExtraIncomeSchema,
   deleteExtraIncomeSchema,
@@ -62,7 +66,7 @@ async function validateExtraIncome(
   const activeMonth = await resolveActiveMonth(prismaClient, userId);
   const budgetMonth = await findBudgetMonthByMonth(prismaClient, userId, activeMonth);
   if (budgetMonth?.status !== "open") {
-    return { status: "error", message: "Le mois n'est pas ouvert." } as const;
+    return { status: "error", message: MONTH_NOT_OPEN } as const;
   }
 
   const result = recordExtraIncome(
@@ -87,7 +91,10 @@ export async function createExtraIncomeForUser(
   }
 
   await createExtraIncome(prismaClient, userId, validated.extraIncome);
-  return { status: "success", message: "Entrée exceptionnelle enregistrée." };
+  return {
+    status: "success",
+    message: `Entrée de ${formatEuros(moneyToEuros(validated.extraIncome.amount))} enregistrée.`,
+  };
 }
 
 export async function createExtraIncomeAction(
@@ -97,7 +104,7 @@ export async function createExtraIncomeAction(
   const session = await requireSession();
   const parsed = createExtraIncomeSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) {
-    return { status: "error", message: parsed.error.issues[0]?.message ?? "Entrée invalide." };
+    return { status: "error", message: describeInvalidInput(parsed.error) };
   }
 
   const result = await createExtraIncomeForUser(prisma, session.user.id, parsed.data);
@@ -119,7 +126,7 @@ export async function updateExtraIncomeForUser(
   const activeMonth = await resolveActiveMonth(prismaClient, userId);
   const existing = await findExtraIncomeById(prismaClient, userId, input.id);
   if (!existing || !isSameMonth(monthOfCalendarDate(existing.date), activeMonth)) {
-    return { status: "error", message: "Entrée exceptionnelle introuvable." };
+    return { status: "error", message: notFound("Entrée exceptionnelle") };
   }
 
   const validated = await validateExtraIncome(prismaClient, userId, input);
@@ -138,7 +145,7 @@ export async function updateExtraIncomeAction(
   const session = await requireSession();
   const parsed = updateExtraIncomeSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) {
-    return { status: "error", message: parsed.error.issues[0]?.message ?? "Entrée invalide." };
+    return { status: "error", message: describeInvalidInput(parsed.error) };
   }
 
   const result = await updateExtraIncomeForUser(prisma, session.user.id, parsed.data);
@@ -158,12 +165,12 @@ export async function deleteExtraIncomeForUser(
   const activeMonth = await resolveActiveMonth(prismaClient, userId);
   const budgetMonth = await findBudgetMonthByMonth(prismaClient, userId, activeMonth);
   if (budgetMonth?.status !== "open") {
-    return { status: "error", message: "Le mois n'est pas ouvert." };
+    return { status: "error", message: MONTH_NOT_OPEN };
   }
 
   const existing = await findExtraIncomeById(prismaClient, userId, extraIncomeId);
   if (!existing || !isSameMonth(monthOfCalendarDate(existing.date), activeMonth)) {
-    return { status: "error", message: "Entrée exceptionnelle introuvable." };
+    return { status: "error", message: notFound("Entrée exceptionnelle") };
   }
 
   await deleteExtraIncome(prismaClient, userId, extraIncomeId);
@@ -177,7 +184,7 @@ export async function deleteExtraIncomeAction(
   const session = await requireSession();
   const parsed = deleteExtraIncomeSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) {
-    return { status: "error", message: parsed.error.issues[0]?.message ?? "Entrée invalide." };
+    return { status: "error", message: describeInvalidInput(parsed.error) };
   }
 
   const result = await deleteExtraIncomeForUser(prisma, session.user.id, parsed.data.id);

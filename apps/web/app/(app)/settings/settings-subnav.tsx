@@ -15,21 +15,16 @@ export function SettingsSubnav() {
   const pathname = usePathname();
 
   return (
-    <div
-      className="flex gap-1 overflow-x-auto overflow-y-hidden border-b"
-      role="tablist"
-      aria-label="Paramètres"
-    >
+    <nav aria-label="Sections des paramètres" className="flex gap-1 overflow-x-auto border-b">
       {TABS.map((tab) => {
         const active = pathname.startsWith(tab.href);
         return (
           <Link
             key={tab.href}
             href={tab.href}
-            role="tab"
-            aria-selected={active}
+            aria-current={active ? "page" : undefined}
             className={cn(
-              "-mb-px shrink-0 border-b-2 px-3 py-2.5 text-sm",
+              "-mb-px flex min-h-11 shrink-0 items-center justify-center whitespace-nowrap border-b-2 px-1.5 text-[13px] max-md:flex-1 md:px-3 md:text-sm",
               active
                 ? "border-foreground font-semibold text-foreground"
                 : "border-transparent text-muted-foreground hover:text-foreground",
@@ -39,6 +34,6 @@ export function SettingsSubnav() {
           </Link>
         );
       })}
-    </div>
+    </nav>
   );
 }

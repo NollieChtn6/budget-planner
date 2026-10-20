@@ -19,12 +19,14 @@ import {
 } from "@budget/domain";
 import type { PrismaClient } from "@prisma/client";
 import { revalidatePath } from "next/cache";
+import { MONTH_NOT_OPEN, notFound } from "@/actions/messages";
 import type { OperationActionState } from "@/actions/operation-state";
 import { resolveActiveMonth } from "@/lib/current-month";
 import { successWithDisposableIncomeWarning } from "@/lib/disposable-income";
 import { formatEuros } from "@/lib/format-money";
 import { parseAmountAndDate } from "@/lib/parse-operation-input";
 import { requireSession } from "@/lib/session";
+import { describeInvalidInput } from "@/schemas/describe-invalid-input";
 import {
   createSavingsTransferSchema,
   deleteSavingsTransferSchema,
@@ -72,7 +74,7 @@ async function validateSavingsTransfer(
   const activeMonth = await resolveActiveMonth(prismaClient, userId);
   const budgetMonth = await findBudgetMonthByMonth(prismaClient, userId, activeMonth);
   if (budgetMonth?.status !== "open") {
-    return { status: "error", message: "Le mois n'est pas ouvert." } as const;
+    return { status: "error", message: MONTH_NOT_OPEN } as const;
   }
 
   const result = recordSavingsTransfer(
@@ -104,7 +106,10 @@ export async function createSavingsTransferForUser(
     prismaClient,
     userId,
     validated.budgetMonth,
-    describeSavedTransfer(validated.savingsTransfer, "Transfert enregistré."),
+    describeSavedTransfer(
+      validated.savingsTransfer,
+      `Transfert de ${formatEuros(moneyToEuros(validated.savingsTransfer.amount))} enregistré.`,
+    ),
   );
 }
 
@@ -115,7 +120,7 @@ export async function createSavingsTransferAction(
   const session = await requireSession();
   const parsed = createSavingsTransferSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) {
-    return { status: "error", message: parsed.error.issues[0]?.message ?? "Entrée invalide." };
+    return { status: "error", message: describeInvalidInput(parsed.error) };
   }
 
   const result = await createSavingsTransferForUser(prisma, session.user.id, parsed.data);
@@ -137,7 +142,7 @@ export async function updateSavingsTransferForUser(
   const activeMonth = await resolveActiveMonth(prismaClient, userId);
   const existing = await findSavingsTransferById(prismaClient, userId, input.id);
   if (!existing || !isSameMonth(monthOfCalendarDate(existing.date), activeMonth)) {
-    return { status: "error", message: "Transfert introuvable." };
+    return { status: "error", message: notFound("Transfert") };
   }
 
   const validated = await validateSavingsTransfer(prismaClient, userId, input);
@@ -161,7 +166,7 @@ export async function updateSavingsTransferAction(
   const session = await requireSession();
   const parsed = updateSavingsTransferSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) {
-    return { status: "error", message: parsed.error.issues[0]?.message ?? "Entrée invalide." };
+    return { status: "error", message: describeInvalidInput(parsed.error) };
   }
 
   const result = await updateSavingsTransferForUser(prisma, session.user.id, parsed.data);
@@ -181,12 +186,12 @@ export async function deleteSavingsTransferForUser(
   const activeMonth = await resolveActiveMonth(prismaClient, userId);
   const budgetMonth = await findBudgetMonthByMonth(prismaClient, userId, activeMonth);
   if (budgetMonth?.status !== "open") {
-    return { status: "error", message: "Le mois n'est pas ouvert." };
+    return { status: "error", message: MONTH_NOT_OPEN };
   }
 
   const existing = await findSavingsTransferById(prismaClient, userId, savingsTransferId);
   if (!existing || !isSameMonth(monthOfCalendarDate(existing.date), activeMonth)) {
-    return { status: "error", message: "Transfert introuvable." };
+    return { status: "error", message: notFound("Transfert") };
   }
 
   await deleteSavingsTransfer(prismaClient, userId, savingsTransferId);
@@ -200,7 +205,7 @@ export async function deleteSavingsTransferAction(
   const session = await requireSession();
   const parsed = deleteSavingsTransferSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) {
-    return { status: "error", message: parsed.error.issues[0]?.message ?? "Entrée invalide." };
+    return { status: "error", message: describeInvalidInput(parsed.error) };
   }
 
   const result = await deleteSavingsTransferForUser(prisma, session.user.id, parsed.data.id);

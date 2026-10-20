@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect } from "react";
+import { useEffect } from "react";
 import { createContributionAction } from "@/actions/contribution";
 import { initialOperationActionState } from "@/actions/operation-state";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useFeedbackActionState } from "@/lib/use-feedback-action-state";
 
 export function AddContributionForm({
   provisions,
@@ -27,7 +28,7 @@ export function AddContributionForm({
   defaultDate: string;
   onSuccess?: () => void;
 }) {
-  const [state, formAction, pending] = useActionState(
+  const [state, formAction, pending] = useFeedbackActionState(
     createContributionAction,
     initialOperationActionState,
   );
@@ -81,9 +82,6 @@ export function AddContributionForm({
           />
         </Field>
         {state.status === "error" ? <FieldError>{state.message}</FieldError> : null}
-        {state.status === "success" ? (
-          <p className="text-sm text-muted-foreground">{state.message}</p>
-        ) : null}
         {state.warning ? (
           <p className="rounded-md border border-alert-warning/60 bg-card px-3 py-2 text-sm">
             {state.warning}

@@ -3,6 +3,7 @@
 import { useActionState, useEffect } from "react";
 import { createCategoryAction } from "@/actions/category";
 import { initialVariableEnvelopeActionState } from "@/actions/variable-envelope-state";
+import { EditableRow } from "@/components/editable-row";
 import { Button } from "@/components/ui/button";
 import { FieldError } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -13,8 +14,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { TableCell, TableRow } from "@/components/ui/table";
 import { NO_DEFAULT_ENVELOPE } from "@/schemas/category";
+import { FormActions, FormField, SETTINGS_FORM_CLASS } from "../settings-form-parts";
 import type { EnvelopeOption } from "./category-table";
 
 export function NewCategoryRow({
@@ -34,27 +35,29 @@ export function NewCategoryRow({
   }, [state.status, onDone]);
 
   return (
-    <TableRow onKeyDown={(e) => e.key === "Escape" && onDone()}>
-      <TableCell colSpan={3} className="whitespace-normal">
-        <form action={action} className="flex flex-wrap items-end gap-3 py-1">
-          <div className="flex flex-col gap-1">
-            <span className="text-muted-foreground text-xs">Couleur</span>
+    <EditableRow isEditing onClose={onDone} title="Nouvelle catégorie" read={null} colSpan={3}>
+      <form action={action} className={SETTINGS_FORM_CLASS}>
+        <FormField label="Couleur">
+          {(id) => (
             <Input
+              id={id}
               name="color"
               type="color"
               defaultValue="#4F46E5"
               required
               className="h-8 w-14 p-1"
             />
-          </div>
-          <div className="flex flex-col gap-1">
-            <span className="text-muted-foreground text-xs">Libellé</span>
-            <Input name="label" placeholder="Courses" required autoFocus className="w-40" />
-          </div>
-          <div className="flex flex-col gap-1">
-            <span className="text-muted-foreground text-xs">Enveloppe par défaut</span>
+          )}
+        </FormField>
+        <FormField label="Libellé">
+          {(id) => (
+            <Input id={id} name="label" placeholder="Courses" required className="w-full md:w-40" />
+          )}
+        </FormField>
+        <FormField label="Enveloppe par défaut">
+          {(id) => (
             <Select name="defaultEnvelopeId" defaultValue={NO_DEFAULT_ENVELOPE}>
-              <SelectTrigger className="w-48">
+              <SelectTrigger id={id} className="w-full md:w-48">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -68,20 +71,20 @@ export function NewCategoryRow({
                 ))}
               </SelectContent>
             </Select>
-          </div>
-          <div className="flex gap-2">
-            <Button type="submit" size="sm" disabled={pending}>
-              {pending ? "Création..." : "Ajouter"}
-            </Button>
-            <Button type="button" size="sm" variant="ghost" onClick={onDone}>
-              Annuler
-            </Button>
-          </div>
-          {state.status === "error" ? (
-            <FieldError className="basis-full">{state.message}</FieldError>
-          ) : null}
-        </form>
-      </TableCell>
-    </TableRow>
+          )}
+        </FormField>
+        <FormActions>
+          <Button type="submit" size="sm" disabled={pending}>
+            {pending ? "Création..." : "Ajouter"}
+          </Button>
+          <Button type="button" size="sm" variant="ghost" onClick={onDone}>
+            Annuler
+          </Button>
+        </FormActions>
+        {state.status === "error" ? (
+          <FieldError className="basis-full">{state.message}</FieldError>
+        ) : null}
+      </form>
+    </EditableRow>
   );
 }

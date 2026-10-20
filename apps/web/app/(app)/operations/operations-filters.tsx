@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Kbd } from "@/components/ui/kbd";
 import {
@@ -25,6 +25,12 @@ export function OperationsFilters({
 }) {
   const router = useRouter();
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [search, setSearch] = useState(q);
+
+  // "Effacer les filtres" empties the URL: empty the field too, unless a keystroke is still pending.
+  useEffect(() => {
+    if (q === "" && debounceRef.current === null) setSearch("");
+  }, [q]);
 
   function navigate(next: { q?: string; category?: string }) {
     const params = new URLSearchParams({ month });
@@ -37,19 +43,24 @@ export function OperationsFilters({
 
   function onSearchChange(value: string) {
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => navigate({ q: value }), 300);
+    setSearch(value);
+    debounceRef.current = setTimeout(() => {
+      debounceRef.current = null;
+      navigate({ q: value });
+    }, 300);
   }
 
   return (
-    <div className="flex flex-wrap gap-2.5">
+    <search aria-label="Filtrer les opérations" className="flex flex-wrap gap-2.5">
       <div className="relative max-w-xs">
         <Input
           id="operations-search"
           type="search"
+          aria-label="Rechercher une opération"
           placeholder="Rechercher un lieu, une description…"
-          defaultValue={q}
+          value={search}
           onChange={(event) => onSearchChange(event.target.value)}
-          className="pr-8"
+          className="pr-8 max-md:h-11"
         />
         <Kbd className="pointer-events-none absolute inset-y-0 right-2 my-auto">/</Kbd>
       </div>
@@ -57,7 +68,10 @@ export function OperationsFilters({
         value={categoryId || "all"}
         onValueChange={(value) => navigate({ category: value === "all" ? "" : String(value) })}
       >
-        <SelectTrigger className="w-auto min-w-[180px]">
+        <SelectTrigger
+          aria-label="Filtrer par catégorie"
+          className="w-auto min-w-[180px] max-md:data-[size=default]:h-11"
+        >
           <SelectValue placeholder="Toutes les catégories" />
         </SelectTrigger>
         <SelectContent>
@@ -69,6 +83,6 @@ export function OperationsFilters({
           ))}
         </SelectContent>
       </Select>
-    </div>
+    </search>
   );
 }

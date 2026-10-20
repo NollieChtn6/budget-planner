@@ -19,7 +19,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { defaultOperationDate } from "@/lib/default-operation-date";
 import type { ExpenseLinkOption } from "@/lib/expense-link-options";
+import { MOBILE_TOUCH_TARGETS } from "@/lib/touch-targets";
 import { AddContributionForm } from "./add-contribution-form";
 import { AddExpenseForm } from "./add-expense-form";
 import { AddExtraIncomeForm } from "./add-extra-income-form";
@@ -52,6 +54,9 @@ const OPERATION_TYPES: { value: OperationType; label: string; description: strin
 ];
 
 /** Header actions for "Ce mois-ci" (docs/ui/pecule_maquettes_v_02.html, headActions): dialogs opened either by click or by the N/V shortcuts from keyboard-shortcuts.tsx. */
+/** Tall forms scroll inside the dialog rather than past the screen. */
+const DIALOG_CLASS = `max-h-[90dvh] overflow-y-auto sm:max-w-md ${MOBILE_TOUCH_TARGETS}`;
+
 export function AddOperationDialogs({
   canAddExpense,
   canAddContribution,
@@ -64,7 +69,6 @@ export function AddOperationDialogs({
   categories,
   minDate,
   maxDate,
-  defaultDate,
   knownPlaces,
   lastUsedCategoryId,
 }: {
@@ -79,10 +83,10 @@ export function AddOperationDialogs({
   categories: { id: string; label: string }[];
   minDate: string;
   maxDate: string;
-  defaultDate: string;
   knownPlaces: string[];
   lastUsedCategoryId: string | null;
 }) {
+  const defaultDate = defaultOperationDate(minDate, maxDate);
   const [expenseOpen, setExpenseOpen] = useState(false);
   const [contributionOpen, setContributionOpen] = useState(false);
   const [operationOpen, setOperationOpen] = useState(false);
@@ -153,7 +157,7 @@ export function AddOperationDialogs({
               V
             </Kbd>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-md">
+          <DialogContent className={DIALOG_CLASS}>
             <DialogHeader>
               <DialogTitle>Nouveau versement</DialogTitle>
             </DialogHeader>
@@ -182,7 +186,7 @@ export function AddOperationDialogs({
               N
             </Kbd>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-md">
+          <DialogContent className={DIALOG_CLASS}>
             <DialogHeader>
               <DialogTitle>Nouvelle dépense</DialogTitle>
             </DialogHeader>
@@ -208,7 +212,7 @@ export function AddOperationDialogs({
             Nouvelle opération
             <Kbd>O</Kbd>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-md">
+          <DialogContent className={DIALOG_CLASS}>
             <DialogHeader>
               <DialogTitle>Nouvelle opération</DialogTitle>
               <DialogDescription>{selectedOperation?.description}</DialogDescription>

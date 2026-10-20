@@ -10,20 +10,29 @@ import {
 } from "@budget/db";
 import {
   computeProvisionBalance,
+  dueMonth,
   firstDayOfMonth,
   formatCalendarDate,
   isSameMonth,
   lastDayOfMonth,
   type Money,
+  type Month,
   moneyFromCents,
   moneyToEuros,
   monthOfCalendarDate,
   sumMoney,
 } from "@budget/domain";
+import Link from "next/link";
+import { buttonVariants } from "@/components/ui/button";
 import { resolveActiveMonth } from "@/lib/current-month";
 import { formatEuros } from "@/lib/format-money";
+import { formatMonthLabel } from "@/lib/format-month-label";
 import { requireSession } from "@/lib/session";
 import { ProvisionOperationalCard } from "./provision-operational-card";
+
+function monthIndex(month: Month): number {
+  return month.year * 12 + month.monthNumber;
+}
 
 export default async function ProvisionsPage() {
   const session = await requireSession();
@@ -69,16 +78,22 @@ export default async function ProvisionsPage() {
       }),
   );
 
+  // Late provisions first, then the nearest due month; reserves have no date and come last.
+  const urgency = (p: (typeof provisions)[number]) =>
+    p.status === "late"
+      ? -1
+      : p.type === "deadline"
+        ? monthIndex(dueMonth(p))
+        : Number.MAX_SAFE_INTEGER;
   const activeProvisions = provisions
     .filter((p) => p.status !== "closed")
-    .sort((a, b) => a.label.localeCompare(b.label));
+    .sort((a, b) => urgency(a) - urgency(b) || a.label.localeCompare(b.label));
   const closedProvisions = provisions
     .filter((p) => p.status === "closed")
     .sort((a, b) => a.label.localeCompare(b.label));
 
   const minDate = formatCalendarDate(firstDayOfMonth(activeMonth));
   const maxDate = formatCalendarDate(lastDayOfMonth(activeMonth));
-  const defaultDate = new Date().toISOString().slice(0, 10);
 
   function card(provision: (typeof provisions)[number]) {
     const ledger = ledgers.get(provision.id) ?? {
@@ -98,7 +113,7 @@ export default async function ProvisionsPage() {
         canAct={budgetMonth?.status === "open" && provision.status !== "closed"}
         minDate={minDate}
         maxDate={maxDate}
-        defaultDate={defaultDate}
+        activeMonth={activeMonth}
         categories={activeCategories}
         knownPlaces={knownPlaces}
         lastUsedCategoryId={lastUsedCategoryId}
@@ -119,14 +134,45 @@ export default async function ProvisionsPage() {
         </p>
       </div>
 
-      {activeProvisions.length > 0 ? (
-        <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
-          {activeProvisions.map(card)}
-        </div>
-      ) : (
+      {budgetMonth?.status === "closed" ? (
         <p className="text-sm text-muted-foreground">
-          Aucune provision pour l'instant. Crée-en une dans les paramètres.
+          {formatMonthLabel(activeMonth)} est clôturé : les versements et les dépenses sont
+          verrouillés.
         </p>
+      ) : !budgetMonth ? (
+        <div className="flex flex-wrap items-center gap-3">
+          <p className="text-sm text-muted-foreground">
+            {formatMonthLabel(activeMonth)} n'est pas encore ouvert : ouvre-le pour verser ou
+            dépenser.
+          </p>
+          <Link href="/" className={buttonVariants({ variant: "outline", size: "sm" })}>
+            Ouvrir le mois
+          </Link>
+        </div>
+      ) : null}
+
+      {activeProvisions.length > 0 ? (
+        <section aria-labelledby="provisions-en-cours" className="flex flex-col gap-4">
+          <h2 id="provisions-en-cours" className="sr-only">
+            En cours
+          </h2>
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
+            {activeProvisions.map(card)}
+          </div>
+        </section>
+      ) : (
+        <div className="flex flex-wrap items-center gap-3">
+          <p className="text-sm text-muted-foreground">
+            Aucune provision pour l'instant. Une provision met de côté chaque mois pour une dépense
+            prévue.
+          </p>
+          <Link
+            href="/settings/provisions"
+            className={buttonVariants({ variant: "outline", size: "sm" })}
+          >
+            Créer une provision
+          </Link>
+        </div>
       )}
 
       {closedProvisions.length > 0 ? (

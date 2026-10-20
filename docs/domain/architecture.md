@@ -34,6 +34,7 @@ apps/web/
       page.tsx               dashboard du mois
       months/[month]/        ouverture, clôture, opérations d'un mois
       settings/              postes fixes, enveloppes, provisions, catégories
+      profile/               prénom et mot de passe (Server Actions `actions/profile.ts`, logique dans `lib/profile.ts`)
   actions/                   Server Actions, une par intention (addExpense, openMonth…)
   schemas/                   schémas Zod des entrées
   lib/auth.ts                configuration Better Auth (serveur)

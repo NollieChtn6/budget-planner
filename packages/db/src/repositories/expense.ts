@@ -21,6 +21,26 @@ export async function findExpensesByUserAndMonth(
   return rows.map(toDomainExpense);
 }
 
+/** R39: expenses dated from the first day of `from` to the last day of `to`, for the statistics page. */
+export async function findExpensesByUserBetweenMonths(
+  prisma: PrismaClient,
+  userId: string,
+  from: Month,
+  to: Month,
+): Promise<Expense[]> {
+  const rows = await prisma.expense.findMany({
+    where: {
+      userId,
+      date: {
+        gte: calendarDateToDate(firstDayOfMonth(from)),
+        lte: calendarDateToDate(lastDayOfMonth(to)),
+      },
+    },
+    orderBy: { date: "asc" },
+  });
+  return rows.map(toDomainExpense);
+}
+
 /** All-time, used to compute a provision's balance (docs/domain/model.md), which isn't scoped to a month. */
 export async function findExpensesByUserAndProvision(
   prisma: PrismaClient,

@@ -34,6 +34,7 @@ apps/web/
       page.tsx               dashboard du mois
       months/[month]/        ouverture, clôture, opérations d'un mois
       settings/              postes fixes, enveloppes, provisions, catégories
+      stats/                 dépenses nettes par catégorie sur une période (R39), calcul dans `operations/category-stats.ts`
       profile/               prénom et mot de passe (Server Actions `actions/profile.ts`, logique dans `lib/profile.ts`)
   actions/                   Server Actions, une par intention (addExpense, openMonth…)
   schemas/                   schémas Zod des entrées
@@ -49,6 +50,7 @@ packages/domain/src/
   money.ts                   type Money et arrondis
   month.ts                   type Month (AAAA-MM) et arithmétique des mois
   budget/                    reste à vivre, enveloppes, alertes (R9 à R16)
+  operations/                dépenses, remboursements, versements, statistiques par catégorie (R39)
   provisions/                cibles, échéances, consommation (R17 à R23)
   months/                    ouverture, clôture, réouverture (R4 à R7, R24 à R30)
   index.ts                   API publique du paquet

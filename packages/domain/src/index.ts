@@ -111,6 +111,14 @@ export {
   type SnapshotProvisionTarget,
 } from "./months/open-month";
 export {
+  type CategoryStats,
+  type CategoryStatsRow,
+  computeCategoryStats,
+  type StatsPeriod,
+  type StatsPeriodLength,
+  selectStatsMonths,
+} from "./operations/category-stats";
+export {
   type Contribution,
   canModifyContribution,
   type RecordContributionContext,

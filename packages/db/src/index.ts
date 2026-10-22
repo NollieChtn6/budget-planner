@@ -20,6 +20,7 @@ export {
   findExpenseById,
   findExpensesByUserAndMonth,
   findExpensesByUserAndProvision,
+  findExpensesByUserBetweenMonths,
   findKnownPlacesByUser,
   findLastUsedCategoryIdByUser,
   findRecentExpensesByUser,
@@ -70,6 +71,7 @@ export {
   findReimbursementById,
   findReimbursementsByUserAndExpense,
   findReimbursementsByUserAndMonth,
+  findReimbursementsForStats,
   updateReimbursement,
 } from "./repositories/reimbursement";
 export {

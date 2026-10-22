@@ -60,7 +60,7 @@ En cas d'erreur découverte après coup, elle peut rouvrir le dernier mois clôt
 ## Écrans V1
 
 - **Connexion**, et gestion des moyens d'authentification.
-- **Navigation** : rubriques fixes, sans entrée par mois : Ce mois-ci, Opérations, Provisions, Historique, Paramètres.
+- **Navigation** : rubriques fixes, sans entrée par mois : Ce mois-ci, Opérations, Provisions, Historique, Statistiques, Paramètres.
 - **Ce mois-ci** : toujours le mois actif. Écran d'ouverture s'il n'est pas ouvert ; sinon le dashboard, avec un rappel de clôture quand le mois du calendrier a dépassé le mois actif.
 - **Dashboard du mois** : ce qu'il reste ce mois-ci, reste à vivre, remboursements reçus, entrées exceptionnelles, transferts vers l'épargne (lignes distinctes, avec la part des envies converties et leur nombre, R38), marge prévisionnelle, enveloppes variables avec niveau d'alerte, provisions avec progression et statut, pointage.
 - **Historique** : mois clôturés groupés par année, avec totaux annuels, dont le total des envies converties (R38) ; chaque mois s'ouvre en lecture seule, et seul le dernier mois clôturé propose la réouverture (R29).
@@ -68,6 +68,7 @@ En cas d'erreur découverte après coup, elle peut rouvrir le dernier mois clôt
 - **Saisie rapide** : dépense, versement, remboursement, entrée exceptionnelle ou transfert vers l'épargne, optimisée pour le mobile.
 - **Paramètres** : postes fixes, enveloppes, provisions, catégories.
 - **Profil** (`/profile`, depuis l'icône en pied de navigation) : modifier son prénom et son mot de passe ; l'email s'affiche en lecture seule. La gestion du second facteur (codes de secours, réenrôlement) et le changement d'email n'y sont pas proposés.
+- **Statistiques** : dépenses nettes par catégorie sur les 3, 6 ou 12 derniers mois, ou tous, avec ou sans le mois en cours (R39). Pour chaque catégorie : montant, part du total et moyenne mensuelle. Lecture seule, sans détail des opérations.
 - **Ouverture** et **clôture** du mois.
 - **Liste des opérations** d'un mois au choix (mois actif par défaut), avec recherche et filtre par catégorie ; modifiables uniquement pour le mois actif ouvert.
 
@@ -75,7 +76,7 @@ En cas d'erreur découverte après coup, elle peut rouvrir le dernier mois clôt
 
 | Version | Contenu |
 |---|---|
-| V1 | Tout ce qui précède, remboursements, entrées exceptionnelles, transferts et envies converties compris (ex-« dépenses évitées » de la V2) |
+| V1 | Tout ce qui précède, statistiques par catégorie (R39), remboursements, entrées exceptionnelles, transferts et envies converties compris (ex-« dépenses évitées » de la V2) |
 | V2 | Historique et dashboard multi-mois ; règles automatiques de report des reliquats ; consommation rapportée au temps écoulé dans le mois |
 | V3 | Import CSV bancaire ; notifications push ; analyse des tendances par IA |
 

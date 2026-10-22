@@ -8,6 +8,7 @@ import {
   findExpenseById,
   findExpensesByUserAndMonth,
   findExpensesByUserAndProvision,
+  findExpensesByUserBetweenMonths,
   findKnownPlacesByUser,
   findLastUsedCategoryIdByUser,
   updateExpense,
@@ -252,6 +253,43 @@ describe("findExpensesByUserAndMonth", () => {
     const october = await findExpensesByUserAndMonth(prisma, user.id, parseMonth("2026-10"));
     expect(october).toHaveLength(1);
     expect(moneyToEuros(october[0]?.amount ?? moneyFromEuros(-1))).toBe(15);
+  });
+});
+
+describe("findExpensesByUserBetweenMonths", () => {
+  it("returns the requesting user's expenses from the first to the last day of the range", async () => {
+    const user = await createTestUser(primaryEmail);
+    const otherUser = await createTestUser(otherEmail);
+    const { envelope, category } = await seedEnvelopeAndCategory(user.id);
+    const otherSetup = await seedEnvelopeAndCategory(otherUser.id);
+
+    for (const [date, euros] of [
+      ["2026-08-31", 5],
+      ["2026-09-01", 10],
+      ["2026-10-31", 15],
+      ["2026-11-01", 20],
+    ] as const) {
+      await createExpense(prisma, user.id, {
+        date: parseCalendarDate(date),
+        amount: moneyFromEuros(euros),
+        categoryId: category.id,
+        source: { type: "envelope", envelopeId: envelope.id },
+      });
+    }
+    await createExpense(prisma, otherUser.id, {
+      date: parseCalendarDate("2026-10-10"),
+      amount: moneyFromEuros(99),
+      categoryId: otherSetup.category.id,
+      source: { type: "envelope", envelopeId: otherSetup.envelope.id },
+    });
+
+    const expenses = await findExpensesByUserBetweenMonths(
+      prisma,
+      user.id,
+      parseMonth("2026-09"),
+      parseMonth("2026-10"),
+    );
+    expect(expenses.map((e) => moneyToEuros(e.amount))).toEqual([10, 15]);
   });
 });
 

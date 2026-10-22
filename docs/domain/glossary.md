@@ -101,3 +101,12 @@ Langage commun du projet. L'interface parle français, le code utilise les noms 
 | Répartition du reliquat | `LeftoverAllocation` | Entité | Affectation du reliquat, à la clôture, vers l'épargne, une provision, une enveloppe variable (bonus, voir Bonus d'enveloppe) ou sans destination (report, voir Report). |
 | Archiver | `archive()` | Action | Fixe la date d'archivage (`archivedFrom`) d'un poste fixe, d'une enveloppe variable ou d'une provision, sans effacer son historique (R8). |
 | Désarchiver | `unarchive()` | Action | Annule l'archivage d'un élément tant que sa date d'archivage (`archivedFrom`) n'a pas encore pris effet (R8). |
+
+## Statistiques
+
+| Terme | Code | Nature | Définition |
+|---|---|---|---|
+| Période d'analyse | `StatsPeriod` | Objet valeur | Les X derniers mois budgétaires existants (3, 6, 12) ou tous, avec ou sans le mois actif. Ne compte que des `BudgetMonth`, jamais des mois calendaires. |
+| Dépense nette d'une catégorie | `categoryNetSpending` | Valeur dérivée | Σ des dépenses de la catégorie sur la période, sur enveloppes comme sur provisions, remboursements déduits (R39). Jamais négative. |
+| Part d'une catégorie | `categoryShare` | Valeur dérivée | `categoryNetSpending` rapportée au total net de la période. |
+| Moyenne mensuelle d'une catégorie | `categoryMonthlyAverage` | Valeur dérivée | `categoryNetSpending` divisée par le nombre de mois de la période. |

@@ -127,6 +127,7 @@ Ces valeurs sont toujours calculées, jamais stockées, pour éviter toute déri
 - total des transferts vers l'épargne d'un mois : Σ `SavingsTransfer.amount` dont la date tombe dans le mois (R37) ;
 - total et nombre des envies converties d'un mois : Σ et nombre de `SavingsTransfer` de `kind = convertedUrge` dont la date tombe dans le mois (R38) ; total annuel dans l'historique ;
 - total des versements prélevés d'un mois : Σ `Contribution.amount` d'origine `disposableIncome` dont la date tombe dans le mois (R37) ;
+- dépense nette, part et moyenne mensuelle d'une catégorie sur une période d'analyse : Σ `Expense.amount` de la catégorie dont la date tombe dans les mois de la période, moins les remboursements déduits : ceux liés à ces dépenses, plus les non liés de la catégorie reçus dans la période (R39) ;
 - places connues et dernière catégorie utilisée (à partir des dépenses).
 
 ## Cycles de vie

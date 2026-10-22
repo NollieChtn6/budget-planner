@@ -9,6 +9,7 @@ import {
   findReimbursementById,
   findReimbursementsByUserAndExpense,
   findReimbursementsByUserAndMonth,
+  findReimbursementsForStats,
   updateReimbursement,
 } from "./reimbursement";
 import { createVariableEnvelope } from "./variable-envelope";
@@ -289,5 +290,43 @@ describe("deleting the linked expense", () => {
     const kept = await findReimbursementById(prisma, user.id, created.id);
     expect(kept).not.toBeNull();
     expect(kept?.expenseId).toBeUndefined();
+  });
+});
+
+describe("findReimbursementsForStats", () => {
+  it("returns reimbursements linked to the given expenses plus unlinked ones in the range, for this user only", async () => {
+    const user = await createTestUser(primaryEmail);
+    const otherUser = await createTestUser(otherEmail);
+    const { category, expense } = await seedCategoryAndExpense(user.id);
+    const otherSetup = await seedCategoryAndExpense(otherUser.id);
+
+    const make = (date: string, euros: number, expenseId?: string) =>
+      createReimbursement(prisma, user.id, {
+        date: parseCalendarDate(date),
+        amount: moneyFromEuros(euros),
+        label: "Mutuelle",
+        categoryId: category.id,
+        ...(expenseId ? { expenseId } : {}),
+      });
+    await make("2026-12-20", 1, expense.id); // linked, received after the range
+    await make("2026-09-20", 2); // unlinked, in the range
+    await make("2026-08-31", 3); // unlinked, before the range
+    await make("2026-11-01", 4); // unlinked, after the range
+    await createReimbursement(prisma, otherUser.id, {
+      date: parseCalendarDate("2026-09-20"),
+      amount: moneyFromEuros(99),
+      label: "Mutuelle",
+      categoryId: otherSetup.category.id,
+      expenseId: otherSetup.expense.id,
+    });
+
+    const reimbursements = await findReimbursementsForStats(
+      prisma,
+      user.id,
+      parseMonth("2026-09"),
+      parseMonth("2026-10"),
+      [expense.id],
+    );
+    expect(reimbursements.map((r) => moneyToEuros(r.amount)).sort()).toEqual([1, 2]);
   });
 });

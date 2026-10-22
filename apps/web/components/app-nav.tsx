@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 export const NAV_ITEMS = [
   { href: "/", label: "Ce mois-ci" },
   { href: "/history", label: "Historique" },
+  { href: "/stats", label: "Statistiques" },
   { href: "/operations", label: "Opérations" },
   { href: "/provisions", label: "Provisions" },
   { href: "/settings/fixed-entries", label: "Paramètres" },
@@ -42,7 +43,7 @@ export function AppNav() {
               <Kbd>{index + 1}</Kbd>
             </Link>
             {/* Separates "suivi" (ce mois-ci, historique) from the rest of the nav. */}
-            {item.href === "/history" ? <Separator className="my-1" /> : null}
+            {item.href === "/stats" ? <Separator className="my-1" /> : null}
           </Fragment>
         );
       })}

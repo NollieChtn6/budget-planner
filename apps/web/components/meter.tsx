@@ -7,6 +7,7 @@ export function Meter({
   valueText,
   marker,
   className,
+  color,
 }: {
   percent: number;
   label: string;
@@ -15,6 +16,8 @@ export function Meter({
   /** A tick on the track, as a percentage: where the fill should be by now. */
   marker?: number;
   className?: string;
+  /** Fill colour as a CSS value, for fills that aren't a design token (e.g. a category's colour). */
+  color?: string;
 }) {
   const clamped = Math.max(0, Math.min(100, percent));
   return (
@@ -32,7 +35,7 @@ export function Meter({
           "h-full rounded-full transition-[width] motion-reduce:transition-none",
           className,
         )}
-        style={{ width: `${clamped}%` }}
+        style={{ width: `${clamped}%`, ...(color ? { backgroundColor: color } : {}) }}
       />
       {marker === undefined ? null : (
         <div

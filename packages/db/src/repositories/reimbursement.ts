@@ -21,6 +21,37 @@ export async function findReimbursementsByUserAndMonth(
   return rows.map(toDomainReimbursement);
 }
 
+/**
+ * R39: what the statistics page needs to net spending: the reimbursements
+ * linked to the given expenses (whenever received) plus the unlinked ones
+ * received from the first day of `from` to the last day of `to`.
+ */
+export async function findReimbursementsForStats(
+  prisma: PrismaClient,
+  userId: string,
+  from: Month,
+  to: Month,
+  expenseIds: string[],
+): Promise<Reimbursement[]> {
+  const rows = await prisma.reimbursement.findMany({
+    where: {
+      userId,
+      OR: [
+        { expenseId: { in: expenseIds } },
+        {
+          expenseId: null,
+          date: {
+            gte: calendarDateToDate(firstDayOfMonth(from)),
+            lte: calendarDateToDate(lastDayOfMonth(to)),
+          },
+        },
+      ],
+    },
+    orderBy: { date: "asc" },
+  });
+  return rows.map(toDomainReimbursement);
+}
+
 /** All-time, used for the R35 warning when the reimbursements of an expense exceed it. */
 export async function findReimbursementsByUserAndExpense(
   prisma: PrismaClient,

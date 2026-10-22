@@ -30,7 +30,7 @@ export function KeyboardShortcuts() {
       if (event.ctrlKey || event.metaKey || event.altKey) return;
       if (isTypingTarget(event.target)) return;
 
-      if (event.key >= "1" && event.key <= "5") {
+      if (event.key >= "1" && event.key <= String(NAV_ITEMS.length)) {
         const item = NAV_ITEMS[Number(event.key) - 1];
         if (item) router.push(item.href);
         return;

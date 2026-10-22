@@ -112,6 +112,17 @@ Une réserve vidée ne déclenche aucune question : elle se réalimente selon R2
 - Les envies converties restent incluses dans le total des transferts vers l'épargne ; elles sont en plus valorisées par un total et un nombre par mois (`convertedUrgesTotal`, `convertedUrgesCount`), affichés sur le dashboard et dans l'historique (total annuel).
 - `kind` se modifie comme les autres champs ; suppression et modification suivent R37 (mois actif ouvert, ou réouverture R29).
 
+## Statistiques
+
+**R39.** La page Statistiques ventile les dépenses par catégorie sur une période d'analyse (`StatsPeriod`). Rien n'est stocké (ADR-0005) et aucune opération n'est modifiée.
+- Période : les 3, 6 ou 12 derniers mois budgétaires existants, ou tous. Un mois jamais ouvert n'existe pas et n'est ni compté ni affiché ; s'il existe moins de mois que demandé, la période prend ceux qui existent. Le mois actif est inclus par défaut et peut être exclu ; les autres mois sont tous clôturés. Un mois rouvert (R29) est le mois actif.
+- `dépense nette d'une catégorie = Σ dépenses de la catégorie − remboursements déduits`, sur les mois de la période. Les dépenses sur provision comptent, comme celles sur enveloppe. Les postes fixes, transferts vers l'épargne, envies converties, versements et entrées exceptionnelles n'entrent pas.
+- Un remboursement lié à une dépense d'origine (R35) se déduit de **cette dépense** : sa catégorie et son mois, quelle que soit la date de réception, y compris après la période. La déduction est plafonnée au montant de la dépense. Si la dépense d'origine est hors période, le remboursement est ignoré.
+- Un remboursement sans dépense d'origine se déduit de **sa propre catégorie** s'il est reçu dans la période. Une catégorie ne descend jamais sous 0 €.
+- Le brut (dépenses seules) et le montant remboursé sont affichés en secondaire, seulement quand la catégorie a un remboursement déduit.
+- `part = dépense nette de la catégorie / total net de la période`. `moyenne mensuelle = dépense nette de la catégorie / nombre de mois de la période`, mois actif compris quand il est inclus (moyenne alors approximative, signalée à l'affichage).
+- Les catégories archivées apparaissent si leur net est non nul sur la période ; les catégories à 0 € sont masquées. Tri par net décroissant, ligne de total en bas.
+
 ## Clôture du mois
 
 **R24.** `reliquat = Σ restants des enveloppes variables`, restants négatifs compris.
@@ -166,3 +177,6 @@ Données de référence : revenu 2 800 € ; charges 1 400 € (loyer 1 000, int
 | E17 | R9, R11, R14, R35 | Mutuelle : remboursement de 42 € reçu en cours de mois, enveloppes inchangées | Reste à vivre 1 042 € ; base de répartition 850 € ; budgets inchangés ; marge 408,33 + 42 = 450,33 € |
 | E18 | R9, R11, R14, R36, R37 | Chèque cadeau de 100 € reçu, 40 € transférés à l'épargne, 66,67 € versés sur Orthodontie (cible du mois 66,67 €) | Reste à vivre 1 000 + 100 − 40 − 66,67 = 993,33 € ; base de répartition 850 € ; budgets inchangés ; cible restante Orthodontie 0 € ; marge 468,33 € (408,33 + 100 − 40, le versement égal à la cible est neutre) |
 | E19 | R9, R11, R14, R37, R38 | Envie convertie : pull à 40 € auquel elle renonce (« Pull en solde »), transféré vers l'épargne | Reste à vivre 1 000 − 40 = 960 € ; base de répartition 850 € ; budgets inchangés ; marge 408,33 − 40 = 368,33 € ; total des transferts 40 € dont 40 € d'envies converties (1 envie convertie) |
+| E20 | R39, R35 | Catégorie Santé : dépenses de 50 € (enveloppe) et de 20 € (provision Orthodontie), remboursement mutuelle de 42 € lié à la dépense de 50 € | Dépense nette 28 € (70 € dépensés, 42 € remboursés) |
+| E21 | R39 | Produits d'entretien : 40 € (mois clôturé A), 20 € (mois clôturé B), 10 € (mois actif C) ; total net de tous les mois 200 € | Avec le mois actif : 70 €, part 35 %, moyenne 23,33 € (approximative). Sans : 60 €, moyenne 30 € |
+| E22 | R39 | Catégorie Santé : dépenses de 10 €, remboursement non lié de 42 € reçu dans la période | Net plafonné à 0 € ; la catégorie est masquée |

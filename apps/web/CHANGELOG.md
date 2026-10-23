@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.7.1](https://github.com/NollieChtn6/budget-planner/compare/budget-planner-v0.7.0...budget-planner-v0.7.1) (2026-10-23)
+
+
+### Bug Fixes
+
+* **month:** load only the needed closed month ([686470c](https://github.com/NollieChtn6/budget-planner/commit/686470c4fb6560d6f436100284c01da8a8f50888))
+* **nav:** disable prefetch on navigation links ([5618083](https://github.com/NollieChtn6/budget-planner/commit/5618083edff5a56e67cfc19d066c22475aefe00a))
+* **perf:** reduce data loading and function duration ([7ac3c30](https://github.com/NollieChtn6/budget-planner/commit/7ac3c301841f1968eb8ded860ade0202d405b28c))
+* **provision:** compute provision balances in the database ([8d3be8b](https://github.com/NollieChtn6/budget-planner/commit/8d3be8b2374e9ab2bfb2021de317b8df044ba5d8))
+
 ## [0.7.0](https://github.com/NollieChtn6/budget-planner/compare/budget-planner-v0.6.0...budget-planner-v0.7.0) (2026-10-22)
 
 

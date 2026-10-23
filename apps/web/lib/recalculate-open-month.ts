@@ -1,16 +1,15 @@
 import {
-  findContributionsByUserAndProvision,
-  findExpensesByUserAndProvision,
   findFixedEntriesByUser,
   findLeftoverAllocationsByUserAndMonth,
   findOpenBudgetMonthByUser,
+  findProvisionBalancesByUser,
   findProvisionsByUser,
   findVariableEnvelopesByUser,
   replaceBudgetMonthSnapshot,
 } from "@budget/db";
 import {
   computeCarriedOver,
-  computeProvisionBalance,
+  moneyFromCents,
   previousMonth,
   recalculateOpenMonthSnapshot,
 } from "@budget/domain";
@@ -40,21 +39,11 @@ export async function recalculateOpenMonthSnapshotForUser(
     findProvisionsByUser(prismaClient, userId),
   ]);
 
-  const provisionsWithBalance = await Promise.all(
-    provisions.map(async (provision) => {
-      const [contributions, expenses] = await Promise.all([
-        findContributionsByUserAndProvision(prismaClient, userId, provision.id),
-        findExpensesByUserAndProvision(prismaClient, userId, provision.id),
-      ]);
-      return {
-        ...provision,
-        balance: computeProvisionBalance(
-          contributions.map((c) => c.amount),
-          expenses,
-        ),
-      };
-    }),
-  );
+  const balances = await findProvisionBalancesByUser(prismaClient, userId);
+  const provisionsWithBalance = provisions.map((provision) => ({
+    ...provision,
+    balance: balances.get(provision.id) ?? moneyFromCents(0),
+  }));
 
   const snapshot = recalculateOpenMonthSnapshot({
     budgetMonth,

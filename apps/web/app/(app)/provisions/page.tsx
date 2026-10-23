@@ -1,25 +1,22 @@
 import {
   findBudgetMonthByMonth,
   findCategoriesByUser,
-  findContributionsByUserAndProvision,
-  findExpensesByUserAndProvision,
+  findContributionsByUserAndMonth,
   findKnownPlacesByUser,
   findLastUsedCategoryIdByUser,
+  findProvisionBalancesByUser,
   findProvisionsByUser,
   prisma,
 } from "@budget/db";
 import {
-  computeProvisionBalance,
   dueMonth,
   firstDayOfMonth,
   formatCalendarDate,
-  isSameMonth,
   lastDayOfMonth,
   type Money,
   type Month,
   moneyFromCents,
   moneyToEuros,
-  monthOfCalendarDate,
   sumMoney,
 } from "@budget/domain";
 import Link from "next/link";
@@ -38,8 +35,18 @@ export default async function ProvisionsPage() {
   const session = await requireSession();
   const activeMonth = await resolveActiveMonth(prisma, session.user.id);
 
-  const [provisions, budgetMonth, categories, knownPlaces, lastUsedCategoryId] = await Promise.all([
+  const [
+    provisions,
+    provisionBalances,
+    monthContributions,
+    budgetMonth,
+    categories,
+    knownPlaces,
+    lastUsedCategoryId,
+  ] = await Promise.all([
     findProvisionsByUser(prisma, session.user.id),
+    findProvisionBalancesByUser(prisma, session.user.id),
+    findContributionsByUserAndMonth(prisma, session.user.id, activeMonth),
     findBudgetMonthByMonth(prisma, session.user.id, activeMonth),
     findCategoriesByUser(prisma, session.user.id),
     findKnownPlacesByUser(prisma, session.user.id),
@@ -50,24 +57,14 @@ export default async function ProvisionsPage() {
     .map((category) => ({ id: category.id, label: category.label }));
 
   const ledgers = new Map<string, { balance: Money; paidThisMonth: Money }>();
-  await Promise.all(
-    provisions.map(async (provision) => {
-      const [contributions, expenses] = await Promise.all([
-        findContributionsByUserAndProvision(prisma, session.user.id, provision.id),
-        findExpensesByUserAndProvision(prisma, session.user.id, provision.id),
-      ]);
-      const balance = computeProvisionBalance(
-        contributions.map((c) => c.amount),
-        expenses,
-      );
-      const paidThisMonth = sumMoney(
-        contributions
-          .filter((c) => isSameMonth(monthOfCalendarDate(c.date), activeMonth))
-          .map((c) => c.amount),
-      );
-      ledgers.set(provision.id, { balance, paidThisMonth });
-    }),
-  );
+  for (const provision of provisions) {
+    ledgers.set(provision.id, {
+      balance: provisionBalances.get(provision.id) ?? moneyFromCents(0),
+      paidThisMonth: sumMoney(
+        monthContributions.filter((c) => c.provisionId === provision.id).map((c) => c.amount),
+      ),
+    });
+  }
 
   const totalAvailable = sumMoney(
     provisions

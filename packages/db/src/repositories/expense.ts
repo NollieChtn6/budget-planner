@@ -62,11 +62,12 @@ export async function findKnownPlacesByUser(
   prisma: PrismaClient,
   userId: string,
 ): Promise<string[]> {
-  const rows = await prisma.expense.findMany({
+  // groupBy rather than findMany + distinct: Prisma applies `distinct` in memory, after fetching every row.
+  const rows = await prisma.expense.groupBy({
+    by: ["place"],
     where: { userId, place: { not: null } },
-    select: { place: true },
-    distinct: ["place"],
-    orderBy: { date: "desc" },
+    _max: { date: true },
+    orderBy: { _max: { date: "desc" } },
   });
   return rows.flatMap((row) => (row.place ? [row.place] : []));
 }

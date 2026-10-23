@@ -14,7 +14,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <AppSidebarContent />
       </aside>
       <header className="sticky top-0 z-40 flex items-center justify-between border-b bg-card px-4 py-3 md:hidden">
-        <Link href="/" className="flex items-center gap-2 font-heading text-xl tracking-tight">
+        <Link
+          href="/"
+          prefetch={false}
+          className="flex items-center gap-2 font-heading text-xl tracking-tight"
+        >
           {/* biome-ignore lint/performance/noImgElement: static brand mark, self-adapts to the theme via its own embedded media query */}
           <img src="/icon.svg" alt="" className="h-6 w-6" />
           Pécule

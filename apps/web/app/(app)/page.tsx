@@ -2,14 +2,13 @@ import {
   findBudgetMonthByMonth,
   findCategoriesByUser,
   findContributionsByUserAndMonth,
-  findContributionsByUserAndProvision,
   findExpensesByUserAndMonth,
-  findExpensesByUserAndProvision,
   findExtraIncomesByUserAndMonth,
   findFixedEntriesByUser,
   findKnownPlacesByUser,
   findLastUsedCategoryIdByUser,
   findLeftoverAllocationsByUserAndMonth,
+  findProvisionBalancesByUser,
   findProvisionsByUser,
   findRecentExpensesByUser,
   findReimbursementsByUserAndMonth,
@@ -23,7 +22,6 @@ import {
   addMoney,
   type ConsumptionLevel,
   type Contribution,
-  compareCalendarDates,
   computeAllocationBase,
   computeCarriedOver,
   computeConsumptionLevel,
@@ -31,7 +29,6 @@ import {
   computeEnvelopeBonus,
   computeForecastMargin,
   computeLeftover,
-  computeProvisionBalance,
   computeRemaining,
   computeRemainingProvisionTarget,
   computeSavingsFundedAmount,
@@ -41,12 +38,10 @@ import {
   firstDayOfMonth,
   formatCalendarDate,
   isMonthAfter,
-  isSameMonth,
   lastDayOfMonth,
   type Money,
   moneyFromCents,
   moneyToEuros,
-  monthOfCalendarDate,
   nextMonth,
   type Provision,
   previousMonth,
@@ -245,29 +240,21 @@ export default async function HomePage() {
   }
 
   const provisionLedger = new Map<string, { balance: Money; paidThisMonth: Money }>();
-  const contributionsThisMonth: Contribution[] = [];
-  const provisionLedgerData = await Promise.all(
-    budgetMonth.provisionTargets.map(async (entry) => {
-      const [contributions, provisionExpenses] = await Promise.all([
-        findContributionsByUserAndProvision(prisma, session.user.id, entry.provisionId),
-        findExpensesByUserAndProvision(prisma, session.user.id, entry.provisionId),
-      ]);
-      return { provisionId: entry.provisionId, contributions, provisionExpenses };
-    }),
+  const provisionBalances = await findProvisionBalancesByUser(prisma, session.user.id);
+  const targetedProvisionIds = new Set(budgetMonth.provisionTargets.map((e) => e.provisionId));
+  // Already sorted by date and scoped to the active month.
+  const contributionsThisMonth: Contribution[] = monthContributions.filter((c) =>
+    targetedProvisionIds.has(c.provisionId),
   );
-  for (const { provisionId, contributions, provisionExpenses } of provisionLedgerData) {
-    const balance = computeProvisionBalance(
-      contributions.map((c) => c.amount),
-      provisionExpenses,
+  for (const { provisionId } of budgetMonth.provisionTargets) {
+    const paidThisMonth = sumMoney(
+      contributionsThisMonth.filter((c) => c.provisionId === provisionId).map((c) => c.amount),
     );
-    const thisMonth = contributions.filter((c) =>
-      isSameMonth(monthOfCalendarDate(c.date), activeMonth),
-    );
-    contributionsThisMonth.push(...thisMonth);
-    const paidThisMonth = sumMoney(thisMonth.map((c) => c.amount));
-    provisionLedger.set(provisionId, { balance, paidThisMonth });
+    provisionLedger.set(provisionId, {
+      balance: provisionBalances.get(provisionId) ?? moneyFromCents(0),
+      paidThisMonth,
+    });
   }
-  contributionsThisMonth.sort((a, b) => compareCalendarDates(a.date, b.date));
 
   const envelopeRemainders = budgetMonth.envelopeBudgets.map((entry) => ({
     label: entry.label,

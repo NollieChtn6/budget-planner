@@ -58,6 +58,7 @@ export {
   closeProvision,
   createProvision,
   extendProvisionDeadline,
+  findProvisionBalancesByUser,
   findProvisionById,
   findProvisionsByUser,
   markProvisionLate,

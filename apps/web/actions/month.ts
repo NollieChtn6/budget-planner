@@ -4,12 +4,11 @@ import {
   closeBudgetMonth,
   createBudgetMonth,
   findBudgetMonthByMonth,
-  findContributionsByUserAndProvision,
-  findExpensesByUserAndProvision,
   findFixedEntriesByUser,
   findLeftoverAllocationsByUserAndMonth,
   findMostRecentClosedBudgetMonthByUser,
   findOpenBudgetMonthByUser,
+  findProvisionBalancesByUser,
   findProvisionsByUser,
   findVariableEnvelopesByUser,
   markProvisionLate,
@@ -23,11 +22,11 @@ import {
   type CloseMonthFailure,
   closeMonth,
   computeCarriedOver,
-  computeProvisionBalance,
   dueMonth,
   isSameMonth,
   type LeftoverAllocationInput,
   type Month,
+  moneyFromCents,
   moneyFromEuros,
   nextMonth,
   openMonth,
@@ -87,21 +86,11 @@ export async function openMonthForUser(
   // R18/R21's starting point: each provision's real balance from every
   // contribution and provision-expense ever recorded against it, not just
   // this very first opening's (necessarily empty) history.
-  const provisionsWithBalance = await Promise.all(
-    provisions.map(async (provision) => {
-      const [contributions, expenses] = await Promise.all([
-        findContributionsByUserAndProvision(prismaClient, userId, provision.id),
-        findExpensesByUserAndProvision(prismaClient, userId, provision.id),
-      ]);
-      return {
-        ...provision,
-        balance: computeProvisionBalance(
-          contributions.map((c) => c.amount),
-          expenses,
-        ),
-      };
-    }),
-  );
+  const balances = await findProvisionBalancesByUser(prismaClient, userId);
+  const provisionsWithBalance = provisions.map((provision) => ({
+    ...provision,
+    balance: balances.get(provision.id) ?? moneyFromCents(0),
+  }));
 
   const result = openMonth({
     month: activeMonth,
@@ -208,15 +197,11 @@ async function applyLateProvisionTransitions(
       isSameMonth(dueMonth(provision), closingMonth),
   );
 
+  if (dueThisMonth.length === 0) return;
+
+  const balances = await findProvisionBalancesByUser(prismaClient, userId);
   for (const provision of dueThisMonth) {
-    const [contributions, expenses] = await Promise.all([
-      findContributionsByUserAndProvision(prismaClient, userId, provision.id),
-      findExpensesByUserAndProvision(prismaClient, userId, provision.id),
-    ]);
-    const balance = computeProvisionBalance(
-      contributions.map((c) => c.amount),
-      expenses,
-    );
+    const balance = balances.get(provision.id) ?? moneyFromCents(0);
     if (becomesLateAtMonthClose(provision, closingMonth, balance)) {
       await markProvisionLate(prismaClient, userId, provision.id);
     }

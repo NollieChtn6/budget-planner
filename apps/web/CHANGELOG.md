@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.7.0](https://github.com/NollieChtn6/budget-planner/compare/budget-planner-v0.6.0...budget-planner-v0.7.0) (2026-10-22)
+
+
+### Features
+
+* **stats:** add spending by category page ([2c440fa](https://github.com/NollieChtn6/budget-planner/commit/2c440fac08abf5c56bc737e491fcae2df00fd0db))
+* **stats:** add spending by category page ([302291e](https://github.com/NollieChtn6/budget-planner/commit/302291e21bbac788abaaf4f227aa856aeaca69b5))
+
 ## [0.6.0](https://github.com/NollieChtn6/budget-planner/compare/budget-planner-v0.5.1...budget-planner-v0.6.0) (2026-10-20)
 
 

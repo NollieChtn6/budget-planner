@@ -68,6 +68,35 @@ export async function findClosedBudgetMonthsByUser(
   return rows.map(toDomainBudgetMonth);
 }
 
+async function findClosedBudgetMonthByUser(
+  prisma: PrismaClient,
+  userId: string,
+  order: "asc" | "desc",
+): Promise<BudgetMonth | null> {
+  const row = await prisma.budgetMonth.findFirst({
+    where: { userId, status: "closed" },
+    orderBy: { month: order },
+    include: WITH_SNAPSHOT,
+  });
+  return row ? toDomainBudgetMonth(row) : null;
+}
+
+/** Single-row alternative to `findClosedBudgetMonthsByUser` when only the latest closed month matters. */
+export function findMostRecentClosedBudgetMonthByUser(
+  prisma: PrismaClient,
+  userId: string,
+): Promise<BudgetMonth | null> {
+  return findClosedBudgetMonthByUser(prisma, userId, "desc");
+}
+
+/** Single-row alternative to `findClosedBudgetMonthsByUser` when only the earliest closed month matters. */
+export function findOldestClosedBudgetMonthByUser(
+  prisma: PrismaClient,
+  userId: string,
+): Promise<BudgetMonth | null> {
+  return findClosedBudgetMonthByUser(prisma, userId, "asc");
+}
+
 /**
  * Creates the month and its three snapshot collections in one write:
  * nested creates on a single top-level mutation run inside one DB

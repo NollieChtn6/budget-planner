@@ -46,6 +46,8 @@ export {
   createBudgetMonth,
   findBudgetMonthByMonth,
   findClosedBudgetMonthsByUser,
+  findMostRecentClosedBudgetMonthByUser,
+  findOldestClosedBudgetMonthByUser,
   findOpenBudgetMonthByUser,
   reopenBudgetMonth,
   replaceBudgetMonthSnapshot,

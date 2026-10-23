@@ -4,11 +4,11 @@ import {
   closeBudgetMonth,
   createBudgetMonth,
   findBudgetMonthByMonth,
-  findClosedBudgetMonthsByUser,
   findContributionsByUserAndProvision,
   findExpensesByUserAndProvision,
   findFixedEntriesByUser,
   findLeftoverAllocationsByUserAndMonth,
+  findMostRecentClosedBudgetMonthByUser,
   findOpenBudgetMonthByUser,
   findProvisionsByUser,
   findVariableEnvelopesByUser,
@@ -358,7 +358,7 @@ export async function reopenMonthForUser(
   userId: string,
 ): Promise<VariableEnvelopeActionState> {
   const openMonthRow = await findOpenBudgetMonthByUser(prismaClient, userId);
-  const [mostRecentlyClosed] = await findClosedBudgetMonthsByUser(prismaClient, userId);
+  const mostRecentlyClosed = await findMostRecentClosedBudgetMonthByUser(prismaClient, userId);
 
   const result = reopenMonth(openMonthRow ? "open" : (mostRecentlyClosed?.status ?? "open"));
   if (!result.ok || !mostRecentlyClosed) {

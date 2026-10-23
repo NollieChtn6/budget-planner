@@ -11,6 +11,7 @@ export function AppSidebarContent() {
     <>
       <Link
         href="/"
+        prefetch={false}
         className="mb-5 flex items-center gap-2 px-2 font-heading text-2xl tracking-tight"
       >
         {/* biome-ignore lint/performance/noImgElement: static brand mark, self-adapts to the theme via its own embedded media query */}
@@ -24,6 +25,7 @@ export function AppSidebarContent() {
           <div className="flex items-center">
             <Link
               href="/profile"
+              prefetch={false}
               aria-label="Profil"
               title="Profil"
               className={buttonVariants({ variant: "ghost", size: "icon" })}

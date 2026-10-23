@@ -15,6 +15,8 @@ import {
   createBudgetMonth,
   findBudgetMonthByMonth,
   findClosedBudgetMonthsByUser,
+  findMostRecentClosedBudgetMonthByUser,
+  findOldestClosedBudgetMonthByUser,
   findOpenBudgetMonthByUser,
   reopenBudgetMonth,
   replaceBudgetMonthSnapshot,
@@ -598,5 +600,44 @@ describe("database constraints", () => {
         data: { budgetMonthId: row.id, destination: "savings", amountCents: 0 },
       }),
     ).rejects.toThrow();
+  });
+});
+
+describe("findMostRecentClosedBudgetMonthByUser / findOldestClosedBudgetMonthByUser", () => {
+  it("return the latest and earliest closed months, ignoring open ones", async () => {
+    const user = await createTestUser(primaryEmail);
+    const seed = await seedParameterization(user.id);
+    await createBudgetMonth(prisma, user.id, buildBudgetMonth(seed));
+    await createBudgetMonth(
+      prisma,
+      user.id,
+      buildBudgetMonth(seed, { month: parseMonth("2026-02") }),
+    );
+    await createBudgetMonth(
+      prisma,
+      user.id,
+      buildBudgetMonth(seed, { month: parseMonth("2026-03") }),
+    );
+    await closeBudgetMonth(prisma, user.id, month, {
+      closedAt: new Date("2026-01-31T12:00:00.000Z"),
+      allocations: [],
+      contributions: [],
+    });
+    await closeBudgetMonth(prisma, user.id, parseMonth("2026-02"), {
+      closedAt: new Date("2026-02-28T12:00:00.000Z"),
+      allocations: [],
+      contributions: [],
+    });
+
+    expect((await findMostRecentClosedBudgetMonthByUser(prisma, user.id))?.month).toEqual(
+      parseMonth("2026-02"),
+    );
+    expect((await findOldestClosedBudgetMonthByUser(prisma, user.id))?.month).toEqual(month);
+  });
+
+  it("return null when the user has no closed month", async () => {
+    const user = await createTestUser(primaryEmail);
+    expect(await findMostRecentClosedBudgetMonthByUser(prisma, user.id)).toBeNull();
+    expect(await findOldestClosedBudgetMonthByUser(prisma, user.id)).toBeNull();
   });
 });

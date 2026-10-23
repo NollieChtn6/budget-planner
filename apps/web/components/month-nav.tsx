@@ -36,6 +36,7 @@ export function MonthNav({
       ) : (
         <Link
           href={buildHref(previousMonth(month))}
+          prefetch={false}
           className={`${ARROW_CLASS} text-muted-foreground hover:bg-muted hover:text-foreground`}
           aria-label="Mois précédent"
         >
@@ -55,6 +56,7 @@ export function MonthNav({
       ) : (
         <Link
           href={buildHref(nextMonth(month))}
+          prefetch={false}
           className={`${ARROW_CLASS} text-muted-foreground hover:bg-muted hover:text-foreground`}
           aria-label="Mois suivant"
         >

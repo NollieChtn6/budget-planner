@@ -1,12 +1,13 @@
 import {
   findBudgetMonthByMonth,
   findCategoriesByUser,
-  findClosedBudgetMonthsByUser,
   findContributionsByUserAndMonth,
   findExpensesByUserAndMonth,
   findExtraIncomesByUserAndMonth,
   findKnownPlacesByUser,
   findLastUsedCategoryIdByUser,
+  findMostRecentClosedBudgetMonthByUser,
+  findOldestClosedBudgetMonthByUser,
   findOpenBudgetMonthByUser,
   findProvisionsByUser,
   findRecentExpensesByUser,
@@ -112,11 +113,12 @@ export default async function OperationsPage({
   const params = await searchParams;
 
   const activeMonth = await resolveActiveMonth(prisma, session.user.id);
-  const [closedMonths, openMonthRow] = await Promise.all([
-    findClosedBudgetMonthsByUser(prisma, session.user.id),
+  const [oldestClosed, latestClosed, openMonthRow] = await Promise.all([
+    findOldestClosedBudgetMonthByUser(prisma, session.user.id),
+    findMostRecentClosedBudgetMonthByUser(prisma, session.user.id),
     findOpenBudgetMonthByUser(prisma, session.user.id),
   ]);
-  const firstMonth = closedMonths.at(-1)?.month ?? openMonthRow?.month ?? activeMonth;
+  const firstMonth = oldestClosed?.month ?? openMonthRow?.month ?? activeMonth;
 
   let requestedMonth: Month;
   try {
@@ -137,9 +139,8 @@ export default async function OperationsPage({
   };
 
   // Only the latest closed month can be reopened, and only while no month is open (R29).
-  const latestClosed = closedMonths[0];
   const canReopen =
-    !openMonthRow && latestClosed !== undefined && isSameMonth(latestClosed.month, viewedMonth);
+    !openMonthRow && latestClosed !== null && isSameMonth(latestClosed.month, viewedMonth);
 
   const budgetMonth = await findBudgetMonthByMonth(prisma, session.user.id, viewedMonth);
 

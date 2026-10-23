@@ -1,4 +1,4 @@
-import { findClosedBudgetMonthsByUser, findOpenBudgetMonthByUser } from "@budget/db";
+import { findMostRecentClosedBudgetMonthByUser, findOpenBudgetMonthByUser } from "@budget/db";
 import { type Month, nextMonth, parseMonth } from "@budget/domain";
 import type { PrismaClient } from "@prisma/client";
 
@@ -23,7 +23,7 @@ export async function resolveActiveMonth(prisma: PrismaClient, userId: string): 
     return open.month;
   }
 
-  const [mostRecentlyClosed] = await findClosedBudgetMonthsByUser(prisma, userId);
+  const mostRecentlyClosed = await findMostRecentClosedBudgetMonthByUser(prisma, userId);
   if (mostRecentlyClosed) {
     return nextMonth(mostRecentlyClosed.month);
   }

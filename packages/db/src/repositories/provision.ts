@@ -1,5 +1,5 @@
 import type { Money, Month, Provision } from "@budget/domain";
-import { moneyToCents } from "@budget/domain";
+import { computeProvisionBalance, moneyFromCents, moneyToCents } from "@budget/domain";
 import type { PrismaClient } from "@prisma/client";
 import { monthToDate } from "../mappers/month";
 import { toDomainProvision, toPrismaProvisionData } from "../mappers/provision";
@@ -10,6 +10,59 @@ export async function findProvisionsByUser(
 ): Promise<Provision[]> {
   const rows = await prisma.provision.findMany({ where: { userId } });
   return rows.map(toDomainProvision);
+}
+
+/**
+ * Every provision's balance (docs/domain/model.md) in two aggregate queries,
+ * instead of loading each provision's whole contribution and expense history.
+ * Provisions with no contribution nor expense are absent: their balance is 0.
+ */
+export async function findProvisionBalancesByUser(
+  prisma: PrismaClient,
+  userId: string,
+): Promise<Map<string, Money>> {
+  const [contributionTotals, expenseTotals] = await Promise.all([
+    prisma.contribution.groupBy({
+      by: ["provisionId"],
+      where: { userId },
+      _sum: { amountCents: true },
+    }),
+    prisma.expense.groupBy({
+      by: ["provisionId"],
+      where: { userId, provisionId: { not: null } },
+      _sum: { amountCents: true, savingsDrawCents: true },
+    }),
+  ]);
+
+  const contributionsByProvision = new Map(
+    contributionTotals.map((row) => [row.provisionId, row._sum.amountCents ?? 0]),
+  );
+  const expensesByProvision = new Map(
+    expenseTotals.flatMap((row) =>
+      row.provisionId === null ? [] : [[row.provisionId, row._sum] as const],
+    ),
+  );
+
+  const balances = new Map<string, Money>();
+  for (const provisionId of new Set([
+    ...contributionsByProvision.keys(),
+    ...expensesByProvision.keys(),
+  ])) {
+    const expenseSum = expensesByProvision.get(provisionId);
+    balances.set(
+      provisionId,
+      computeProvisionBalance(
+        [moneyFromCents(contributionsByProvision.get(provisionId) ?? 0)],
+        [
+          {
+            amount: moneyFromCents(expenseSum?.amountCents ?? 0),
+            savingsDraw: moneyFromCents(expenseSum?.savingsDrawCents ?? 0),
+          },
+        ],
+      ),
+    );
+  }
+  return balances;
 }
 
 export async function findProvisionById(

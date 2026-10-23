@@ -22,6 +22,7 @@ export function SettingsSubnav() {
           <Link
             key={tab.href}
             href={tab.href}
+            prefetch={false}
             aria-current={active ? "page" : undefined}
             className={cn(
               "-mb-px flex min-h-11 shrink-0 items-center justify-center whitespace-nowrap border-b-2 px-1.5 text-[13px] max-md:flex-1 md:px-3 md:text-sm",

@@ -2,6 +2,7 @@ import { moneyFromEuros, moneyToEuros, parseCalendarDate, parseMonth } from "@bu
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { createTestPrismaClient } from "../testing";
 import { createCategory } from "./category";
+import { createContribution } from "./contribution";
 import {
   createExpense,
   deleteExpense,
@@ -13,7 +14,7 @@ import {
   findLastUsedCategoryIdByUser,
   updateExpense,
 } from "./expense";
-import { createProvision } from "./provision";
+import { createProvision, findProvisionBalancesByUser } from "./provision";
 import { createVariableEnvelope } from "./variable-envelope";
 
 const prisma = createTestPrismaClient();
@@ -468,5 +469,46 @@ describe("findLastUsedCategoryIdByUser", () => {
     const user = await createTestUser(primaryEmail);
 
     expect(await findLastUsedCategoryIdByUser(prisma, user.id)).toBeNull();
+  });
+});
+
+describe("findProvisionBalancesByUser", () => {
+  it("matches each provision's contributions minus what its expenses drew from it", async () => {
+    const owner = await createTestUser(primaryEmail);
+    const other = await createTestUser(otherEmail);
+    const { category } = await seedEnvelopeAndCategory(owner.id);
+    const reserve = await createProvision(prisma, owner.id, {
+      type: "reserve",
+      label: "Imprévus",
+      target: moneyFromEuros(250),
+      monthlyAmount: moneyFromEuros(50),
+    });
+    const untouched = await createProvision(prisma, owner.id, {
+      type: "reserve",
+      label: "Vacances",
+      target: moneyFromEuros(500),
+      monthlyAmount: moneyFromEuros(50),
+    });
+    for (const date of ["2026-09-01", "2026-10-01"]) {
+      await createContribution(prisma, owner.id, {
+        provisionId: reserve.id,
+        date: parseCalendarDate(date),
+        amount: moneyFromEuros(50),
+        origin: "manual",
+      });
+    }
+    await createExpense(prisma, owner.id, {
+      date: parseCalendarDate("2026-10-05"),
+      amount: moneyFromEuros(40),
+      categoryId: category.id,
+      source: { type: "provision", provisionId: reserve.id },
+      savingsDraw: moneyFromEuros(10),
+    });
+
+    const balances = await findProvisionBalancesByUser(prisma, owner.id);
+
+    expect(moneyToEuros(balances.get(reserve.id) ?? moneyFromEuros(-1))).toBe(70);
+    expect(balances.has(untouched.id)).toBe(false);
+    expect((await findProvisionBalancesByUser(prisma, other.id)).size).toBe(0);
   });
 });

@@ -33,6 +33,7 @@ export function AppNav() {
           <Fragment key={item.href}>
             <Link
               href={item.href}
+              prefetch={false}
               aria-current={current ? "page" : undefined}
               className={cn(
                 "flex items-center justify-between gap-2 rounded-lg px-2.5 py-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground",

@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
-import { AccountAlreadyExistsError, createUser } from "@/lib/create-user";
+import { AccountLimitReachedError, createUser } from "@/lib/create-user";
 import { isSetupTokenValid } from "@/lib/setup-token";
 import { createAccountSchema } from "@/schemas/setup";
 import type { SetupActionState } from "./setup-state";
@@ -29,7 +29,7 @@ export async function createAccountAction(
   try {
     await createUser(auth, parsed.data);
   } catch (error) {
-    if (error instanceof AccountAlreadyExistsError) {
+    if (error instanceof AccountLimitReachedError) {
       return { status: "error", message: error.message };
     }
     throw error;

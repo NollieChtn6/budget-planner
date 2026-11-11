@@ -1,4 +1,5 @@
-import { createUser } from "@/lib/create-user";
+import { createUser, MAX_ACCOUNTS } from "@/lib/create-user";
+import { createAccountSchema } from "@/schemas/setup";
 
 async function main() {
   const { config } = await import("dotenv");
@@ -23,7 +24,13 @@ async function main() {
 
   const password = await promptHidden("Mot de passe : ");
 
-  const user = await createUser(auth, { name, email, password });
+  const parsed = createAccountSchema.safeParse({ name, email, password });
+  if (!parsed.success) {
+    console.error(parsed.error.issues[0]?.message ?? "Entrée invalide.");
+    process.exit(1);
+  }
+
+  const user = await createUser(auth, parsed.data, { maxAccounts: MAX_ACCOUNTS });
   console.log(`Compte créé pour ${user.email} (id ${user.id}).`);
   process.exit(0);
 }

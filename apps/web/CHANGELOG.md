@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.8.0](https://github.com/NollieChtn6/budget-planner/compare/budget-planner-v0.7.1...budget-planner-v0.8.0) (2026-11-11)
+
+
+### Features
+
+* **auth:** allow a second account and add a tutorial page ([af8364c](https://github.com/NollieChtn6/budget-planner/commit/af8364c7d92330b76ce4a5f45815d32eb2defc1c))
+* **auth:** allow a second account and add a tutorial page ([88644cf](https://github.com/NollieChtn6/budget-planner/commit/88644cfddf16a39d5336179efe8cb56173d694c8))
+* **auth:** allow a second account and add a tutorial page ([6d245a5](https://github.com/NollieChtn6/budget-planner/commit/6d245a5d9dd0257e7f466e9f3302edb4799079a8))
+
 ## [0.7.1](https://github.com/NollieChtn6/budget-planner/compare/budget-planner-v0.7.0...budget-planner-v0.7.1) (2026-10-23)
 
 

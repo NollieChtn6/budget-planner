@@ -2,6 +2,7 @@
 
 - **Statut** : acceptée
 - **Date** : 2026-09-24
+- **Amendé le** : 2026-11-11 (deuxième compte, voir « Décision »)
 
 ## Contexte
 
@@ -9,9 +10,9 @@ L'app n'a qu'une utilisatrice, mais elle contient des données financières et e
 
 ## Décision
 
-- **Un seul compte**, sans inscription publique : pas de route `/sign-up`, inscription désactivée dans Better Auth (`disableSignUp: true`). Le compte est créé par l'un des deux mécanismes suivants, tous deux via l'API interne de Better Auth plutôt que son endpoint de sign-up, et tous deux refusant la création si un compte existe déjà (quel que soit l'email, pas seulement en cas de doublon) :
-  - `scripts/create-user.ts`, exécuté côté serveur, pour les hébergements avec accès shell. Invite le mot de passe en saisie masquée (jamais en variable d'environnement ni en argument).
-  - `/setup`, pour les hébergements sans accès shell (ex. plateformes serverless). Protégée par un jeton `SETUP_TOKEN` (variable d'environnement distincte du mot de passe du compte, générée par l'opérateur avec une entropie suffisante, ex. `openssl rand -hex 32`), transmis en paramètre d'URL (`/setup?token=...`) puis revalidé côté Server Action à la soumission — la page affichée n'est jamais considérée comme une preuve suffisante de possession du jeton. Fail-closed : `SETUP_TOKEN` absent, jeton invalide, ou compte déjà existant → `notFound()`, sans message distinctif qui confirmerait l'existence de la route. Pas de rate-limiting dédié sur les tentatives de jeton invalide : la protection repose sur l'entropie du jeton et sur la désactivation définitive de la route une fois le compte créé.
+- **Au plus deux comptes** (`MAX_ACCOUNTS` dans `apps/web/lib/create-user.ts`), sans inscription publique : pas de route `/sign-up`, inscription désactivée dans Better Auth (`disableSignUp: true`). Le compte est créé par l'un des deux mécanismes suivants, tous deux via l'API interne de Better Auth plutôt que son endpoint de sign-up, et tous deux refusant la création si un compte existe déjà (quel que soit l'email, pas seulement en cas de doublon) :
+  - `scripts/create-user.ts`, exécuté côté serveur, pour les hébergements avec accès shell. C'est le seul mécanisme qui peut créer un second compte (jusqu'à `MAX_ACCOUNTS`) ; un troisième est refusé. Invite le mot de passe en saisie masquée (jamais en variable d'environnement ni en argument).
+  - `/setup`, pour les hébergements sans accès shell (ex. plateformes serverless) : crée uniquement le premier compte (`createUser` plafonne à 1 par défaut). Protégée par un jeton `SETUP_TOKEN` (variable d'environnement distincte du mot de passe du compte, générée par l'opérateur avec une entropie suffisante, ex. `openssl rand -hex 32`), transmis en paramètre d'URL (`/setup?token=...`) puis revalidé côté Server Action à la soumission — la page affichée n'est jamais considérée comme une preuve suffisante de possession du jeton. Fail-closed : `SETUP_TOKEN` absent, jeton invalide, ou compte déjà existant → `notFound()`, sans message distinctif qui confirmerait l'existence de la route. Pas de rate-limiting dédié sur les tentatives de jeton invalide : la protection repose sur l'entropie du jeton et sur la désactivation définitive de la route une fois le compte créé.
 
   Dans les deux cas, `emailVerified` est marqué à `true` (aucun flux de vérification par e-mail n'existe). Seules les routes `/sign-in` et `/setup` sont exposées publiquement ; `/setup` ne reste fonctionnelle que tant qu'aucun compte n'existe.
 - **Better Auth**, email et mot de passe. Aucune implémentation maison de la cryptographie ou des sessions. Le schéma Prisma suit le modèle standard de Better Auth : `User` (profil — `name`, `email`, `emailVerified`, `twoFactorEnabled`…), `Account` (identifiants de connexion, dont le mot de passe haché), `Session`, `Verification`, `TwoFactor`. Le mot de passe n'est donc jamais stocké sur `User`. Le champ `name` sert de prénom ; pas de champ dédié.
@@ -29,6 +30,7 @@ L'app n'a qu'une utilisatrice, mais elle contient des données financières et e
 ## Conséquences
 
 - Un peu de complexité dès la V1, mais l'app peut être hébergée sans exposer les données.
-- Passer à plusieurs comptes resterait possible sans toucher au domaine.
+- Le second compte (une proche de l'utilisatrice) est créé à la main par l'opératrice via `scripts/create-user.ts` exécuté contre la base de production : aucune surface publique supplémentaire, pas de flux d'invitation. Chaque compte ne voit que ses propres données ([ADR-0011](0011-user-scoped-repositories.md)).
+- Passer à davantage de comptes resterait possible sans toucher au domaine.
 - Trois mécanismes de provisioning/récupération à maintenir : `scripts/create-user.ts`, `/setup` (avec son jeton `SETUP_TOKEN`), `scripts/reset-2fa.ts`.
 - Un secret `SETUP_TOKEN` supplémentaire à configurer avant le premier déploiement sans accès shell ; sans impact une fois le compte créé, la route se désactivant alors définitivement.

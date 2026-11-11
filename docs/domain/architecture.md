@@ -29,12 +29,13 @@ apps/web/
     (auth)/sign-in/          connexion
     (auth)/verify-2fa/       vérification du second facteur à la reconnexion
     (auth)/enroll-2fa/       enrôlement TOTP forcé à la première connexion
-    setup/                   création du compte unique sans accès shell (voir ADR-0008), fonctionnelle uniquement tant qu'aucun compte n'existe
+    setup/                   création du premier compte sans accès shell (voir ADR-0008), fonctionnelle uniquement tant qu'aucun compte n'existe
     (app)/                   pages protégées
       page.tsx               dashboard du mois
       months/[month]/        ouverture, clôture, opérations d'un mois
       settings/              postes fixes, enveloppes, provisions, catégories
       stats/                 dépenses nettes par catégorie sur une période (R39), calcul dans `operations/category-stats.ts`
+      tutorial/              parcours d'un mois pour une nouvelle utilisatrice, accessible à tout moment depuis le lien « Tutoriel » du menu
       profile/               prénom et mot de passe (Server Actions `actions/profile.ts`, logique dans `lib/profile.ts`)
   actions/                   Server Actions, une par intention (addExpense, openMonth…)
   schemas/                   schémas Zod des entrées
@@ -43,7 +44,7 @@ apps/web/
   lib/session.ts             récupération et vérification de la session
   components/                composants UI (shadcn/ui)
   proxy.ts                   redirection vers /sign-in si non connecté, vers /enroll-2fa si second facteur non configuré
-  scripts/create-user.ts     création du compte unique
+  scripts/create-user.ts     création des comptes, dont le second (plafond `MAX_ACCOUNTS`)
   scripts/reset-2fa.ts       réinitialisation du second facteur (perte totale, voir ADR-0008)
 
 packages/domain/src/

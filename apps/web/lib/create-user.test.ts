@@ -1,16 +1,17 @@
 import { createTestPrismaClient } from "@budget/db";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { createAuth } from "./auth";
-import { AccountAlreadyExistsError, createUser, hasAnyUser } from "./create-user";
+import { AccountLimitReachedError, createUser, hasAnyUser, MAX_ACCOUNTS } from "./create-user";
 
 const prisma = createTestPrismaClient();
 const auth = createAuth(prisma);
 
 const email = "create-user-test@example.com";
 const otherEmail = "create-user-test-2@example.com";
+const thirdEmail = "create-user-test-3@example.com";
 
 async function cleanup() {
-  await prisma.user.deleteMany({ where: { email: { in: [email, otherEmail] } } });
+  await prisma.user.deleteMany({ where: { email: { in: [email, otherEmail, thirdEmail] } } });
 }
 
 beforeAll(cleanup);
@@ -56,15 +57,33 @@ describe("createUser", () => {
 
     await expect(
       createUser(auth, { name: "Jane again", email, password: "another password" }),
-    ).rejects.toThrow(AccountAlreadyExistsError);
+    ).rejects.toThrow(AccountLimitReachedError);
   });
 
-  it("rejects creating a second user with a different email (ADR-0008: one account only)", async () => {
+  it("rejects creating a second user with a different email by default (/setup: one account only)", async () => {
     await createUser(auth, { name: "Jane", email, password: "correct horse battery staple" });
 
     await expect(
       createUser(auth, { name: "Someone else", email: otherEmail, password: "another password" }),
-    ).rejects.toThrow(AccountAlreadyExistsError);
+    ).rejects.toThrow(AccountLimitReachedError);
+  });
+
+  it("accepts a second user when maxAccounts allows it, but not a third", async () => {
+    const options = { maxAccounts: MAX_ACCOUNTS };
+    await createUser(
+      auth,
+      { name: "Jane", email, password: "correct horse battery staple" },
+      options,
+    );
+    await createUser(
+      auth,
+      { name: "Someone else", email: otherEmail, password: "another password" },
+      options,
+    );
+
+    await expect(
+      createUser(auth, { name: "Third", email: thirdEmail, password: "yet another one" }, options),
+    ).rejects.toThrow(AccountLimitReachedError);
   });
 });
 

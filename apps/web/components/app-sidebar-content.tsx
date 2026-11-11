@@ -1,4 +1,4 @@
-import { UserRound } from "lucide-react";
+import { CircleHelp, UserRound } from "lucide-react";
 import Link from "next/link";
 import { AppNav } from "@/components/app-nav";
 import { SignOutButton } from "@/components/sign-out-button";
@@ -23,6 +23,15 @@ export function AppSidebarContent() {
         <div className="flex items-center justify-between gap-2">
           <SignOutButton />
           <div className="flex items-center">
+            <Link
+              href="/tutorial"
+              prefetch={false}
+              aria-label="Tutoriel"
+              title="Tutoriel"
+              className={buttonVariants({ variant: "ghost", size: "icon" })}
+            >
+              <CircleHelp />
+            </Link>
             <Link
               href="/profile"
               prefetch={false}

@@ -11,16 +11,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { DEFAULT_PAGE_SIZE } from "@/lib/operations-pagination";
 
 export function OperationsFilters({
   month,
   q,
   categoryId,
+  pageSize,
   categories,
 }: {
   month: string;
   q: string;
   categoryId: string;
+  pageSize: number;
   categories: { id: string; label: string }[];
 }) {
   const router = useRouter();
@@ -38,6 +41,7 @@ export function OperationsFilters({
     const nextCategory = next.category ?? categoryId;
     if (nextQ) params.set("q", nextQ);
     if (nextCategory) params.set("category", nextCategory);
+    if (pageSize !== DEFAULT_PAGE_SIZE) params.set("perPage", String(pageSize));
     // Filtering keeps the scroll position: the field is typed into, often with the keyboard open on mobile.
     router.replace(`/operations?${params.toString()}`, { scroll: false });
   }

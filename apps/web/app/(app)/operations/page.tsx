@@ -48,6 +48,7 @@ import { resolveActiveMonth } from "@/lib/current-month";
 import { toExpenseLinkOptions } from "@/lib/expense-link-options";
 import { formatEuros } from "@/lib/format-money";
 import { formatMonthLabel } from "@/lib/format-month-label";
+import { clampPage, DEFAULT_PAGE_SIZE, parsePageSize } from "@/lib/operations-pagination";
 import { requireSession } from "@/lib/session";
 import { AddOperationDialogs } from "../_components/add-operation-dialogs";
 import { ContributionRow } from "../_components/contribution-row";
@@ -56,6 +57,7 @@ import { ExtraIncomeRow } from "../_components/extra-income-row";
 import { ReimbursementRow } from "../_components/reimbursement-row";
 import { SavingsTransferRow } from "../_components/savings-transfer-row";
 import { OperationsFilters } from "./operations-filters";
+import { OperationsPagination } from "./operations-pagination";
 
 /** How many of the latest expenses a reimbursement's "Dépense d'origine" proposes (R35). */
 const RECENT_EXPENSE_LINK_LIMIT = 50;
@@ -95,6 +97,8 @@ function Total({
 /** One line of the operations table, whatever its kind (docs/ui maquette, opsTable). */
 type OperationItem = {
   key: string;
+  kind: "expense" | "contribution" | "reimbursement" | "extraIncome" | "savingsTransfer";
+  amount: Money;
   date: CalendarDate;
   /** Breaks ties between kinds dated the same day. */
   kindOrder: number;
@@ -107,7 +111,13 @@ type OperationItem = {
 export default async function OperationsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ month?: string; q?: string; category?: string }>;
+  searchParams: Promise<{
+    month?: string;
+    q?: string;
+    category?: string;
+    page?: string;
+    perPage?: string;
+  }>;
 }) {
   const session = await requireSession();
   const params = await searchParams;
@@ -130,11 +140,13 @@ export default async function OperationsPage({
 
   const q = (params.q ?? "").trim();
   const requestedCategoryId = params.category ?? "";
-  // Month navigation keeps the search and the category filter.
+  const pageSize = parsePageSize(params.perPage);
+  // Month navigation keeps the search, the category filter and the page size; the page restarts at 1.
   const buildHref = (month: Month) => {
     const query = new URLSearchParams({ month: formatMonth(month) });
     if (q) query.set("q", q);
     if (requestedCategoryId) query.set("category", requestedCategoryId);
+    if (pageSize !== DEFAULT_PAGE_SIZE) query.set("perPage", String(pageSize));
     return `/operations?${query.toString()}`;
   };
 
@@ -260,6 +272,8 @@ export default async function OperationsPage({
           : (provisionLabels.get(expense.source.provisionId) ?? "");
       return {
         key: `expense-${expense.id}`,
+        kind: "expense",
+        amount: expense.amount,
         date: expense.date,
         kindOrder: 0,
         categoryId: expense.categoryId,
@@ -288,6 +302,8 @@ export default async function OperationsPage({
     ...contributions.map(
       (contribution): OperationItem => ({
         key: `contribution-${contribution.id}`,
+        kind: "contribution",
+        amount: contribution.amount,
         date: contribution.date,
         kindOrder: 1,
         searchText: `Versement ${provisionLabels.get(contribution.provisionId) ?? ""}`,
@@ -307,6 +323,8 @@ export default async function OperationsPage({
     ...reimbursements.map(
       (reimbursement): OperationItem => ({
         key: `reimbursement-${reimbursement.id}`,
+        kind: "reimbursement",
+        amount: reimbursement.amount,
         date: reimbursement.date,
         kindOrder: 2,
         categoryId: reimbursement.categoryId,
@@ -328,6 +346,8 @@ export default async function OperationsPage({
     ...extraIncomes.map(
       (extraIncome): OperationItem => ({
         key: `extra-income-${extraIncome.id}`,
+        kind: "extraIncome",
+        amount: extraIncome.amount,
         date: extraIncome.date,
         kindOrder: 3,
         searchText: `Entrée exceptionnelle ${extraIncome.label}`,
@@ -345,6 +365,8 @@ export default async function OperationsPage({
     ...savingsTransfers.map(
       (savingsTransfer): OperationItem => ({
         key: `savings-transfer-${savingsTransfer.id}`,
+        kind: "savingsTransfer",
+        amount: savingsTransfer.amount,
         date: savingsTransfer.date,
         kindOrder: 4,
         searchText: `Transfert épargne ${savingsTransfer.label ?? ""}`,
@@ -365,7 +387,11 @@ export default async function OperationsPage({
   const visibleItems = items
     .filter((item) => !categoryId || item.categoryId === categoryId)
     .filter((item) => !qLower || item.searchText.toLowerCase().includes(qLower))
-    .sort((a, b) => compareCalendarDates(a.date, b.date) || a.kindOrder - b.kindOrder);
+    .sort((a, b) => compareCalendarDates(b.date, a.date) || a.kindOrder - b.kindOrder);
+
+  const page = clampPage(params.page, visibleItems.length, pageSize);
+  const pageCount = Math.max(1, Math.ceil(visibleItems.length / pageSize));
+  const pageItems = visibleItems.slice((page - 1) * pageSize, page * pageSize);
 
   const filtering = Boolean(q || categoryId);
   const categoryLabel = categoryId ? categoriesById.get(categoryId)?.label : undefined;
@@ -376,13 +402,35 @@ export default async function OperationsPage({
         ? `Aucune opération ne correspond à « ${q} ».`
         : `Aucune opération dans la catégorie ${categoryLabel}.`;
 
-  const totalOf = (amounts: { amount: Money }[]) => sumMoney(amounts.map((entry) => entry.amount));
-  const totalSpent = totalOf(expenses);
-  const totalTransferred = totalOf(savingsTransfers);
-  // "Mis de côté" gathers what goes to provisions and what goes to savings (R37).
-  const totalSetAside = sumMoney([totalOf(contributions), totalTransferred]);
-  const totalReimbursed = totalOf(reimbursements);
-  const totalExtraIncome = totalOf(extraIncomes);
+  const summarize = (list: OperationItem[]) => {
+    const totalOfKind = (kind: OperationItem["kind"]) =>
+      sumMoney(list.filter((item) => item.kind === kind).map((item) => item.amount));
+    const transferred = totalOfKind("savingsTransfer");
+    return {
+      spent: totalOfKind("expense"),
+      transferred,
+      // "Mis de côté" gathers what goes to provisions and what goes to savings (R37).
+      setAside: sumMoney([totalOfKind("contribution"), transferred]),
+      reimbursed: totalOfKind("reimbursement"),
+      extraIncome: totalOfKind("extraIncome"),
+    };
+  };
+  const monthTotals = summarize(items);
+  // Shown next to the list when filtering, over every filtered operation and not just the visible page.
+  const filteredTotals = summarize(visibleItems);
+  // Nil totals are left out so the line only names what the filter actually matched.
+  const filteredFigures = filtering
+    ? [
+        filteredTotals.spent.cents > 0 &&
+          `Dépensé ${formatEuros(moneyToEuros(filteredTotals.spent))}`,
+        filteredTotals.setAside.cents > 0 &&
+          `Mis de côté ${formatEuros(moneyToEuros(filteredTotals.setAside))}`,
+        filteredTotals.reimbursed.cents > 0 &&
+          `Remboursé +${formatEuros(moneyToEuros(filteredTotals.reimbursed))}`,
+        filteredTotals.extraIncome.cents > 0 &&
+          `Entrées exceptionnelles +${formatEuros(moneyToEuros(filteredTotals.extraIncome))}`,
+      ].filter((figure): figure is string => Boolean(figure))
+    : [];
 
   const activeProvisions = provisions.filter((provision) => provision.status !== "closed");
   const dialogs = editable ? (
@@ -412,23 +460,24 @@ export default async function OperationsPage({
     <div className="flex flex-col gap-6">
       {renderHead(dialogs)}
       <dl className="grid grid-cols-2 gap-x-6 gap-y-4 md:grid-cols-[repeat(4,max-content)] md:gap-x-10">
-        <Total label="Dépensé" amount={totalSpent} />
+        <Total label="Dépensé" amount={monthTotals.spent} />
         <Total
           label="Mis de côté"
-          amount={totalSetAside}
+          amount={monthTotals.setAside}
           note={
-            totalTransferred.cents > 0
-              ? `dont ${formatEuros(moneyToEuros(totalTransferred))} vers l'épargne`
+            monthTotals.transferred.cents > 0
+              ? `dont ${formatEuros(moneyToEuros(monthTotals.transferred))} vers l'épargne`
               : undefined
           }
         />
-        <Total label="Remboursé" amount={totalReimbursed} incoming />
-        <Total label="Entrées exceptionnelles" amount={totalExtraIncome} incoming />
+        <Total label="Remboursé" amount={monthTotals.reimbursed} incoming />
+        <Total label="Entrées exceptionnelles" amount={monthTotals.extraIncome} incoming />
       </dl>
       <OperationsFilters
         month={formatMonth(viewedMonth)}
         q={q}
         categoryId={categoryId}
+        pageSize={pageSize}
         categories={categories}
       />
 
@@ -436,6 +485,7 @@ export default async function OperationsPage({
         <p role="status" className={filtering ? "text-sm text-muted-foreground" : "sr-only"}>
           {visibleItems.length} {visibleItems.length > 1 ? "opérations" : "opération"}
           {filtering ? ` sur ${items.length}` : ""}
+          {filteredFigures.map((figure) => ` · ${figure}`).join("")}
         </p>
         <div className="overflow-hidden rounded-xl border bg-card">
           {visibleItems.length > 0 ? (
@@ -454,7 +504,7 @@ export default async function OperationsPage({
                   {editable ? <TableHead /> : null}
                 </TableRow>
               </TableHeader>
-              <TableBody className="max-md:block">{visibleItems.map((item) => item.row)}</TableBody>
+              <TableBody className="max-md:block">{pageItems.map((item) => item.row)}</TableBody>
             </Table>
           ) : (
             <div className="flex flex-col items-start gap-3 p-4">
@@ -481,6 +531,16 @@ export default async function OperationsPage({
             </div>
           )}
         </div>
+        {visibleItems.length > 0 ? (
+          <OperationsPagination
+            month={formatMonth(viewedMonth)}
+            q={q}
+            categoryId={categoryId}
+            page={page}
+            pageSize={pageSize}
+            pageCount={pageCount}
+          />
+        ) : null}
       </div>
     </div>
   );

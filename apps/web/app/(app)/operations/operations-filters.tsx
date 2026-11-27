@@ -38,7 +38,8 @@ export function OperationsFilters({
     const nextCategory = next.category ?? categoryId;
     if (nextQ) params.set("q", nextQ);
     if (nextCategory) params.set("category", nextCategory);
-    router.replace(`/operations?${params.toString()}`);
+    // Filtering keeps the scroll position: the field is typed into, often with the keyboard open on mobile.
+    router.replace(`/operations?${params.toString()}`, { scroll: false });
   }
 
   function onSearchChange(value: string) {

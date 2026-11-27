@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.9.0](https://github.com/NollieChtn6/budget-planner/compare/budget-planner-v0.8.0...budget-planner-v0.9.0) (2026-11-27)
+
+
+### Features
+
+* **operations:** paginate, sort newest first and show filtered totals ([53aec80](https://github.com/NollieChtn6/budget-planner/commit/53aec80a62ed475a2b6fb570d6016e5f33a4517a))
+* **operations:** paginate, sort newest first and show filtered totals ([25a091d](https://github.com/NollieChtn6/budget-planner/commit/25a091dc6c90551c50f7e00541ee984109100196))
+* **operations:** paginate, sort newest first and show filtered totals ([95074a2](https://github.com/NollieChtn6/budget-planner/commit/95074a21f4dcc5e31e5a7fd7eb246a8ea1e9542f))
+
+
+### Bug Fixes
+
+* **operations:** keep scroll position when filtering ([9ace429](https://github.com/NollieChtn6/budget-planner/commit/9ace42957b9d6a96c260c342ae6a34b5440c5385))
+
 ## [0.8.0](https://github.com/NollieChtn6/budget-planner/compare/budget-planner-v0.7.1...budget-planner-v0.8.0) (2026-11-11)
 
 
